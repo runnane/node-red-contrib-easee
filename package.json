@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "ASP.NET Core 3.0 SignalR In and Out nodes",
   "author": "Scott Page",
-  "license": "ISC",
+  "license": "Apache 2.0",
   "keywords": [
     "node-red",
     "signalr",

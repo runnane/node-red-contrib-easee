@@ -1,0 +1,131 @@
+[
+  {
+      "id": "78a7859c.dca14c",
+      "type": "signalr in",
+      "z": "8a2331a5.10beb",
+      "name": "",
+      "client": "ee2e0108.db385",
+      "responses": [
+          {
+              "methodName": "SequenceExecuted"
+          }
+      ],
+      "outputs": 4,
+      "x": 480,
+      "y": 900,
+      "wires": [
+          [
+              "1e2b3114.72e85f"
+          ],
+          [
+              "1a30abc9.644e44"
+          ],
+          [
+              "b4e21b04.fe8a48"
+          ],
+          [
+              "9de65798.8e6738"
+          ]
+      ]
+  },
+  {
+      "id": "e42f3092.7af18",
+      "type": "signalr out",
+      "z": "8a2331a5.10beb",
+      "name": "",
+      "topic": "",
+      "client": "ee2e0108.db385",
+      "x": 800,
+      "y": 780,
+      "wires": []
+  },
+  {
+      "id": "58b5b589.21e83c",
+      "type": "inject",
+      "z": "8a2331a5.10beb",
+      "name": "Inject payload to SignalR Out",
+      "topic": "ExecuteSequence",
+      "payload": "[{\"info\":\"Example payload and can be anything your SignalR server understands\",\"type\":\"sequence\",\"callId\":\"MySequence01\",\"operations\":[{\"type\":\"command\",\"commandType\":\"query\",\"interfaceId\":\"gpib0\",\"deviceId\":\"fluke45\",\"writeData\":\"*IDN?\",\"readDataType\":\"string\",\"responseTag\":\"identity\"}]}]",
+      "payloadType": "json",
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "onceDelay": 0.1,
+      "x": 500,
+      "y": 780,
+      "wires": [
+          [
+              "e42f3092.7af18"
+          ]
+      ]
+  },
+  {
+      "id": "1e2b3114.72e85f",
+      "type": "debug",
+      "z": "8a2331a5.10beb",
+      "name": "Connected",
+      "active": true,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": false,
+      "complete": "payload",
+      "targetType": "msg",
+      "x": 730,
+      "y": 840,
+      "wires": []
+  },
+  {
+      "id": "1a30abc9.644e44",
+      "type": "debug",
+      "z": "8a2331a5.10beb",
+      "name": "Errors",
+      "active": true,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": false,
+      "complete": "true",
+      "targetType": "full",
+      "x": 710,
+      "y": 880,
+      "wires": []
+  },
+  {
+      "id": "b4e21b04.fe8a48",
+      "type": "debug",
+      "z": "8a2331a5.10beb",
+      "name": "Disconnected",
+      "active": true,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": false,
+      "complete": "payload",
+      "targetType": "msg",
+      "x": 740,
+      "y": 920,
+      "wires": []
+  },
+  {
+      "id": "9de65798.8e6738",
+      "type": "debug",
+      "z": "8a2331a5.10beb",
+      "name": "SequenceExecuted event response",
+      "active": true,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": false,
+      "complete": "payload",
+      "targetType": "msg",
+      "x": 800,
+      "y": 960,
+      "wires": []
+  },
+  {
+      "id": "ee2e0108.db385",
+      "type": "signalr-client",
+      "z": "",
+      "host": "192.168.0.10",
+      "port": "443",
+      "hub": "DeviceHub",
+      "secure": true
+  }
+]
