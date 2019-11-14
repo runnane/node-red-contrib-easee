@@ -36,7 +36,6 @@ module.exports = function (RED) {
     if (node.secure) portLabel = node.port === '443' ? '' : ':' + node.port;
     node.path = `${node.secure ? 'https://' : 'http://'}${node.host}${portLabel}/${node.hub}`;
 
-    node._inputNodes = []; // Collection of nodes that want to receive events
     node.closing = false; // Used to check if node-red is closing, or not, and if so decline any reconnect attempts.
 
     // Connect to remote endpoint
@@ -84,7 +83,6 @@ module.exports = function (RED) {
 
         connection.onreconnecting(err => {
           notifyOnError(err);
-          node.handleError(err);
         });
 
         connection.onreconnected(connectionId => {
@@ -97,12 +95,10 @@ module.exports = function (RED) {
             id: id
           });
           notifyOnError(err);
-          node.handleError(err);
           reconnect();
         });
       } catch (err) {
         notifyOnError(err);
-        node.handleError(err);
         reconnect();
       }
     }
@@ -121,25 +117,6 @@ module.exports = function (RED) {
   }
   RED.nodes.registerType("signalr-client", SignalRClientNode);
 
-  SignalRClientNode.prototype.registerInputNode = function ( /*Node*/ handler) {
-    this._inputNodes.push(handler);
-  }
-
-  SignalRClientNode.prototype.removeInputNode = function ( /*Node*/ handler) {
-    this._inputNodes.forEach(function (node, i, inputNodes) {
-      if (node === handler) {
-        inputNodes.splice(i, 1);
-      }
-    });
-  }
-
-  SignalRClientNode.prototype.handleError = function (err) {
-    var msg = {
-      payload: err
-    }
-    this._inputNodes.forEach(inputNode => inputNode.send([null, null, msg]))
-  }
-
   // =======================
   // === SignalR In node ===
   // =======================
@@ -153,7 +130,6 @@ module.exports = function (RED) {
       this.error(RED._("signalr.errors.missing-conf"));
       return;
     }
-    this.connectionConfig.registerInputNode(this);
     this.connectionConfig.on('opened', function (event) {
       node.status({
         fill: "green",
