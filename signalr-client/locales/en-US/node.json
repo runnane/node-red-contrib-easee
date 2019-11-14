@@ -9,7 +9,7 @@
         "client": "Client",
         "responses": "Responses",
         "secure": "Secure (https)",
-        "reconnectInterval": "Reconnect interval"
+        "reconnectInterval": "Reconnect interval (ms)"
     },
     "connectto": "Connect to",
     "sendrec": "Send/Receive",
