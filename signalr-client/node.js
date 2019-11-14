@@ -167,6 +167,8 @@ module.exports = function (RED) {
           id: event.id
         }
       });
+      // send the connected msg
+      node.send(['Connected', null, null]);
       node.responses.forEach((response, index) => {
         // subscribe to each methodName in configured responses
         node.connectionConfig.connection.on(response.methodName, (data) => {
@@ -186,8 +188,6 @@ module.exports = function (RED) {
           node.send(knownMsgs);
         });
       });
-      // send the connected msg
-      node.send(['Connected', null, null]);
     });
     this.connectionConfig.on('erro', function (event) {
       node.status({
