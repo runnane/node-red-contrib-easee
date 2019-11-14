@@ -32,6 +32,8 @@ module.exports = function (RED) {
     node.port = n.port;
     node.hub = n.hub;
     node.secure = n.secure;
+    node.reconnectInterval = parseInt(n.reconnectInterval);
+    if (node.reconnectInterval < 100) node.reconnectInterval = 100;
     var portLabel = node.port === '80' ? '' : ':' + node.port;
     if (node.secure) portLabel = node.port === '443' ? '' : ':' + node.port;
     node.path = `${node.secure ? 'https://' : 'http://'}${node.host}${portLabel}/${node.hub}`;
@@ -46,10 +48,6 @@ module.exports = function (RED) {
       var connection = new signalR.HubConnectionBuilder()
         .withUrl(node.path)
         .configureLogging(signalR.LogLevel.Information)
-        .withAutomaticReconnect(retryContext => {
-          if (node.closing) return null;
-          return 3000;
-        })
         .build();
       node.connection = connection; // keep for closing
       handleConnection(connection);
@@ -69,7 +67,7 @@ module.exports = function (RED) {
       function reconnect() {
         if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
         if (node.closing) return;
-        node.reconnectTimoutHandle = setTimeout(() => startconn(), 3000); // try to reconnect every 3 secs... bit fast ?
+        node.reconnectTimoutHandle = setTimeout(() => startconn(), node.reconnectInterval);
       }
 
       try {
@@ -79,14 +77,6 @@ module.exports = function (RED) {
         node.emit('opened', {
           count: '',
           id: id
-        });
-
-        connection.onreconnecting(err => {
-          notifyOnError(err);
-        });
-
-        connection.onreconnected(connectionId => {
-          id = connectionId;
         });
 
         connection.onclose(err => {
@@ -176,8 +166,9 @@ module.exports = function (RED) {
           id: event.id
         }
       });
-      // send the error msg
-      node.send([null, event.err, null]);
+      var errMsg = { payload: event.err };
+      if (event.id) errMsg._connectionId = event.id;
+      node.send([null, errMsg, null]);
     });
     this.connectionConfig.on('closed', function (event) {
       var status;
@@ -202,8 +193,7 @@ module.exports = function (RED) {
         id: event.id
       }
       node.status(status);
-      // send the error msg
-      node.send([null, null, 'Disconnected']);
+      node.send([null, null, { _connectionId: event.id, payload: "Disconnected" }]);
     });
     this.on('close', function (removed, done) {
       if (removed && node.connectionConfig) {

@@ -161,14 +161,20 @@
         host: { value: 'localhost', required: true },
         port: { value: '443', required: true },
         hub: { value: 'hub', required: true },
-        secure: { value: 'true', required: true }
+        secure: { value: 'true', required: true },
+        reconnectInterval: { value: 3000, required: true, validate: function(v) {
+            var interval = parseInt($('#node-config-input-reconnectInterval').val());
+            if (isNaN(interval)) return false;
+            return interval >= 100;
+          }
+        }
       },
       inputs:0,
       outputs:0,
       label: function() {
         var portLabel = this.port === '80' ? '' : ':' + this.port;
         if (this.secure) portLabel = this.port === '443' ? '' : ':' + this.port;
-        return `${this.secure ? 'https://' : 'http://'}${this.host}${portLabel}/${this.hub}`;
+        return `${this.secure ? 'https://' : 'http://'}${this.host}${portLabel}/${this.hub} \(${this.reconnectInterval} ms\)`;
       }
   });
 
@@ -193,9 +199,14 @@
     <label for="node-config-input-secure"><i class="fa fa-send"></i> <span data-i18n="signalr.label.secure"></span></label>
     <input id="node-config-input-secure" type="checkbox" style="display: inline-block; width: auto; vertical-align: top;">
   </div>
+  <div class="form-row">
+    <label for="node-config-input-reconnectInterval"><i class="fa fa-bookmark"></i> <span data-i18n="signalr.label.reconnectInterval"></span></label>
+    <input id="node-config-input-reconnectInterval" type="text" placeholder="3000" />
+  </div>
   <div class="form-tips">
       <p><span data-i18n="[html]signalr.tip.host"></span></p>
       <p><span data-i18n="[html]signalr.tip.payload"></span></p>
+      <p><span data-i18n="[html]signalr.tip.reconnectInterval"></span></p>
   </div>
 </script>
 
