@@ -6,6 +6,7 @@
         "host": "Host",
         "port": "Port",
         "hub": "Hub",
+        "token": "Token",
         "client": "Client",
         "responses": "Responses",
         "secure": "Secure (https)",
