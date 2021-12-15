@@ -32,6 +32,7 @@ module.exports = function (RED) {
     node.port = n.port;
     node.hub = n.hub;
     node.secure = n.secure;
+    node.options = JSON.parse(n.options);
     node.reconnectInterval = parseInt(n.reconnectInterval);
     if (node.reconnectInterval < 100) node.reconnectInterval = 100;
     var portLabel = node.port === '80' ? '' : ':' + node.port;
@@ -46,7 +47,7 @@ module.exports = function (RED) {
       if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
       node.reconnectTimoutHandle = null;
       var connection = new signalR.HubConnectionBuilder()
-        .withUrl(node.path)
+        .withUrl(node.path, node.options)
         .configureLogging(signalR.LogLevel.Information)
         .build();
       node.connection = connection; // keep for closing
