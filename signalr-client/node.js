@@ -33,6 +33,7 @@ module.exports = function (RED) {
     node.hub = n.hub;
     node.secure = n.secure;
     node.token = n.token;
+    node.options = {};
     node.reconnectInterval = parseInt(n.reconnectInterval);
 
     if (node.reconnectInterval < 100) node.reconnectInterval = 100;
@@ -52,10 +53,15 @@ module.exports = function (RED) {
       node.reconnectTimoutHandle = null;
       let options = {};
       if(node.token){
-        options.access_token_factory = getaccesstoken;
+        node.options.access_token_factory = getaccesstoken;
       }
+
+      console.log(node.path);
+      console.log(node.options);
+      console.log(getaccesstoken());
+
       var connection = new signalR.HubConnectionBuilder()
-        .withUrl(node.path, options)
+        .withUrl(node.path, node.options)
         .configureLogging(signalR.LogLevel.Information)
         .build();
 
