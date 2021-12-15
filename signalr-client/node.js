@@ -62,7 +62,7 @@ module.exports = function (RED) {
 
       var connection = new signalR.HubConnectionBuilder()
         .withUrl(node.path, node.options)
-        .configureLogging(signalR.LogLevel.Information)
+        .configureLogging(signalR.LogLevel.Debug)
         .build();
 
       node.connection = connection; // keep for closing
