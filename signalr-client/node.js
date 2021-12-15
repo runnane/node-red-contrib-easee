@@ -51,14 +51,10 @@ module.exports = function (RED) {
       node.closing = false;
       if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
       node.reconnectTimoutHandle = null;
-      let options = {};
-      if(node.token){
-        node.options.access_token_factory = getaccesstoken;
-      }
 
-      console.log(node.path);
-      console.log(node.options);
-      console.log(getaccesstoken());
+      if(node.token) {
+        node.options.accessTokenFactory = () => node.token;
+      }
 
       var connection = new signalR.HubConnectionBuilder()
         .withUrl(node.path, node.options)

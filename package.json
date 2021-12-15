@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-signalrcore",
-  "version": "9.0.3",
+  "version": "9.0.4",
   "description": "ASP.NET Core 3.0 SignalR In and Out nodes. Added options support",
   "author": "Scott Page",
   "homepage": "https://github.com/runnane/node-red-contrib-signalrcore",
