@@ -161,14 +161,7 @@
         host: { value: 'localhost', required: true },
         port: { value: '443', required: true },
         hub: { value: 'hub', required: true },
-        options: { value: 'options', required: false,validate: function(v) {
-                try {
-                    JSON.parse($('#node-config-input-options').val());
-                } catch (e) {
-                    return false;
-                }
-                return true;
-            }},
+        token: { value: 'token', required: false },
         secure: { value: 'true', required: true },
         reconnectInterval: { value: 3000, required: true, validate: function(v) {
             var interval = parseInt($('#node-config-input-reconnectInterval').val());
@@ -204,8 +197,8 @@
       <input id="node-config-input-hub" type="text" placeholder="hub" />
   </div>
     <div class="form-row">
-      <label for="node-config-input-options"><i class="fa fa-train"></i> <span data-i18n="signalr.label.options"></span></label>
-      <input id="node-config-input-options" type="text" placeholder="{}" />
+      <label for="node-config-input-token"><i class="fa fa-train"></i> <span data-i18n="signalr.label.token"></span></label>
+      <input id="node-config-input-token" type="text" placeholder="" />
   </div>
   <div class="form-row">
     <label for="node-config-input-secure"><i class="fa fa-lock"></i> <span data-i18n="signalr.label.secure"></span></label>

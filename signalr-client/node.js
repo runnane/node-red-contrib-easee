@@ -32,8 +32,9 @@ module.exports = function (RED) {
     node.port = n.port;
     node.hub = n.hub;
     node.secure = n.secure;
-    node.options = JSON.parse(n.options);
+    node.token = n.token;
     node.reconnectInterval = parseInt(n.reconnectInterval);
+
     if (node.reconnectInterval < 100) node.reconnectInterval = 100;
     var portLabel = node.port === '80' ? '' : ':' + node.port;
     if (node.secure) portLabel = node.port === '443' ? '' : ':' + node.port;
@@ -41,15 +42,23 @@ module.exports = function (RED) {
 
     node.closing = false; // Used to check if node-red is closing, or not, and if so decline any reconnect attempts.
 
+    function getaccesstoken(){
+      return node.token;
+    }
     // Connect to remote endpoint
     function startconn() {
       node.closing = false;
       if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
       node.reconnectTimoutHandle = null;
+      let options = {};
+      if(node.token){
+        options.access_token_factory = getaccesstoken;
+      }
       var connection = new signalR.HubConnectionBuilder()
-        .withUrl(node.path, node.options)
+        .withUrl(node.path, options)
         .configureLogging(signalR.LogLevel.Information)
         .build();
+
       node.connection = connection; // keep for closing
       handleConnection(connection);
     }
