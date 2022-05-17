@@ -1,10 +1,9 @@
 {
-  "name": "node-red-contrib-signalrcore",
-  "version": "9.0.4",
-  "description": "ASP.NET Core 3.0 SignalR In and Out nodes. Added options support",
-  "author": "Scott Page",
-  "homepage": "https://github.com/runnane/node-red-contrib-signalrcore",
-  "bugs": "https://github.com/runnane/node-red-contrib-signalrcore/issues",
+  "name": "node-red-contrib-easee",
+  "version": "0.0.1",
+  "description": "Module for streaming Easee data. Based in node-red-contrib-signalrcore",
+  "author": "Jon Tungland",
+  "homepage": "https://github.com/runnane/node-red-contrib-easee",
   "license": "Apache-2.0",
   "keywords": [
     "node-red",
@@ -13,14 +12,16 @@
     "dotnet",
     "aspnet",
     "asp.net",
-    "core"
+    "core",
+    "easee"
   ],
   "dependencies": {
-    "@microsoft/signalr": "3.0.0"
+    "@microsoft/signalr": "3.0.0",
+    "node-fetch" : "*"
   },
   "node-red": {
     "nodes": {
-      "signalr-client": "signalr-client/node.js"
+      "signalr-client": "easee-client/node.js"
     }
   }
 }
