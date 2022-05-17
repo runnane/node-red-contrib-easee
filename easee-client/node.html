@@ -23,12 +23,6 @@
     <label for="node-input-client"><i class="fa fa-bookmark"></i> <span data-i18n="signalr.label.client"></span></label>
     <input type="text" id="node-input-client" />
   </div>
-  <div class="form-row" style="margin-bottom:0;">
-      <label><i class="fa fa-list"></i> <span data-i18n="signalr.label.responses"></span></label>
-  </div>
-  <div class="form-row node-input-responses-container-row">
-      <ol id="node-input-responses-container"></ol>
-  </div>
 </script>
 
 <!-- SignalR out Node -->
@@ -67,75 +61,33 @@
   RED.nodes.registerType('signalr in', {
       category: 'network',
       defaults: {
-          name: { value: '' },
+          name: { value: 'easee' },
           client: { type: 'signalr-client', validate: sr_validateclient },
-          responses: { value: [], validate: function(v) {
-              var isValid = v.length > 0;
-              v.forEach(response => {
-                if (!response.methodName || response.methodName.length <= 0) isValid = false;
-              });
-              return isValid;
-            }
-          },
-          outputs: { value: 1 }
+          outputs: { value: 6 }
       },
       color: 'rgb(215, 215, 160)',
       inputs: 0,
-      outputs: 3, // 3 known - connected, errors, disconnected - then ...responses
+      outputs: 6,
       icon: 'white-globe.svg',
       labelStyle: function() {
           return this.name ? 'node_label_italic' : '';
       },
-      label: sr_label,
+      label: "easee",
       outputLabels: function(index) {
         if (index == 0) return "Connected";
         if (index == 1) return "Errors";
         if (index == 2) return "Disconnected";
-        return this.responses[index - 3].methodName;
+        if (index == 3) return "ProductUpdate";
+        if (index == 4) return "ChargerUpdate";
+        if (index == 5) return "CommandResponse";
+        
+        
       },
-      paletteLabel: 'ASP.NET 3.0 SignalR Input',
-      oneditprepare: function() {
-        const container = $('#node-input-responses-container');
-        function resizeItem(row) {
-          var newWidth = row.width();
-          row.find('.red-ui-typedInput').typedInput('width', newWidth - 130);
-        };
-        container.css('min-height', '300px');
-        container.css('min-width', '450px');
-        container.editableList({
-          addItem: function(row, index, item) {
-            $('<div/>',{ style: 'display:inline-block; text-align:right; width:120px; padding-right:10px; box-sizing:border-box;' }).text('Method').appendTo(row);
-            var field = $('<input/>', { class: 'node-input-response-method-name', type: 'text', value: item.methodName }).appendTo(row);
-          },
-          resizeItem,
-          removable: true,
-          sortable: true
-        });
-        if (!this.responses) this.responses = [];
-        container.editableList('addItems', this.responses);
-      },
-      oneditsave: function() {
-        var node = this;
-        var items = $('#node-input-responses-container').editableList('items');
-        node.outputs = items.length + 3;
-        node.responses = [];
-        items.each(function(index, item) {
-          var method = {
-            methodName: item.find('.node-input-response-method-name').val()
-          };
-          node.responses.push(method);
-        });
-      },
-      oneditresize: function (size) {
-        var height = size.height;
-        var rows = $('div[class^="node-input-responses-container-row"');
-        rows.each((index, row) => height -= $(row).outerHeight(true));
-        var editorRow = $('.node-input-operation-container-row');
-        height -= (parseInt(editorRow.css('marginTop')) + parseInt(editorRow.css('marginBottom')));
-        $('#node-input-responses-container').editableList('height', height);
-      }
+      paletteLabel: 'easee SignalR client',
+
   });
 
+  /*
   RED.nodes.registerType('signalr out', {
       category: 'network',
       defaults: {
@@ -154,16 +106,14 @@
       label: sr_label,
       paletteLabel: 'ASP.NET 3.0 SignalR Output',
   });
+  */
 
   RED.nodes.registerType('signalr-client', {
       category: 'config',
       defaults: {
-        host: { value: 'api.easee.cloud', required: true },
-        port: { value: '443', required: true },
-        hub: { value: 'hubs/chargers', required: true },
-        token: { value: 'token', required: false },
         username: { value: 'username', required: true },
         password: { value: 'password', required: true },
+        charger: { value: 'charger', required: true },
         secure: { value: 'true', required: true },
         reconnectInterval: { value: 3000, required: true, validate: function(v) {
             var interval = parseInt($('#node-config-input-reconnectInterval').val());
@@ -174,11 +124,7 @@
       },
       inputs:0,
       outputs:0,
-      label: function() {
-        var portLabel = this.port === '80' ? '' : ':' + this.port;
-        if (this.secure) portLabel = this.port === '443' ? '' : ':' + this.port;
-        return `${this.secure ? 'https://' : 'http://'}${this.host}${portLabel}/${this.hub} \(${this.reconnectInterval} ms\)`;
-      }
+      label: 'api-easee-cloud'
   });
 
 })();
@@ -186,34 +132,21 @@
 
 <!-- SignalR Client configuration node -->
 <script type="text/x-red" data-template-name="signalr-client">
-  <div class="form-row">
-      <label for="node-config-input-host"><i class="fa fa-server"></i> <span data-i18n="signalr.label.host"></span></label>
-      <input id="node-config-input-host" type="text" placeholder="example.com" />
-  </div>
-  <div class="form-row">
-      <label for="node-config-input-port"><i class="fa fa-sign-in"></i> <span data-i18n="signalr.label.port"></span></label>
-      <input id="node-config-input-port" type="text" placeholder="80" />
-  </div>
-  <div class="form-row">
-      <label for="node-config-input-hub"><i class="fa fa-train"></i> <span data-i18n="signalr.label.hub"></span></label>
-      <input id="node-config-input-hub" type="text" placeholder="hub" />
-  </div>
-    <div class="form-row">
-      <label for="node-config-input-token"><i class="fa fa-train"></i> <span data-i18n="signalr.label.token"></span></label>
-      <input id="node-config-input-token" type="text" placeholder="token" />
-  </div>
+ 
+  
   <div class="form-row">
     <label for="node-config-input-username"><i class="fa fa-train"></i> <span data-i18n="signalr.label.username"></span></label>
     <input id="node-config-input-username" type="text" placeholder="username" />
 </div>
 <div class="form-row">
   <label for="node-config-input-password"><i class="fa fa-train"></i> <span data-i18n="signalr.label.password"></span></label>
-  <input id="node-config-input-password" type="text" placeholder="password" />
+  <input id="node-config-input-password" type="password" placeholder="password" />
 </div>
-  <div class="form-row">
-    <label for="node-config-input-secure"><i class="fa fa-lock"></i> <span data-i18n="signalr.label.secure"></span></label>
-    <input id="node-config-input-secure" type="checkbox" style="display: inline-block; width: auto; vertical-align: top;">
-  </div>
+<div class="form-row">
+  <label for="node-config-input-charger"><i class="fa fa-train"></i> <span data-i18n="signalr.label.charger"></span></label>
+  <input id="node-config-input-charger" type="text" placeholder="charger" />
+</div>
+ 
   <div class="form-row">
     <label for="node-config-input-reconnectInterval"><i class="fa fa-clock-o"></i> <span data-i18n="signalr.label.reconnectInterval"></span></label>
     <input id="node-config-input-reconnectInterval" type="text" placeholder="3000" />

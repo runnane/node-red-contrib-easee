@@ -29,25 +29,35 @@ module.exports = function (RED) {
     var node = this;
 
     // Local copies of the node configuration (as defined in the .html)
-    node.host = n.host;
-    node.port = n.port;
-    node.hub = n.hub;
+   
+
     node.secure = n.secure;
     node.token = false;
     node.username = n.username;
     node.password = n.password;
+    node.charger = n.charger;
     node.options = {};
     node.reconnectInterval = parseInt(n.reconnectInterval);
 
     if (node.reconnectInterval < 100) node.reconnectInterval = 100;
-    var portLabel = node.port === '80' ? '' : ':' + node.port;
-    if (node.secure) portLabel = node.port === '443' ? '' : ':' + node.port;
-    node.path = `${node.secure ? 'https://' : 'http://'}${node.host}${portLabel}/${node.hub}`;
+    node.path = 'https://api.easee.cloud/hubs/chargers';
 
     node.closing = false; // Used to check if node-red is closing, or not, and if so decline any reconnect attempts.
 
     // Get token for SignalR auth
     async function getToken(){
+      if(!node.username) {
+        console.log("[easee] No username, exiting");
+        return;
+      }
+      if(!node.password) {
+        console.log("[easee] No password, exiting");
+        return;
+      }
+      if(!node.charger) {
+        console.log("[easee] No charger, exiting");
+        return;
+      }
       const body = { userName: node.username, password: node.password };
       const response = await fetch('https://api.easee.cloud/api/accounts/login', {
         method: 'post',
@@ -55,7 +65,7 @@ module.exports = function (RED) {
         headers: {'Content-Type': 'application/json'}
       });
       const data = await response.json();
-      console.log(data.accessToken);
+      console.log("[easee] Got token: " + data.accessToken);
       node.token = data.accessToken
     }
 
@@ -66,9 +76,23 @@ module.exports = function (RED) {
       if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
       node.reconnectTimoutHandle = null;
 
-      if(node.token) {
-        node.options.accessTokenFactory = () => node.token;
+      if(!node.charger) {
+        console.log("[easee] No charger, exiting");
+        node.emit('erro', {
+          err: "No charger, exiting",
+        });
+        return;
       }
+      if(!node.token) {
+        console.log("[easee] No token, waiting");
+        node.emit('erro', {
+          err: "No token, waiting",
+        });
+        node.reconnectTimoutHandle = setTimeout(() => startconn(), node.reconnectInterval);
+        return;
+      }
+
+      node.options.accessTokenFactory = () => node.token;
 
       var connection = new signalR.HubConnectionBuilder()
         .withUrl(node.path, node.options)
@@ -143,11 +167,13 @@ module.exports = function (RED) {
     node.client = n.client;
     node.responses = n.responses;
     node.connectionConfig = RED.nodes.getNode(this.client);
+
     if (!this.connectionConfig) {
       this.error(RED._("signalr.errors.missing-conf"));
       return;
     }
     this.connectionConfig.on('opened', function (event) {
+      console.log("[easee] onOpened()");
       node.status({
         fill: "green",
         shape: "dot",
@@ -160,28 +186,32 @@ module.exports = function (RED) {
           id: event.id
         }
       });
+
       // send the connected msg
       node.send([{ _connectionId: event.id, payload: "Connected" }, null, null]);
-      node.responses.forEach((response, index) => {
-        // subscribe to each methodName in configured responses
-        node.connectionConfig.connection.on(response.methodName, (data) => {
-          // we're in a callback from the server
-          var newMsg = {
-            payload: data
-          };
-          var knownMsgs = [null, null, null]; // make room for connected, errors, and disconnected
-          for (let outputNumber = 0; outputNumber < node.responses.length; outputNumber++) {
-            if (outputNumber === index) {
-              // this is our msg output
-              knownMsgs.push(newMsg);
-            } else {
-              knownMsgs.push(null);
-            };
-          }
-          node.send(knownMsgs);
-        });
+
+      console.log("[easee] Connected, sending SubscribeWithCurrentState");
+      node.connectionConfig.connection.send("SubscribeWithCurrentState", node.connectionConfig.charger, true);
+
+      node.connectionConfig.connection.on("ProductUpdate", (data) => {
+        //console.log("[easee] got ProductUpdate");
+        node.send([null, null, null, { payload: data}, null, null]);
       });
+
+      node.connectionConfig.connection.on("ChargerUpdate", (data) => {
+        //console.log("[easee] got ProductUpdate");
+        node.send([null, null, null, null, { payload: data}, null]);
+      });
+      node.connectionConfig.connection.on("CommandResponse", (data) => {
+        //console.log("[easee] got ProductUpdate");
+        node.send([null, null, null,null, null,{ payload: data}]);
+      });
+
+      
+      
+
     });
+   
     this.connectionConfig.on('erro', function (event) {
       node.status({
         fill: "red",
