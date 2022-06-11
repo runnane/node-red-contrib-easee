@@ -14,6 +14,7 @@
  * limitations under the License.
  **/
 
+
 module.exports = function (RED) {
   "use strict";
   const signalR = require("@microsoft/signalr");
@@ -29,7 +30,7 @@ module.exports = function (RED) {
     var node = this;
 
     // Local copies of the node configuration (as defined in the .html)
-   
+
 
     node.secure = n.secure;
     node.token = false;
@@ -45,16 +46,16 @@ module.exports = function (RED) {
     node.closing = false; // Used to check if node-red is closing, or not, and if so decline any reconnect attempts.
 
     // Get token for SignalR auth
-    async function getToken(){
-      if(!node.username) {
+    async function getToken() {
+      if (!node.username) {
         console.log("[easee] No username, exiting");
         return;
       }
-      if(!node.password) {
+      if (!node.password) {
         console.log("[easee] No password, exiting");
         return;
       }
-      if(!node.charger) {
+      if (!node.charger) {
         console.log("[easee] No charger, exiting");
         return;
       }
@@ -62,7 +63,7 @@ module.exports = function (RED) {
       const response = await fetch('https://api.easee.cloud/api/accounts/login', {
         method: 'post',
         body: JSON.stringify(body),
-        headers: {'Content-Type': 'application/json'}
+        headers: { 'Content-Type': 'application/json' }
       });
       const data = await response.json();
       console.log("[easee] Got token: " + data.accessToken);
@@ -76,14 +77,14 @@ module.exports = function (RED) {
       if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
       node.reconnectTimoutHandle = null;
 
-      if(!node.charger) {
+      if (!node.charger) {
         console.log("[easee] No charger, exiting");
         node.emit('erro', {
           err: "No charger, exiting",
         });
         return;
       }
-      if(!node.token) {
+      if (!node.token) {
         console.log("[easee] No token, waiting");
         node.emit('erro', {
           err: "No token, waiting",
@@ -195,23 +196,23 @@ module.exports = function (RED) {
 
       node.connectionConfig.connection.on("ProductUpdate", (data) => {
         //console.log("[easee] got ProductUpdate");
-        node.send([null, null, null, { payload: data}, null, null]);
+        node.send([null, null, null, { payload: data }, null, null]);
       });
 
       node.connectionConfig.connection.on("ChargerUpdate", (data) => {
         //console.log("[easee] got ProductUpdate");
-        node.send([null, null, null, null, { payload: data}, null]);
+        node.send([null, null, null, null, { payload: data }, null]);
       });
       node.connectionConfig.connection.on("CommandResponse", (data) => {
         //console.log("[easee] got ProductUpdate");
-        node.send([null, null, null,null, null,{ payload: data}]);
+        node.send([null, null, null, null, null, { payload: data }]);
       });
 
-      
-      
+
+
 
     });
-   
+
     this.connectionConfig.on('erro', function (event) {
       node.status({
         fill: "red",
