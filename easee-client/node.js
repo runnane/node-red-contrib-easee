@@ -357,7 +357,19 @@ module.exports = function (RED) {
           {
             "observationId": 38,
             "name": "PhaseMode",
-            "dataType": 4
+            "dataType": 4,
+            "valueMapping" : (val) => {
+              // https://developer.easee.cloud/docs/enumerations
+              const modes = {
+                0 : "Ignore,no phase mode reported",
+                1 : "Locked to 1-phase",  
+                2 : "Auto phase mode", 
+                3 : "Locked to 3-phase", 
+              }
+              return modes[val];
+            }
+
+
           },
           {
             "observationId": 40,
@@ -502,7 +514,56 @@ module.exports = function (RED) {
           {
             "observationId": 96,
             "name": "ReasonForNoCurrent",
-            "dataType": 4
+            "dataType": 4,
+            "valueMapping" : (val) => {
+              // https://developer.easee.cloud/docs/enumerations
+
+              const modes = {
+                0 : "Charger Fine",   // Charger is OK, use main charger status
+
+                1 : "Loadbalancing",  // Max circuit current too low, adjust power circuit up.
+                2 : "Loadbalancing",  // Max dynamic circuit current too low (Partner Loadbalancing)
+                3 : "Loadbalancing",  // Max dynamic offline fallback circuit current too low.
+                4 : "Loadbalancing",  // Circuit fuse too low.
+                5 : "Loadbalancing",  // Waiting in queue
+                6 : "Loadbalancing",  // Waiting in fully charged queue (Assumes a connected EV uses delated charging, EV Charging complete.
+             
+                7 : "Error",   // illegal grid type (Error - Fault in automatic grid type detection)
+                8 : "Error",   // primary unit has not received current request from secondary unit (car)
+                9 : "Error",   // Master communication lost (Error)
+                10 : "Error",  // No current from equalizer to low.
+                11 : "Error",  // No current, phase not connected.
+
+                25 : "Error",   // Current limited by circuit fuse.
+                26 : "Error",   // Current limited by circuit max current.
+                27 : "Error",   // Current limited by dynamic circuit current.
+                28 : "Error",   // Current limited by equalizer.
+                29 : "Error",   // Current limited by circuit load balancing.
+
+                50 : "Load balancing circuit",   // Secondary unit not requesting current (No car connected)
+                51 : "Load balancing circuit",   // Max charger current too low.
+                52 : "Load balancing circuit",   // Max Dynamic charger current too low
+
+                53 : "Informational",   // Charger disabled.
+
+                54 : "Waiting",   // Pending scheduled charging
+                55 : "Waiting",   // Pending authorization
+
+                56 : "Error",   // Charger in error state.
+                57 : "Error",   // Erratic EV
+
+                75 : "Cable",           // Current limited by cable rating.
+                76 : "Schedule",        // Current limited by schedule.
+                77 : "Charger Limit",   // Current limited by charger max current.
+                78 : "Charger Limit",   // Current limited by dynamic charger current.
+                79 : "Car Limit",       // Current limited by car not charging.
+                80 : "???",             // Current limited by local adjustment.
+                81 : "Car Limit",       // Current limited by car.
+                100 : "UndefinedError", // Max Dynamic charger current too low
+
+              }
+              return modes[val];
+            }
           },
           {
             "observationId": 97,
@@ -568,7 +629,9 @@ module.exports = function (RED) {
             "observationId": 109,
             "name": "ChargerOpMode",
             "dataType": 4,
-            "valueMapping" : function(val){
+            "valueMapping" : (val) => {
+              // https://developer.easee.cloud/docs/enumerations
+
               const modes = {
                 0 : "Offline",
                 1 : "Disconnected",
