@@ -14,7 +14,7 @@
   limitations under the License.
 -->
 <!-- SignalR Input Node -->
-<script type="text/x-red" data-template-name="signalr in">
+<script type="text/x-red" data-template-name="charger-client">
   <div class="form-row">
     <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="node-red:common.label.name"></span></label>
     <input type="text" id="node-input-name" data-i18n="[placeholder]node-red:common.label.name" />
@@ -58,11 +58,11 @@
     return RED.nodes.node(this.client) != null;
   }
 
-  RED.nodes.registerType('signalr in', {
+  RED.nodes.registerType('charger-client', {
       category: 'network',
       defaults: {
           name: { value: 'easee' },
-          client: { type: 'signalr-client', validate: sr_validateclient },
+          client: { type: 'easee-streaming-client', validate: sr_validateclient },
           outputs: { value: 6 }
       },
       color: 'rgb(215, 215, 160)',
@@ -87,7 +87,7 @@
 
   });
 
-  RED.nodes.registerType('signalr-client', {
+  RED.nodes.registerType('easee-streaming-client', {
       category: 'config',
       defaults: {
         username: { value: 'username', required: true },
@@ -110,7 +110,7 @@
 </script>
 
 <!-- SignalR Client configuration node -->
-<script type="text/x-red" data-template-name="signalr-client">
+<script type="text/x-red" data-template-name="easee-streaming-client">
  
   
   <div class="form-row">
@@ -137,7 +137,7 @@
   </div>
 </script>
 
-<script type="text/x-red" data-help-name="signalr in">
+<script type="text/x-red" data-help-name="charger-client">
   <p>ASP.NET Core 3.0 SignalR input node</p>
   <h3>Outputs</h3>
     <dl class="message-properties">
@@ -169,6 +169,6 @@
       by <code>msg.topic</code>.</p>
 </script>
 
-<script type="text/x-red" data-help-name="signalr-client">
+<script type="text/x-red" data-help-name="easee-streaming-client">
   <p>Connects a ASP.NET Core 3.0 SignalR client to the specified URL.</p>
 </script>

@@ -24,13 +24,12 @@ module.exports = function (RED) {
   // =======================
   // === SignalR Configuration/Connection node ===
   // =======================
-  function SignalRClientNode(n) {
+  function EaseeStreamingClientNode(n) {
     // Create a RED node
     RED.nodes.createNode(this, n);
     var node = this;
 
     // Local copies of the node configuration (as defined in the .html)
-
 
     node.secure = n.secure;
 
@@ -71,7 +70,6 @@ module.exports = function (RED) {
         });
 
         const data = await response.json();
-   //     const headers = response.headers();
         if(!response.ok){
              // failed getting token
              console.log(data);
@@ -126,9 +124,6 @@ module.exports = function (RED) {
 
       node.refreshTokenHandler = setTimeout(() => refreshToken(), 60*60*3 * 1000);
     }
-
-    
-
 
     // Connect to remote endpoint
     function startconn() {
@@ -218,12 +213,12 @@ module.exports = function (RED) {
       }
     });
   }
-  RED.nodes.registerType("signalr-client", SignalRClientNode);
+  RED.nodes.registerType("easee-streaming-client", EaseeStreamingClientNode);
 
   // =======================
   // === SignalR In node ===
   // =======================
-  function SignalRInNode(n) {
+  function ChargerClientNode(n) {
     RED.nodes.createNode(this, n);
     var node = this;
     node.client = n.client;
@@ -1140,101 +1135,6 @@ module.exports = function (RED) {
       if (done) done();
     });
   }
-  RED.nodes.registerType("signalr in", SignalRInNode);
+  RED.nodes.registerType("signalr in", ChargerClientNode);
 
-  // =======================
-  // === SignalR Out node ===
-  // =======================
-  function SignalROutNode(n) {
-    RED.nodes.createNode(this, n);
-    var node = this;
-    node.client = n.client;
-    node.connectionConfig = RED.nodes.getNode(this.client);
-    if (!node.connectionConfig) {
-      this.error(RED._("signalr.errors.missing-conf"));
-      return
-    }
-    node.connectionConfig.on('opened', function (event) {
-      node.status({
-        fill: "green",
-        shape: "dot",
-        text: RED._("signalr.status.connected", {
-          count: event.count
-        }),
-        event: "connect",
-        _session: {
-          type: "signalr",
-          id: event.id
-        }
-      });
-    });
-    node.connectionConfig.on('erro', function (event) {
-      node.status({
-        fill: "red",
-        shape: "ring",
-        text: RED._("node-red:common.status.error"),
-        event: "error",
-        _session: {
-          type: "signalr",
-          id: event.id
-        }
-      })
-    });
-    node.connectionConfig.on('closed', function (event) {
-      var status;
-      if (event.count > 0) {
-        status = {
-          fill: "green",
-          shape: "dot",
-          text: RED._("signalr.status.connected", {
-            count: event.count
-          })
-        };
-      } else {
-        status = {
-          fill: "red",
-          shape: "ring",
-          text: RED._("node-red:common.status.disconnected")
-        };
-      }
-      status.event = "disconnect";
-      status._session = {
-        type: "signalr",
-        id: event.id
-      }
-      node.status(status);
-    });
-    node.on("input", function (msg, nodeSend, nodeDone) {
-      var methodName = msg.topic;
-      var payload = msg.payload;
-      var connectionConfig = node.connectionConfig;
-      if (!connectionConfig) {
-        node.error('Unable to find connection configuration');
-        if (nodeDone) nodeDone();
-        return;
-      }
-      if (!methodName) {
-        node.error('Missing msg.topic');
-        if (nodeDone) nodeDone();
-        return;
-      }
-      if (!payload) {
-        node.error('Missing msg.payload');
-        if (nodeDone) nodeDone();
-        return;
-      }
-      if (!Array.isArray(payload)) {
-        node.error('msg.payload must be an array');
-        if (nodeDone) nodeDone();
-        return;
-      }
-      connectionConfig.connection.send(methodName, ...payload);
-      if (nodeDone) nodeDone();
-    });
-    node.on('close', function (done) {
-      node.status({});
-      if (done) done();
-    });
-  }
-  RED.nodes.registerType("signalr out", SignalROutNode);
 }
