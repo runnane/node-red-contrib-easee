@@ -31,35 +31,34 @@ module.exports = function (RED) {
 
     node.accessToken = false;
     node.refreshToken = false;
-
     node.username = n.username;
     node.password = n.password;
     node.charger = n.charger;
     node.options = {};
     node.reconnectInterval = 3000;
     node.refreshTokenHandler = null;
-
-    if (node.reconnectInterval < 100) node.reconnectInterval = 100;
     node.path = 'https://api.easee.cloud/hubs/chargers';
-
     node.closing = false; // Used to check if node-red is closing, or not, and if so decline any reconnect attempts.
 
     node.fullReconnect = () => {
       getToken();
       startconn();
     }
+
     // Get tokens for SignalR auth
     async function getToken() {
         if (!node.username) {
-          console.log("[easee] No username, exiting");
+        
+          node.error("No username, exiting");
+
           return;
         }
         if (!node.password) {
-          console.log("[easee] No password, exiting");
+          node.error("No password, exiting");
           return;
         }
         if (!node.charger) {
-          console.log("[easee] No charger, exiting");
+          node.error("No charger, exiting");
           return;
         }
         
@@ -75,14 +74,14 @@ module.exports = function (RED) {
              console.log(data);
              console.log(response.status);
              console.log(response.statusText);
-             console.log("[easee] failed response - getToken(), exiting");
+             node.error("failed response - getToken(), exiting");
              return;
         }
         if(!data.accessToken){
           // failed getting token
           console.log(data);
           console.log(headers);
-          console.log("[easee] failed getToken(), exiting");
+          node.error("failed getToken(), exiting");
           return;
         }
         //console.log("[easee] Got accessToken: " + data.accessToken);
@@ -97,11 +96,11 @@ module.exports = function (RED) {
     async function doRefreshToken() {
       console.log("[easee] doRefreshToken()");
       if (!node.accessToken) {
-        console.log("[easee] No accessToken, exiting");
+        node.error("No accessToken, exiting");
         return;
       }
       if (!node.refreshToken) {
-        console.log("[easee] No refreshToken, exiting");
+        node.error("No refreshToken, exiting");
         return;
       }
      
@@ -114,11 +113,10 @@ module.exports = function (RED) {
       const data = await response.json();
       if(!data.accessToken){
         // failed getting token
-        console.log("[easee] failed doRefreshToken(), exiting");
+        node.error("failed doRefreshToken(), exiting");
         return;
       }
-      //console.log("[easee] Got accessToken: " + data.accessToken);
-      //console.log("[easee] Got refreshToken: " + data.refreshToken);
+
       node.accessToken = data.accessToken;
       node.refreshToken = data.refreshToken;
 
@@ -134,14 +132,15 @@ module.exports = function (RED) {
       node.refreshTokenHandler = null;
 
       if (!node.charger) {
-        console.log("[easee] No charger, exiting");
+        node.error("No charger, exiting");
+      
         node.emit('erro', {
           err: "No charger, exiting",
         });
         return;
       }
       if (!node.accessToken) {
-        console.log("[easee] No accessToken, waiting");
+        node.error("No accessToken, exiting");
         node.emit('erro', {
           err: "No accessToken, waiting",
         });
