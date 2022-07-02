@@ -20,27 +20,8 @@
     <input type="text" id="node-input-name" data-i18n="[placeholder]node-red:common.label.name" />
   </div>
   <div class="form-row" id="signalr-client-row">
-    <label for="node-input-client"><i class="fa fa-bookmark"></i> <span data-i18n="signalr.label.client"></span></label>
+    <label for="node-input-client"><i class="fa fa-bookmark"></i> <span data-i18n="easee.label.client"></span></label>
     <input type="text" id="node-input-client" />
-  </div>
-</script>
-
-<!-- SignalR out Node -->
-<script type="text/x-red" data-template-name="signalr out">
-  <div class="form-row">
-    <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="node-red:common.label.name"></span></label>
-    <input type="text" id="node-input-name" data-i18n="[placeholder]node-red:common.label.name" />
-  </div>
-  <div class="form-row">
-      <label for="node-input-topic"><i class="fa fa-tag"></i> <span data-i18n="node-red:common.label.topic"></span></label>
-      <input type="text" id="node-input-topic" data-i18n="[placeholder]node-red:common.label.topic" />
-    </div>
-  <div class="form-row" id="signalr-client-row">
-      <label for="node-input-client"><i class="fa fa-bookmark"></i> <span data-i18n="signalr.label.client"></span></label>
-      <input type="text" id="node-input-client" />
-  </div>
-  <div class="form-tips">
-      <p><span data-i18n="[html]signalr.tip.topic"></span></p>
   </div>
 </script>
 
@@ -72,7 +53,9 @@
       labelStyle: function() {
           return this.name ? 'node_label_italic' : '';
       },
-      label: "easee",
+      label: function() {
+          return this.name ? this.name : 'easee';
+      },
       outputLabels: function(index) {
         if (index == 0) return "Connected";
         if (index == 1) return "Errors";
@@ -80,8 +63,6 @@
         if (index == 3) return "ProductUpdate";
         if (index == 4) return "ChargerUpdate";
         if (index == 5) return "CommandResponse";
-        
-        
       },
       paletteLabel: 'easee SignalR client',
 
@@ -103,7 +84,9 @@
       },
       inputs:0,
       outputs:0,
-      label: 'api-easee-cloud'
+      label: function() {
+          return this.charger ? this.charger : 'charger configuration';
+      },
   });
 
 })();
@@ -114,26 +97,26 @@
  
   
   <div class="form-row">
-    <label for="node-config-input-username"><i class="fa fa-train"></i> <span data-i18n="signalr.label.username"></span></label>
+    <label for="node-config-input-username"><i class="fa fa-train"></i> <span data-i18n="easee.label.username"></span></label>
     <input id="node-config-input-username" type="text" placeholder="username" />
 </div>
 <div class="form-row">
-  <label for="node-config-input-password"><i class="fa fa-train"></i> <span data-i18n="signalr.label.password"></span></label>
+  <label for="node-config-input-password"><i class="fa fa-train"></i> <span data-i18n="easee.label.password"></span></label>
   <input id="node-config-input-password" type="password" placeholder="password" />
 </div>
 <div class="form-row">
-  <label for="node-config-input-charger"><i class="fa fa-train"></i> <span data-i18n="signalr.label.charger"></span></label>
+  <label for="node-config-input-charger"><i class="fa fa-train"></i> <span data-i18n="easee.label.charger"></span></label>
   <input id="node-config-input-charger" type="text" placeholder="charger" />
 </div>
  
   <div class="form-row">
-    <label for="node-config-input-reconnectInterval"><i class="fa fa-clock-o"></i> <span data-i18n="signalr.label.reconnectInterval"></span></label>
+    <label for="node-config-input-reconnectInterval"><i class="fa fa-clock-o"></i> <span data-i18n="easee.label.reconnectInterval"></span></label>
     <input id="node-config-input-reconnectInterval" type="text" placeholder="3000" />
   </div>
   <div class="form-tips">
-      <p><span data-i18n="[html]signalr.tip.host"></span></p>
-      <p><span data-i18n="[html]signalr.tip.payload"></span></p>
-      <p><span data-i18n="[html]signalr.tip.reconnectInterval"></span></p>
+      <p><span data-i18n="[html]easee.tip.host"></span></p>
+      <p><span data-i18n="[html]easee.tip.payload"></span></p>
+      <p><span data-i18n="[html]easee.tip.reconnectInterval"></span></p>
   </div>
 </script>
 
@@ -149,24 +132,6 @@
     <h3>Details</h3>
       <p>Each configured server response method name will have it's own corresponding output.
       The <code>msg.payload</code> from the response method name will be send to the respective output with that method name.</p>
-</script>
-
-<script type="text/x-red" data-help-name="signalr out">
-  <p>ASP.NET Core 3.0 SignalR output node.</p>
-  <h3>Inputs</h3>
-    <dl class="message-properties">
-      <dt class="optional">topic <span class="property-type">string</span></dt>
-      <dd>the server method name to invoke</dd>
-      <dt>payload <span class="property-type">array</span></dt>
-      <dd>the parameters of the server method</dd>
-    </dl>
-    <h3>Details</h3>
-      <p><code>msg.payload</code> is used as the parameters of the invoked method 
-      and must be an array, even if the server method requires zero parameters or one parameter.</p>
-      <p>The JavaScript spread operator, <code>...msg.payload</code>, is used to convert the array in <code>msg.payload</code> into 
-      the parameters for the method to be invoked.</p>
-      <p>The topic used can be configured in the node or, if left blank, can be set
-      by <code>msg.topic</code>.</p>
 </script>
 
 <script type="text/x-red" data-help-name="easee-streaming-client">

@@ -1135,6 +1135,6 @@ module.exports = function (RED) {
       if (done) done();
     });
   }
-  RED.nodes.registerType("signalr in", ChargerClientNode);
+  RED.nodes.registerType("charger-client", ChargerClientNode);
 
 }
