@@ -97,17 +97,20 @@ module.exports = function (RED) {
           {
             "observationId": 22,
             "name": "CircuitMaxCurrentP1",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 23,
             "name": "CircuitMaxCurrentP2",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 24,
             "name": "CircuitMaxCurrentP3",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 25,
@@ -204,22 +207,76 @@ module.exports = function (RED) {
           {
             "observationId": 45,
             "name": "OfflineChargingMode",
-            "dataType": 4
+            "dataType": 4,
+            "valueMapping" : (val) => {
+              // https://developer.easee.cloud/docs/enumerations
+              const modes = {
+                0 : "Always allow charging if offline",
+                1 : "Only allow charging if token is whitelisted in the local token cache",  
+                2 : "Never allow charging if offline", 
+              }
+              return modes[val];
+            }
           },
           {
             "observationId": 46,
             "name": "LEDMode",
-            "dataType": 4
+            "dataType": 4,
+            "valueMapping" : (val) => {
+              // https://developer.easee.cloud/docs/enumerations
+              const modes = {
+                0 : "Charger is disabled",
+
+                1 : "Charger is updating",  
+                2 : "Charger is updating",  
+                3 : "Charger is updating",  
+                4 : "Charger is updating",  
+                5 : "Charger is updating",  
+                6 : "Charger is updating",  
+                7 : "Charger is updating",  
+                8 : "Charger is updating",  
+                9 : "Charger is updating",  
+                9 : "Charger is updating",  
+                10 : "Charger is updating",  
+                11 : "Charger is updating",  
+                12 : "Charger is updating",  
+                13 : "Charger is updating",  
+                14 : "Charger is updating",  
+                15 : "Charger is updating",  
+
+                16 : "Charger is faulty",  
+                17 : "Charger is faulty", 
+
+                18 : "Standby Master", 
+                19 : "Standby Secondary", 
+                20 : "Secondary unit searching for master", 
+                21 : "Smart mode (Not charging)", 
+                22 : "Smart mode (Charging)", 
+
+                22 : "Smart mode (Charging)", 
+                23 : "Normal mode (Not charging)", 
+                24 : "Normal mode (Charging)", 
+                25 : "Waiting for authorization", 
+                26 : "Verifying with backend", 
+                27 : "Check configuration (Backplate chip defect)", 
+                29 : "Pairing RFID Keys", 
+                43 : "Self test mode", 
+                44 : "Self test mode", 
+              }
+              return modes[val];
+            }
           },
           {
             "observationId": 47,
             "name": "MaxChargerCurrent",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 48,
             "name": "DynamicChargerCurrent",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 50,
@@ -254,12 +311,14 @@ module.exports = function (RED) {
           {
             "observationId": 70,
             "name": "CircuitTotalAllocatedPhaseConductorCurrent_L1",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 71,
             "name": "CircuitTotalAllocatedPhaseConductorCurrent_L2",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 72,
@@ -269,17 +328,20 @@ module.exports = function (RED) {
           {
             "observationId": 73,
             "name": "CircuitTotalPhaseConductorCurrent_L1",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 74,
             "name": "CircuitTotalPhaseConductorCurrent_L2",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 75,
             "name": "CircuitTotalPhaseConductorCurrent_L3",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 80,
@@ -324,47 +386,48 @@ module.exports = function (RED) {
               // https://developer.easee.cloud/docs/enumerations
 
               const modes = {
-                0 : "Charger Fine",   // Charger is OK, use main charger status
+                0 : "Charger Fine - Charger is OK, use main charger status",
 
-                1 : "Loadbalancing",  // Max circuit current too low, adjust power circuit up.
-                2 : "Loadbalancing",  // Max dynamic circuit current too low (Partner Loadbalancing)
-                3 : "Loadbalancing",  // Max dynamic offline fallback circuit current too low.
-                4 : "Loadbalancing",  // Circuit fuse too low.
-                5 : "Loadbalancing",  // Waiting in queue
-                6 : "Loadbalancing",  // Waiting in fully charged queue (Assumes a connected EV uses delated charging, EV Charging complete.
+                1 : "Loadbalancing - Max circuit current too low, adjust power circuit up.",
+                2 : "Loadbalancing - Max dynamic circuit current too low (Partner Loadbalancing)",
+                3 : "Loadbalancing - Max dynamic offline fallback circuit current too low",
+                4 : "Loadbalancing - Circuit fuse too low",
+                5 : "Loadbalancing - Waiting in queue", 
+                6 : "Loadbalancing - Waiting in fully charged queue (Assumes a connected EV uses delated charging, EV Charging complete",
              
-                7 : "Error",   // illegal grid type (Error - Fault in automatic grid type detection)
-                8 : "Error",   // primary unit has not received current request from secondary unit (car)
-                9 : "Error",   // Master communication lost (Error)
-                10 : "Error",  // No current from equalizer to low.
-                11 : "Error",  // No current, phase not connected.
+                7 : "Error - illegal grid type (Error - Fault in automatic grid type detection)",
+                8 : "Error - primary unit has not received current request from secondary unit (car)",
+                9 : "Error - Master communication lost (Error)",
+                10 : "Error - No current from equalizer to low",
+                11 : "Error - No current, phase not connected",
 
-                25 : "Error",   // Current limited by circuit fuse.
-                26 : "Error",   // Current limited by circuit max current.
-                27 : "Error",   // Current limited by dynamic circuit current.
-                28 : "Error",   // Current limited by equalizer.
-                29 : "Error",   // Current limited by circuit load balancing.
+                25 : "Error - Current limited by circuit fuse",
+                26 : "Error - Current limited by circuit max current",
+                27 : "Error - Current limited by dynamic circuit current",
+                28 : "Error - Current limited by equalizer",
+                29 : "Error - Current limited by circuit load balancing",
 
-                50 : "Load balancing circuit",   // Secondary unit not requesting current (No car connected)
-                51 : "Load balancing circuit",   // Max charger current too low.
-                52 : "Load balancing circuit",   // Max Dynamic charger current too low
+                50 : "Load balancing circuit - Secondary unit not requesting current (No car connected)",
+                51 : "Load balancing circuit - Max charger current too low",
+                52 : "Load balancing circuit - Max Dynamic charger current too low",
 
-                53 : "Informational",   // Charger disabled.
+                53 : "Informational - Charger disabled",
 
-                54 : "Waiting",   // Pending scheduled charging
-                55 : "Waiting",   // Pending authorization
+                54 : "Waiting - Pending scheduled charging",
+                55 : "Waiting - Pending authorization",
 
-                56 : "Error",   // Charger in error state.
-                57 : "Error",   // Erratic EV
+                56 : "Error - Charger in error state",
+                57 : "Error - Erratic EV",
 
-                75 : "Cable",           // Current limited by cable rating.
-                76 : "Schedule",        // Current limited by schedule.
-                77 : "Charger Limit",   // Current limited by charger max current.
-                78 : "Charger Limit",   // Current limited by dynamic charger current.
-                79 : "Car Limit",       // Current limited by car not charging.
-                80 : "???",             // Current limited by local adjustment.
-                81 : "Car Limit",       // Current limited by car.
-                100 : "UndefinedError", // Max Dynamic charger current too low
+                75 : "Cable - Current limited by cable rating",
+                76 : "Schedule - Current limited by schedule",
+                77 : "Charger Limit - Current limited by charger max current",
+                78 : "Charger Limit - Current limited by dynamic charger current",
+                79 : "Car Limit - Current limited by car not charging",
+                80 : "??? - Current limited by local adjustment",
+                81 : "Car Limit - Current limited by car",
+
+                100 : "UndefinedError",
 
               }
               return modes[val];
@@ -388,7 +451,18 @@ module.exports = function (RED) {
           {
             "observationId": 100,
             "name": "PilotMode",
-            "dataType": 6
+            "dataType": 6,
+            "valueMapping" : (val) => {
+              // https://developer.easee.cloud/docs/enumerations
+              const modes = {
+                "A" : "Car disconnected",
+                "B" : "Car connected",  
+                "C" : "Car charging", 
+                "D" : "Car needs ventilation", 
+                "F" : "Fault detected (LED goes Red and charging stops)", 
+              }
+              return modes[val];
+            }
           },
           {
             "observationId": 101,
@@ -453,31 +527,72 @@ module.exports = function (RED) {
             "observationId": 110,
             "name": "OutputPhase",
             "dataType": 4
+            /*
+            public enum OutputPhaseType { 
+              UNASSIGNED = 0, 
+              // Unassigned 
+
+              P1_T2_T3_TN = 10, 
+              // 1-phase (N+L1) 
+
+              P1_T2_T3_IT = 11, 
+              // 1-phase (L1+L2) 
+
+              P1_T2_T4_TN = 12, 
+              // 1-phase (N+L2) 
+
+              P1_T2_T4_IT = 13, 
+              // 1-phase (L1+L3) 
+
+              P1_T2_T5_TN = 14, 
+              // 1-phase (N+L3) 
+
+              P1_T3_T4_IT = 15, 
+              // 1-phase (L2+L3) 
+
+              P2_T2_T3_T4_TN = 20, 
+              // 2-phases on TN (N+L1, N+L2) 
+
+              P2_T2_T4_T5_TN = 21, 
+              // 2-phases on TN (N+L2, N+L3) 
+
+              P2_T2_T3_T4_IT = 22, 
+              // 2-phases on IT (L1+L2, L2+L3)
+
+              P3_T2_T3_T4_T5_TN = 30 
+              // 3-phases (N+L1, N+L2, N+L3) 
+            }
+            */
           },
           {
             "observationId": 111,
             "name": "DynamicCircuitCurrentP1",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 112,
             "name": "DynamicCircuitCurrentP2",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 113,
             "name": "DynamicCircuitCurrentP3",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 114,
             "name": "OutputCurrent",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 115,
             "name": "DeratedCurrent",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 116,
@@ -502,17 +617,21 @@ module.exports = function (RED) {
           {
             "observationId": 120,
             "name": "TotalPower",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "W"
           },
           {
             "observationId": 121,
             "name": "SessionEnergy",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "kWh"
           },
           {
             "observationId": 122,
             "name": "EnergyPerHour",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "kWh"
+            
           },
           {
             "observationId": 123,
@@ -522,7 +641,8 @@ module.exports = function (RED) {
           {
             "observationId": 124,
             "name": "LifetimeEnergy",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "kWh"
           },
           {
             "observationId": 125,
@@ -652,57 +772,68 @@ module.exports = function (RED) {
           {
             "observationId": 150,
             "name": "TempMax",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit" : "°C"
           },
           {
             "observationId": 151,
             "name": "TempAmbientPowerBoard",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit" : "°C"
           },
           {
             "observationId": 152,
             "name": "TempInputT2",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit" : "°C"
           },
           {
             "observationId": 153,
             "name": "TempInputT3",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit" : "°C"
           },
           {
             "observationId": 154,
             "name": "TempInputT4",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit" : "°C"
           },
           {
             "observationId": 155,
             "name": "TempInputT5",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit" : "°C"
           },
           {
             "observationId": 160,
             "name": "TempOutputN",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit" : "°C"
           },
           {
             "observationId": 161,
             "name": "TempOutputL1",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit" : "°C"
           },
           {
             "observationId": 162,
             "name": "TempOutputL2",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit" : "°C"
           },
           {
             "observationId": 163,
             "name": "TempOutputL3",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit" : "°C"
           },
           {
             "observationId": 170,
             "name": "TempAmbient",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit" : "°C"
           },
           {
             "observationId": 171,
@@ -732,130 +863,158 @@ module.exports = function (RED) {
           {
             "observationId": 182,
             "name": "InCurrent_T2",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 183,
             "name": "InCurrent_T3",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 184,
             "name": "InCurrent_T4",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 185,
             "name": "InCurrent_T5",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 190,
             "name": "InVolt_T1_T2",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 191,
             "name": "InVolt_T1_T3",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 192,
             "name": "InVolt_T1_T4",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 193,
             "name": "InVolt_T1_T5",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 194,
             "name": "InVolt_T2_T3",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 195,
             "name": "InVolt_T2_T4",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 196,
             "name": "InVolt_T2_T5",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 197,
             "name": "InVolt_T3_T4",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 198,
             "name": "InVolt_T3_T5",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 199,
             "name": "InVolt_T4_T5",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 202,
             "name": "OutVoltPin1_2",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 203,
             "name": "OutVoltPin1_3",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 204,
             "name": "OutVoltPin1_4",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 205,
             "name": "OutVoltPin1_5",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 210,
             "name": "VoltLevel33",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 211,
             "name": "VoltLevel5",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 212,
             "name": "VoltLevel12",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "V"
           },
           {
             "observationId": 230,
             "name": "EqAvailableCurrentP1",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 231,
             "name": "EqAvailableCurrentP2",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           },
           {
             "observationId": 232,
             "name": "EqAvailableCurrentP3",
-            "dataType": 3
+            "dataType": 3,
+            "valueUnit": "A"
           }
         ];
         
         data.valueText = "";
+        data.valueUnit = "";
         for(const idx in observations){
 
             if(observations[idx].observationId == data.id){
                 data.dataName = observations[idx].name;
+                if('valueUnit' in observations[idx] && observations[idx].valueUnit != undefined){
+                  data.valueUnit = observations[idx].valueUnit;
+                }
 
                 // Binary = 1,
                 // Boolean = 2,
@@ -874,7 +1033,7 @@ module.exports = function (RED) {
                     break;
                 }
 
-                if(observations[idx].valueMapping != undefined){
+                if('valueMapping' in observations[idx] && observations[idx].valueMapping != undefined){
                   data.valueText = observations[idx].valueMapping(data.value);
                 }
                                
