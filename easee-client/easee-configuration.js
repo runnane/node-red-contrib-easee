@@ -17,21 +17,20 @@
 
 module.exports = function (RED) {
   "use strict";
-  const signalR = require("@microsoft/signalr");
-  const fetch = require('node-fetch');
-  var inspect = require("util").inspect;
 
-  
+
   // =======================
-  // === The node itself ===
+  // === The Configuration/Connection node ===
   // =======================
-  function ChargerClientNode(n) {
+  function EaseeConfiguration(n) {
+
     RED.nodes.createNode(this, n);
     var node = this;
-    node.client = n.client;
-    node.responses = n.responses;
-    node.connectionConfig = RED.nodes.getNode(this.client);
 
+    node.signalRpath = 'https://api.easee.cloud/hubs/chargers';
+    node.RestApipath = 'https://api.easee.cloud/api';
+
+    
     node.parseObservation = (data) => {
       const observations = [
         {
@@ -1011,104 +1010,14 @@ module.exports = function (RED) {
       return data;
     };
 
-    if (!this.connectionConfig) {
-      this.error(RED._("easee.errors.missing-conf"));
-      return;
-    }
-
-    this.on('input', function(msg, send, done) {
-      node.connectionConfig.fullReconnect();
-      if (done) {
-        done();
-      }
-    });
-
-    this.connectionConfig.on('opened', function (event) {
-      node.status({
-        fill: "green",
-        shape: "dot",
-        text: RED._("node-red:common.status.connected"),
-        event: "connect",
-        _session: {
-          type: "signalr",
-          id: event.id
-        }
-      });
-
-      // send the connected msg
-      node.send([{ _connectionId: event.id, payload: "Connected" }, null, null]);
-
-      console.log("[easee] Connected, sending SubscribeWithCurrentState");
-      node.connectionConfig.connection.send("SubscribeWithCurrentState", node.connectionConfig.charger, true);
-
-      node.connectionConfig.connection.on("ProductUpdate", (data) => {
-        data = node.parseObservation(data);
-        node.send([null, null, null, { payload: data }, null, null]);
-      });
-
-      node.connectionConfig.connection.on("ChargerUpdate", (data) => {
-        data = node.parseObservation(data);
-        node.send([null, null, null, null, { payload: data }, null]);
-      });
-      node.connectionConfig.connection.on("CommandResponse", (data) => {
-        //console.log("[easee] got ProductUpdate");
-        node.send([null, null, null, null, null, { payload: data }]);
-      });
-   
-
-
-    });
-
-    this.connectionConfig.on('erro', function (event) {
-      node.status({
-        fill: "red",
-        shape: "ring",
-        text: RED._("node-red:common.status.error"),
-        event: "error",
-        _session: {
-          type: "signalr",
-          id: event.id
-        }
-      });
-      var errMsg = { payload: event.err };
-      if (event.id) errMsg._connectionId = event.id;
-      node.send([null, errMsg, null]);
-    });
-
-    this.connectionConfig.on('closed', function (event) {
-      var status;
-      if (event.count > 0) {
-        status = {
-          fill: "green",
-          shape: "dot",
-          text: RED._("node-red:common.status.connected")
-        };
-      } else {
-        status = {
-          fill: "red",
-          shape: "ring",
-          text: RED._("node-red:common.status.disconnected")
-        };
-      }
-      status.event = "disconnect";
-      status._session = {
-        type: "signalr",
-        id: event.id
-      }
-      node.status(status);
-      node.send([null, null, { _connectionId: event.id, payload: "Disconnected" }]);
-    });
-
-    this.on('close', function (removed, done) {
-      if (removed && node.connectionConfig) {
-        node.connectionConfig.removeInputNode(node);
-      } else {
-        // This node is being restarted
-      }
-      node.status({});
-      if (done) done();
-    });
   }
-  RED.nodes.registerType("charger-client", ChargerClientNode);
 
+  RED.nodes.registerType("easee-configuration", EaseeConfiguration,{
+    credentials: {
+        username: { type:"text" },
+        password: { type:"password" }
+    }
+  });
+
+  
 }
