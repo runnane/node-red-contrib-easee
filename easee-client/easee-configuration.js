@@ -30,6 +30,8 @@ module.exports = function (RED) {
     node.signalRpath = 'https://api.easee.cloud/hubs/chargers';
     node.RestApipath = 'https://api.easee.cloud/api';
 
+    node.accessToken = false;
+    node.refreshToken = false;
     
     node.parseObservation = (data) => {
       const observations = [

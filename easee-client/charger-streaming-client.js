@@ -34,8 +34,7 @@ module.exports = function (RED) {
 
     node.responses = n.responses;
     
-    node.accessToken = false;
-    node.refreshToken = false;
+
 
 
     node.options = {};
@@ -200,8 +199,8 @@ module.exports = function (RED) {
       }
       //console.log("[easee] Got accessToken: " + data.accessToken);
       //console.log("[easee] Got refreshToken: " + data.refreshToken);
-      node.accessToken = data.accessToken;
-      node.refreshToken = data.refreshToken;
+      node.connectionConfig.accessToken = data.accessToken;
+      node.connectionConfig.refreshToken = data.refreshToken;
       
       node.refreshTokenHandler = setTimeout(() => doRefreshToken(), 60*60*3 * 1000);
     }
@@ -209,11 +208,11 @@ module.exports = function (RED) {
     // Get token for SignalR auth
     async function doRefreshToken() {
       console.log("[easee] doRefreshToken()");
-      if (!node.accessToken) {
+      if (!node.connectionConfig.accessToken) {
         node.error("No accessToken, exiting");
         return;
       }
-      if (!node.refreshToken) {
+      if (!node.connectionConfig.refreshToken) {
         node.error("No refreshToken, exiting");
         return;
       }
@@ -233,8 +232,8 @@ module.exports = function (RED) {
         return;
       }
 
-      node.accessToken = data.accessToken;
-      node.refreshToken = data.refreshToken;
+      node.connectionConfig.accessToken = data.accessToken;
+      node.connectionConfig.refreshToken = data.refreshToken;
 
       node.refreshTokenHandler = setTimeout(() => doRefreshToken(), 60*60*3 * 1000);
     }
@@ -255,7 +254,7 @@ module.exports = function (RED) {
         });
         return;
       }
-      if (!node.accessToken) {
+      if (!node.connectionConfig.accessToken) {
         node.error("No accessToken, exiting");
         node.emit('erro', {
           err: "No accessToken, waiting",
@@ -264,7 +263,7 @@ module.exports = function (RED) {
         return;
       }
 
-      node.options.accessTokenFactory = () => node.accessToken;
+      node.options.accessTokenFactory = () => node.connectionConfig.accessToken;
 
       var connection = new signalR.HubConnectionBuilder()
         .withUrl(node.connectionConfig.signalRpath, node.options)
