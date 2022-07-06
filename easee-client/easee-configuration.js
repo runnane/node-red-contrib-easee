@@ -32,6 +32,7 @@ module.exports = function (RED) {
 
     node.accessToken = false;
     node.refreshToken = false;
+    node.tokenExpires = new Date();
     
     node.parseObservation = (data) => {
       const observations = [

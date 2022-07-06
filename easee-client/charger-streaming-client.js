@@ -202,6 +202,10 @@ module.exports = function (RED) {
       node.connectionConfig.accessToken = data.accessToken;
       node.connectionConfig.refreshToken = data.refreshToken;
       
+      var t = new Date();
+      t.setSeconds(t.getSeconds() + data.expiresIn);
+      node.connectionConfig.tokenExpires = t;
+
       node.refreshTokenHandler = setTimeout(() => doRefreshToken(), 60*60*3 * 1000);
     }
 
