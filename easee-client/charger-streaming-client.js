@@ -43,7 +43,7 @@ module.exports = function (RED) {
 
     node.fullReconnect = () => {
       node.connectionConfig.doLogin().then(json => {
-        startconn();
+        node.startconn();
       });
     }
 
@@ -53,7 +53,7 @@ module.exports = function (RED) {
         shape: "dot",
         text: msg.update
       });
-      console.log(msg);
+      //console.log(msg);
     });
 
     this.on('input', (msg, send, done) => {
@@ -154,7 +154,7 @@ module.exports = function (RED) {
     });
    
     // Connect to remote endpoint
-    function startconn() {
+    node.startconn = () => {
       node.closing = false;
       if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
       node.reconnectTimoutHandle = null;
@@ -171,7 +171,7 @@ module.exports = function (RED) {
         node.emit('erro', {
           err: "No accessToken, waiting",
         });
-        node.reconnectTimoutHandle = setTimeout(() => startconn(), node.reconnectInterval);
+        node.reconnectTimoutHandle = setTimeout(() => node.startconn(), node.reconnectInterval);
         return;
       }
 
@@ -183,30 +183,27 @@ module.exports = function (RED) {
         .build();
 
       node.connection = connection; // keep for closing
-      handleConnection(connection);
+      node.handleConnection(connection);
     }
 
-    async function handleConnection(connection) {
-      var id = '';
+    node.reconnect = () => {
+      if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
+      if (node.closing) return;
+      node.connectionConfig.doLogin().then(json => {
+        node.reconnectTimoutHandle = setTimeout(() => node.startconn(), node.reconnectInterval);
+      })
+     
+    }
+    node.notifyOnError = (err, id) => {
+      if (!err) return;
+      node.emit('erro', {
+        err: err,
+        id: id
+      });
+    }
 
-      function notifyOnError(err) {
-        if (!err) return;
-        node.emit('erro', {
-          err: err,
-          id: id
-        });
-      }
-
-      function reconnect() {
-        if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
-        if (node.closing) return;
-        
-        node.connectionConfig.doLogin().then(json => {
-          node.reconnectTimoutHandle = setTimeout(() => startconn(), node.reconnectInterval);
-        })
-       
-      }
-
+    node.handleConnection = async (connection) => {
+      let id = '';
       try {
         await connection.start();
         // We're connected
@@ -221,12 +218,12 @@ module.exports = function (RED) {
             count: '',
             id: id
           });
-          notifyOnError(err);
-          reconnect();
+          node.notifyOnError(err, id);
+          node.reconnect();
         });
       } catch (err) {
-        notifyOnError(err);
-        reconnect();
+        node.notifyOnError(err, id);
+        node.reconnect();
       }
     }
 
