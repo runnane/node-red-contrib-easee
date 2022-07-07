@@ -17,7 +17,7 @@
 
 module.exports = function (RED) {
   "use strict";
-
+  const fetch = require('node-fetch');
 
   // =======================
   // === The Configuration/Connection node ===
@@ -33,8 +33,8 @@ module.exports = function (RED) {
     node.accessToken = false;
     node.refreshToken = false;
     node.tokenExpires = new Date();
-    
-    node.parseObservation = (data) => {
+
+    node.parseObservation = (data, mode="id") => {
       const observations = [
         {
           "observationId": 15,
@@ -978,29 +978,38 @@ module.exports = function (RED) {
 
       for(const idx in observations){
 
-          if(observations[idx].observationId == data.id){
-              data.dataName = observations[idx].name;
-              if('valueUnit' in observations[idx] && observations[idx].valueUnit != undefined){
-                data.valueUnit = observations[idx].valueUnit;
+          if((mode=="id" && observations[idx].observationId == data.id) || (mode=="name" && observations[idx].name.toLowerCase() == data.dataName.toLowerCase())){
+           
+            data.dataName = observations[idx].name;
+            data.observationId = observations[idx].observationId;
+
+            if('valueUnit' in observations[idx] && observations[idx].valueUnit != undefined){
+              data.valueUnit = observations[idx].valueUnit;
+            }
+            const valueTypes = {
+              1: "Binary",
+              2: "Boolean",
+              3: "Double",
+              4: "Integer",
+              5: "Position",
+              6: "String",
+              7: "Statistics"
+            }
+
+              data.dataType = observations[idx].dataType;
+              data.dataTypeName = valueTypes[observations[idx].dataType];
+              if(data.value !== null){
+                switch(data.dataTypeName ){
+                  case "Double":
+                    data.value = parseFloat(data.value);
+                    break;
+                  case "Integer": 
+                    data.value = parseInt(data.value);
+                    break;
+                }
+  
               }
-
-              // Binary = 1,
-              // Boolean = 2,
-              // Double = 3,
-              // Integer = 4,
-              // Position = 5,
-              // String = 6,
-              // Statistics = 7
-
-              switch(observations[idx].dataType){
-                case 3: // double
-                  data.value = parseFloat(data.value);
-                  break;
-                case 4: // int
-                  data.value = parseInt(data.value);
-                  break;
-              }
-
+              
               if('valueMapping' in observations[idx] && observations[idx].valueMapping != undefined){
                 data.valueText = observations[idx].valueMapping(data.value);
               }
@@ -1013,6 +1022,47 @@ module.exports = function (RED) {
       return data;
     };
 
+    async function checkToken() {
+      const expiresIn = Math.floor((node.tokenExpires-(new Date()))/1000)
+      if(expiresIn < 43200 ){
+        doRefreshToken();
+      }
+      node.checkTokenHandler = setTimeout(() => checkToken(), 60 * 1000);
+    }
+ 
+
+    async function doRefreshToken() {
+      if (!node.accessToken) {
+        console.log("[easee] EaseeConfiguration::doRefreshToken() - No accessToken, exiting");
+        return;
+      }
+      if (!node.refreshToken) {
+        console.log("[easee] EaseeConfiguration::doRefreshToken() - No refreshToken, exiting");
+        return;
+      }
+
+      const response = await fetch(node.RestApipath + '/accounts/refresh_token', {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/*+json'  },
+        body: JSON.stringify({ accessToken: node.accessToken, refreshToken: node.refreshToken })
+      });
+
+      const data = await response.json();
+      if(!data.accessToken){
+        // failed getting token
+        node.error("[easee] EaseeConfiguration::doRefreshToken() - Failed doRefreshToken(), exiting");
+        return;
+      }
+
+      node.accessToken = data.accessToken;
+      node.refreshToken = data.refreshToken;
+      var t = new Date();
+      t.setSeconds(t.getSeconds() + data.expiresIn);
+      node.tokenExpires = t;
+      node.warn("EaseeConfiguration::Token refreshed");
+    }
+    node.checkTokenHandler = setTimeout(() => checkToken(), 2000);
+
   }
 
   RED.nodes.registerType("easee-configuration", EaseeConfiguration,{
@@ -1021,6 +1071,4 @@ module.exports = function (RED) {
         password: { type:"password" }
     }
   });
-
-  
 }

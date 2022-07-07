@@ -51,15 +51,39 @@ module.exports = function (RED) {
         node.send( { topic: url, payload: json, auth: {
           accessToken: node.connectionConfig.accessToken,
           refreshToken: node.connectionConfig.refreshToken,
-          tokenExpires: node.connectionConfig.tokenExpires
+          tokenExpires: node.connectionConfig.tokenExpires,
+          tokenExpiresIn: node.connectionConfig.tokenExpires-(new Date())
         }} );
       });
-    }
+    };
+
+    node.genericCall = (url,send=true) => {
+      return node.doAuthRestCall(url).then( json => {
+        if(send){
+          node.send( { topic: url, payload: json, auth: {
+            accessToken: node.connectionConfig.accessToken,
+            refreshToken: node.connectionConfig.refreshToken,
+            tokenExpires: node.connectionConfig.tokenExpires,
+            tokenExpiresIn: Math.floor((node.connectionConfig.tokenExpires-(new Date()))/1000)
+          }});
+        }
+        return json;
+      });
+      
+    };
+
+
     this.on('input', function(msg, send, done) {
       let url = '';
       if(msg.topic == "login"){
-        node.doLogin();
+        try {
+          node.doLogin();
+        } catch (error) {
+          node.warn("login failed: " + error);
+        }
+        
       }else{
+        try {
         switch(msg.topic){
           case "refresh_token":
             url = '/accounts/refresh_token';
@@ -81,66 +105,50 @@ module.exports = function (RED) {
               node.send( { topic: url, payload: json, auth: {
                 accessToken: node.connectionConfig.accessToken,
                 refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires
+                tokenExpires: node.connectionConfig.tokenExpires,
+                tokenExpiresIn: Math.floor((node.connectionConfig.tokenExpires-(new Date()))/1000)
               }} );
             });
           break;
-          case "charger":
-            url = "/chargers/" + node.charger;
-            node.doAuthRestCall(url).then( json => {
-              node.send( { topic: url, payload: json, auth: {
-                accessToken: node.connectionConfig.accessToken,
-                refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires
-              }})});
-          break;
-          case "charger_details":
-            url = "/chargers/" + node.charger + "/details";
-            node.doAuthRestCall(url).then( json => {
-              node.send( { topic: url, payload: json, auth: {
-                accessToken: node.connectionConfig.accessToken,
-                refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires
-              }})});
-          break;
-          case "charger_state":
-            url = "/chargers/" + node.charger + "/state";
-            node.doAuthRestCall(url).then( json => {
-              node.send( { topic: url, payload: json, auth: {
-                accessToken: node.connectionConfig.accessToken,
-                refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires
-              }})});
 
+          case "charger":
+            node.genericCall("/chargers/" + node.charger);
           break;
-          case "charger_site":
-            url = "/chargers/" + node.charger + "/site";
-            node.doAuthRestCall(url).then( json => {
+
+          case "charger_details":
+            node.genericCall("/chargers/" + node.charger + "/details");
+          break;
+
+          case "charger_state":
+            node.genericCall("/chargers/" + node.charger + "/state", false).then( json => {
+              
+              Object.keys(json).forEach(idx => {
+                //console.log(json);
+                var newObj = { dataName: idx, value: json[idx], origValue: json[idx]};
+                var newObj2 = node.connectionConfig.parseObservation(newObj, "name");
+                json[idx] = newObj2;
+              });
               node.send( { topic: url, payload: json, auth: {
                 accessToken: node.connectionConfig.accessToken,
                 refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires
-              }})});
+                tokenExpires: node.connectionConfig.tokenExpires,
+                tokenExpiresIn: Math.floor((node.connectionConfig.tokenExpires-(new Date()))/1000)
+              }});
+              
+            });
+            //node.warn(status);  
+          break;
+
+          case "charger_site":
+            node.genericCall("/chargers/" + node.charger + "/site");
           break;
 
           case "charger_session_latest":
-            url = "/chargers/" + node.charger + "/sessions/latest";
-            node.doAuthRestCall(url).then( json => {
-              node.send( { topic: url, payload: json, auth: {
-                accessToken: node.connectionConfig.accessToken,
-                refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires
-              }})});
+            node.genericCall("/chargers/" + node.charger + "/sessions/latest");
           break;
 
           case "charger_session_ongoing":
-            url = "/chargers/" + node.charger + "/sessions/ongoing";
-            node.doAuthRestCall(url).then( json => {
-              node.send( { topic: url, payload: json, auth: {
-                accessToken: node.connectionConfig.accessToken,
-                refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires
-              }})});
+            node.genericCall("/chargers/" + node.charger + "/sessions/ongoing");
           break;
           
           default:
@@ -151,7 +159,10 @@ module.exports = function (RED) {
               text: "Unknown topic"
             });
           break;
-      }
+          }
+        } catch (error) {
+          node.warn("command failed: " + error);
+        } 
       }
      
      
@@ -165,7 +176,6 @@ module.exports = function (RED) {
           Authorization: "Bearer " + node.connectionConfig.accessToken
       };
       const strPayload = JSON.stringify(parms);
-      //console.log(parms);
       if(!node.connectionConfig.accessToken){
         node.send( { topic: "error", payload: "not logged in"} )
         node.status({
@@ -175,11 +185,15 @@ module.exports = function (RED) {
         });
         return;
       }
+
       const response = await fetch(node.connectionConfig.RestApipath + url, {
         method: method,
         headers: headers,
         body: (method=="post")?strPayload:null,
         }).then(response => {
+          if(!response.ok){
+            throw new Exception("Failed query");
+          }
           return response.json();
         }).then(json => {
           node.status({
