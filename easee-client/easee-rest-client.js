@@ -31,17 +31,14 @@ module.exports = function (RED) {
     node.configurationNode = n.configuration;
     node.connectionConfig = RED.nodes.getNode(node.configurationNode);
 
-
     if (!this.connectionConfig) {
       this.error("Missing easee configuration");
       return;
     }
 
-    
-   
     node.genericCall = (url,send=true) => {
       return node.doAuthRestCall(url).then( json => {
-        if(send){
+        if(send && json){
           node.send( { topic: url, payload: json, auth: {
             accessToken: node.connectionConfig.accessToken,
             refreshToken: node.connectionConfig.refreshToken,
@@ -50,15 +47,17 @@ module.exports = function (RED) {
           }});
         }
         return json;
+      }).catch( error => {
+        console.error(error);
+        node.warn(error);
       });
-      
     };
 
 
     this.on('input', function(msg, send, done) {
       let url = '';
       if(msg.topic == "login"){
-        try {
+
           node.connectionConfig.doLogin().then(json => {
             node.send( { topic: "/accounts/login/", payload: json, auth: {
               accessToken: node.connectionConfig.accessToken,
@@ -66,12 +65,12 @@ module.exports = function (RED) {
               tokenExpires: node.connectionConfig.tokenExpires,
               tokenExpiresIn: node.connectionConfig.tokenExpires-(new Date())
             }} );
-          })
-        } catch (error) {
-          node.warn("login failed: " + error);
-        }
+          }).catch( error => {
+            console.error(error);
+            node.warn(error);
+          });
+      
       }else if(msg.topic == "refresh_token"){
-        try {
           node.connectionConfig.doRefreshToken().then(json => {
             node.send( { topic: "/accounts/refresh_token/", payload: json, auth: {
               accessToken: node.connectionConfig.accessToken,
@@ -79,93 +78,67 @@ module.exports = function (RED) {
               tokenExpires: node.connectionConfig.tokenExpires,
               tokenExpiresIn: node.connectionConfig.tokenExpires-(new Date())
             }} );
-          })
-        } catch (error) {
-          node.warn("refresh_token failed: " + error);
-        }
+          }).catch( error => {
+            console.error(error);
+            node.warn(error);
+          });
+      
         
        
       }else{
         try {
-        switch(msg.topic){
-          /*
-          case "refresh_token":
-            url = '/accounts/refresh_token';
-            node.doAuthRestCall(
-              url,
-              "post",
-              {},
-              {
-                accessToken : node.connectionConfig.accessToken,
-                refreshToken: node.connectionConfig.refreshToken
-              }
-            ).then( json => {
-              node.connectionConfig.accessToken = json.accessToken;
-              node.connectionConfig.refreshToken = json.refreshToken;
-              var t = new Date();
-              t.setSeconds(t.getSeconds() + json.expiresIn);
-              node.connectionConfig.tokenExpires = t;
+          switch(msg.topic){
 
-              node.send( { topic: url, payload: json, auth: {
-                accessToken: node.connectionConfig.accessToken,
-                refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires,
-                tokenExpiresIn: Math.floor((node.connectionConfig.tokenExpires-(new Date()))/1000)
-              }} );
-            });
-          break;
-*/
-          case "charger":
-            node.genericCall("/chargers/" + node.charger);
-          break;
+            case "charger":
+              node.genericCall("/chargers/" + node.charger);
+            break;
 
-          case "charger_details":
-            node.genericCall("/chargers/" + node.charger + "/details");
-          break;
+            case "charger_details":
+              node.genericCall("/chargers/" + node.charger + "/details");
+            break;
 
-          case "charger_state":
-            node.genericCall("/chargers/" + node.charger + "/state", false).then( json => {
-              
-              Object.keys(json).forEach(idx => {
-                json[idx] = node.connectionConfig.parseObservation({ dataName: idx, value: json[idx], origValue: json[idx]}, "name");
+            case "charger_state":
+              node.genericCall("/chargers/" + node.charger + "/state", false).then( json => {
+                
+                Object.keys(json).forEach(idx => {
+                  json[idx] = node.connectionConfig.parseObservation({ dataName: idx, value: json[idx], origValue: json[idx]}, "name");
+                });
+                node.send( { topic: url, payload: json, auth: {
+                  accessToken: node.connectionConfig.accessToken,
+                  refreshToken: node.connectionConfig.refreshToken,
+                  tokenExpires: node.connectionConfig.tokenExpires,
+                  tokenExpiresIn: Math.floor((node.connectionConfig.tokenExpires-(new Date()))/1000)
+                }});
+                
               });
-              node.send( { topic: url, payload: json, auth: {
-                accessToken: node.connectionConfig.accessToken,
-                refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires,
-                tokenExpiresIn: Math.floor((node.connectionConfig.tokenExpires-(new Date()))/1000)
-              }});
-              
-            });
-            //node.warn(status);  
-          break;
+            break;
 
-          case "charger_site":
-            node.genericCall("/chargers/" + node.charger + "/site");
-          break;
+            case "charger_site":
+              node.genericCall("/chargers/" + node.charger + "/site");
+            break;
 
-          case "charger_session_latest":
-            node.genericCall("/chargers/" + node.charger + "/sessions/latest");
-          break;
+            case "charger_session_latest":
+              node.genericCall("/chargers/" + node.charger + "/sessions/latest");
+            break;
 
-          case "charger_session_ongoing":
-            node.genericCall("/chargers/" + node.charger + "/sessions/ongoing");
-          break;
-          
-          default:
-            node.send( { topic: "error", payload: "Unknown topic"} )
-            node.status({
-              fill: "red",
-              shape: "dot",
-              text: "Unknown topic"
-            });
-          break;
-          }
+            case "charger_session_ongoing":
+              node.genericCall("/chargers/" + node.charger + "/sessions/ongoing");
+            break;
+            
+            default:
+              node.send( { topic: "error", payload: "Unknown topic"} )
+              node.status({
+                fill: "red",
+                shape: "dot",
+                text: "Unknown topic"
+              });
+            break;
+            
+            }
         } catch (error) {
           node.warn("command failed: " + error);
         } 
       }
-     
      
       if (done) {
         done();
@@ -193,7 +166,7 @@ module.exports = function (RED) {
         body: (method=="post")?strPayload:null,
         }).then(response => {
           if(!response.ok){
-            throw new Exception("Failed query");
+            throw Error("REST Command failed, check username/password/charger ID")
           }
           return response.json();
         }).then(json => {
@@ -204,7 +177,10 @@ module.exports = function (RED) {
           });
          
           return json;
-      });
+        }).catch(error => {
+          node.error(error);
+          console.error(error);
+        });
       return response;
     };
 
@@ -218,6 +194,9 @@ module.exports = function (RED) {
         body: strPayload,
         headers: headers
       }).then(response => {
+        if(!response.ok){
+          throw Error("REST Command failed, check username/password/charger ID")
+        }
         return response.json();
       }).then(json => {
 
@@ -235,8 +214,10 @@ module.exports = function (RED) {
         });
         return json;
         
-      });
-     
+      }).catch(error => {
+        node.error(error);
+        console.error(error);
+      });     
       return response;
 
     };
