@@ -31,15 +31,9 @@ module.exports = function (RED) {
     node.configurationNode = n.configuration;
     node.responses = n.responses;
     node.connectionConfig = RED.nodes.getNode(node.configurationNode);
-
     node.responses = n.responses;
-    
-
-
-
     node.options = {};
     node.reconnectInterval = 3000;
-    node.refreshTokenHandler = null;
     node.closing = false; // Used to check if node-red is closing, or not, and if so decline any reconnect attempts.
 
     if (!this.connectionConfig) {
@@ -48,23 +42,28 @@ module.exports = function (RED) {
     }
 
     node.fullReconnect = () => {
-      //console.log("[easee] fullReconnect() ");
-      getToken().then(()=>{
+      node.connectionConfig.doLogin().then(json => {
         startconn();
       });
     }
 
+    this.connectionConfig.on('update', (msg) => {
+      node.status({
+        fill: "green",
+        shape: "dot",
+        text: msg.update
+      });
+      console.log(msg);
+    });
 
-
-
-    this.on('input', function(msg, send, done) {
+    this.on('input', (msg, send, done) => {
       node.fullReconnect();
       if (done) {
         done();
       }
     });
 
-    this.on('opened', function (event) {
+    this.on('opened', (event) => {
       node.status({
         fill: "green",
         shape: "dot",
@@ -95,12 +94,9 @@ module.exports = function (RED) {
         //console.log("[easee] got ProductUpdate");
         node.send([null, null, null, null, null, { payload: data }]);
       });
-   
-
-
     });
 
-    this.on('erro', function (event) {
+    this.on('erro', (event) => {
       node.status({
         fill: "red",
         shape: "ring",
@@ -116,7 +112,7 @@ module.exports = function (RED) {
       node.send([null, errMsg, null]);
     });
 
-    this.on('closed', function (event) {
+    this.on('closed', (event) => {
       var status;
       if (event.count > 0) {
         status = {
@@ -140,15 +136,13 @@ module.exports = function (RED) {
       node.send([null, null, { _connectionId: event.id, payload: "Disconnected" }]);
     });
 
-    this.on('close', function (removed, done) {
-
+    this.on('close',  (removed, done) => {
       node.closing = true;
       node.connection.stop();
       if (node.reconnectTimoutHandle) {
         clearTimeout(node.reconnectTimoutHandle);
         node.reconnectTimoutHandle = null;
       }
-
 
       if (removed) {
         node.removeInputNode(node);
@@ -158,98 +152,12 @@ module.exports = function (RED) {
       node.status({});
       if (done) done();
     });
-    
-    // Get tokens for SignalR auth
-    async function getToken() {
-      //console.log("[easee] getToken()");
-      if (!node.connectionConfig.credentials.username) {          
-        node.error("No username, exiting");
-        return;
-      }
-      if (!node.connectionConfig.credentials.password) {
-        node.error("No password, exiting");
-        return;
-      }
-      if (!node.charger) {
-        node.error("No charger, exiting");
-        return;
-      }
-      const payload = JSON.stringify({ userName: node.connectionConfig.credentials.username, password: node.connectionConfig.credentials.password });
-
-      const response = await fetch(node.connectionConfig.RestApipath + '/accounts/login', {
-        method: 'post',
-        body: payload,
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await response.json();
-      if(!response.ok){
-            // failed getting token
-            console.log(data);
-            console.log(response.status);
-            console.log(response.statusText);
-            node.error("failed response - getToken(), exiting");
-            return;
-      }
-      if(!data.accessToken){
-        // failed getting token
-        console.log(data);
-        console.log(headers);
-        node.error("failed getToken(), exiting");
-        return;
-      }
-      //console.log("[easee] Got accessToken: " + data.accessToken);
-      //console.log("[easee] Got refreshToken: " + data.refreshToken);
-      node.connectionConfig.accessToken = data.accessToken;
-      node.connectionConfig.refreshToken = data.refreshToken;
-      
-      var t = new Date();
-      t.setSeconds(t.getSeconds() + data.expiresIn);
-      node.connectionConfig.tokenExpires = t;
-
-      node.refreshTokenHandler = setTimeout(() => doRefreshToken(), 60*60*3 * 1000);
-    }
-
-    // Get token for SignalR auth
-    async function doRefreshToken() {
-      console.log("[easee] doRefreshToken()");
-      if (!node.connectionConfig.accessToken) {
-        node.error("No accessToken, exiting");
-        return;
-      }
-      if (!node.connectionConfig.refreshToken) {
-        node.error("No refreshToken, exiting");
-        return;
-      }
-
-      
-     
-      const response = await fetch(node.connectionConfig.RestApipath + '/accounts/refresh_token', {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/*+json'  },
-        body: JSON.stringify({ accessToken: node.accessToken, refreshToken: node.refreshToken })
-      });
-
-      const data = await response.json();
-      if(!data.accessToken){
-        // failed getting token
-        node.error("failed doRefreshToken(), exiting");
-        return;
-      }
-
-      node.connectionConfig.accessToken = data.accessToken;
-      node.connectionConfig.refreshToken = data.refreshToken;
-
-      node.refreshTokenHandler = setTimeout(() => doRefreshToken(), 60*60*3 * 1000);
-    }
-
+   
     // Connect to remote endpoint
     function startconn() {
-      //console.log("[easee] startconn() ");
       node.closing = false;
       if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
-      if (node.refreshTokenHandler) clearTimeout(node.refreshTokenHandler);
       node.reconnectTimoutHandle = null;
-      node.refreshTokenHandler = null;
 
       if (!node.charger) {
         node.error("No charger, exiting");
@@ -278,7 +186,7 @@ module.exports = function (RED) {
       handleConnection(connection);
     }
 
-    async function handleConnection( /*connection*/ connection) {
+    async function handleConnection(connection) {
       var id = '';
 
       function notifyOnError(err) {
@@ -292,8 +200,11 @@ module.exports = function (RED) {
       function reconnect() {
         if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
         if (node.closing) return;
-        getToken();
-        node.reconnectTimoutHandle = setTimeout(() => startconn(), node.reconnectInterval);
+        
+        node.connectionConfig.doLogin().then(json => {
+          node.reconnectTimoutHandle = setTimeout(() => startconn(), node.reconnectInterval);
+        })
+       
       }
 
       try {
@@ -320,8 +231,7 @@ module.exports = function (RED) {
     }
 
     node.closing = false;
-   //getToken();
-   // startconn(); // start outbound connection
+
 
     // Start in 2 sec
    setTimeout(() => node.fullReconnect(), 2000);

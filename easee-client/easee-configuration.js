@@ -1022,16 +1022,16 @@ module.exports = function (RED) {
       return data;
     };
 
-    async function checkToken() {
+    node.checkToken = async () => {
       const expiresIn = Math.floor((node.tokenExpires-(new Date()))/1000)
       if(expiresIn < 43200 ){
-        doRefreshToken();
+        await node.doRefreshToken();
       }
-      node.checkTokenHandler = setTimeout(() => checkToken(), 60 * 1000);
+      node.checkTokenHandler = setTimeout(() => node.checkToken(), 60 * 1000);
     }
  
 
-    async function doRefreshToken() {
+    node.doRefreshToken = async () => {
       if (!node.accessToken) {
         console.log("[easee] EaseeConfiguration::doRefreshToken() - No accessToken, exiting");
         return;
@@ -1045,23 +1045,68 @@ module.exports = function (RED) {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/*+json'  },
         body: JSON.stringify({ accessToken: node.accessToken, refreshToken: node.refreshToken })
+      }).then(response => {
+        return response.json();
+      }).then(json => {
+        if(!json.accessToken){
+          // failed getting token
+          node.error("[easee] EaseeConfiguration::doRefreshToken() - Failed doRefreshToken(), exiting");
+          return;
+        }
+  
+        node.accessToken = json.accessToken;
+        node.refreshToken = json.refreshToken;
+        var t = new Date();
+        t.setSeconds(t.getSeconds() + json.expiresIn);
+        node.tokenExpires = t;
+
+        node.emit('update', {
+          update: "Token refreshed"
+        });
+
+        return json;
       });
 
-      const data = await response.json();
-      if(!data.accessToken){
-        // failed getting token
-        node.error("[easee] EaseeConfiguration::doRefreshToken() - Failed doRefreshToken(), exiting");
-        return;
-      }
-
-      node.accessToken = data.accessToken;
-      node.refreshToken = data.refreshToken;
-      var t = new Date();
-      t.setSeconds(t.getSeconds() + data.expiresIn);
-      node.tokenExpires = t;
-      node.warn("EaseeConfiguration::Token refreshed");
+      return response;
     }
-    node.checkTokenHandler = setTimeout(() => checkToken(), 2000);
+
+    node.doLogin = async () => {
+      const url = '/accounts/login';
+      const response = await fetch(node.RestApipath + url, {
+        method: "post",
+        body: JSON.stringify({ 
+          userName: node.credentials.username, 
+          password: node.credentials.password 
+        }),
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json'}
+      }).then(response => {
+        return response.json();
+      }).then(json => {
+
+        if("accessToken" in json){
+          node.accessToken = json.accessToken;
+          node.refreshToken = json.refreshToken;
+          var t = new Date();
+              t.setSeconds(t.getSeconds() + json.expiresIn);
+              node.tokenExpires = t;
+        }
+        node.status({
+          fill: "green",
+          shape: "dot",
+          text: url
+        });
+        return json;
+        
+      });
+     
+      node.emit('update', {
+        update: "Token retrieved (logged in)"
+      });
+
+      return response;
+    }
+
+    node.checkTokenHandler = setTimeout(() => node.checkToken(), 2000);
 
   }
 

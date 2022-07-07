@@ -37,26 +37,8 @@ module.exports = function (RED) {
       return;
     }
 
-    node.doLogin = () => {
-      let url = '/accounts/login';
-      node.doRestCall(
-        url,
-        { 
-          userName: node.connectionConfig.credentials.username, 
-          password: node.connectionConfig.credentials.password 
-        },
-        "post",
-        {}
-      ).then(json => {
-        node.send( { topic: url, payload: json, auth: {
-          accessToken: node.connectionConfig.accessToken,
-          refreshToken: node.connectionConfig.refreshToken,
-          tokenExpires: node.connectionConfig.tokenExpires,
-          tokenExpiresIn: node.connectionConfig.tokenExpires-(new Date())
-        }} );
-      });
-    };
-
+    
+   
     node.genericCall = (url,send=true) => {
       return node.doAuthRestCall(url).then( json => {
         if(send){
@@ -77,14 +59,36 @@ module.exports = function (RED) {
       let url = '';
       if(msg.topic == "login"){
         try {
-          node.doLogin();
+          node.connectionConfig.doLogin().then(json => {
+            node.send( { topic: "/accounts/login/", payload: json, auth: {
+              accessToken: node.connectionConfig.accessToken,
+              refreshToken: node.connectionConfig.refreshToken,
+              tokenExpires: node.connectionConfig.tokenExpires,
+              tokenExpiresIn: node.connectionConfig.tokenExpires-(new Date())
+            }} );
+          })
         } catch (error) {
           node.warn("login failed: " + error);
         }
+      }else if(msg.topic == "refresh_token"){
+        try {
+          node.connectionConfig.doRefreshToken().then(json => {
+            node.send( { topic: "/accounts/refresh_token/", payload: json, auth: {
+              accessToken: node.connectionConfig.accessToken,
+              refreshToken: node.connectionConfig.refreshToken,
+              tokenExpires: node.connectionConfig.tokenExpires,
+              tokenExpiresIn: node.connectionConfig.tokenExpires-(new Date())
+            }} );
+          })
+        } catch (error) {
+          node.warn("refresh_token failed: " + error);
+        }
         
+       
       }else{
         try {
         switch(msg.topic){
+          /*
           case "refresh_token":
             url = '/accounts/refresh_token';
             node.doAuthRestCall(
@@ -110,7 +114,7 @@ module.exports = function (RED) {
               }} );
             });
           break;
-
+*/
           case "charger":
             node.genericCall("/chargers/" + node.charger);
           break;
@@ -123,10 +127,7 @@ module.exports = function (RED) {
             node.genericCall("/chargers/" + node.charger + "/state", false).then( json => {
               
               Object.keys(json).forEach(idx => {
-                //console.log(json);
-                var newObj = { dataName: idx, value: json[idx], origValue: json[idx]};
-                var newObj2 = node.connectionConfig.parseObservation(newObj, "name");
-                json[idx] = newObj2;
+                json[idx] = node.connectionConfig.parseObservation({ dataName: idx, value: json[idx], origValue: json[idx]}, "name");
               });
               node.send( { topic: url, payload: json, auth: {
                 accessToken: node.connectionConfig.accessToken,
