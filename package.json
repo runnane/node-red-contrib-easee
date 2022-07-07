@@ -1,6 +1,6 @@
 {
   "name": "@runnane/node-red-contrib-easee",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Module for streaming Easee data. Based on node-red-contrib-signalrcore",
   "author": "Jon Tungland",
   "homepage": "https://github.com/runnane/node-red-contrib-easee",
@@ -9,7 +9,8 @@
     "easee",
     "charger",
     "ev",
-    "signalr"
+    "signalr",
+    "node-red"
   ],
   "dependencies": {
     "@microsoft/signalr": "3.0.0",
