@@ -22,5 +22,8 @@
       "easee-rest-client": "easee-client/easee-rest-client.js",
       "charger-streaming-client": "easee-client/charger-streaming-client.js"
     }
+  },
+  "scripts": {
+    "test": "echo \"Error: No test specified\""
   }
 }
