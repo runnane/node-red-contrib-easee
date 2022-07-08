@@ -898,7 +898,7 @@ module.exports = function (RED) {
           "name": "InVolt_T2_T5",
           "dataType": 3,
           "valueUnit": "V",
-          "altName": "inVoltageT3T5"
+          "altName": "inVoltageT2T5"
         },
         {
           "observationId": 197,
