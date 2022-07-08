@@ -22,19 +22,18 @@ Configure the node with username/password and the Charger ID.
   the `ProductUpdate` one.
 
 ## REST node
-  Configure the node with username/password and a Charger ID ("EH000000").
-  Send the your selected command as the topic into the node.
+Configure the node with username/password and a Charger ID ("EH000000").
+Send the your selected command as the topic into the node.
 
-  Implemented commands that may be sent as topic, are:
-
-  : login
-  : refresh_token
-  : charger
-  : charger_details
-  : charger_state
-  : charger_site
-  : charger_session_latest
-  : charger_session_ongoing
+Implemented commands that may be sent as topic, are:
++ `login`
++ `refresh_token`
++ `charger`
++ `charger_details`
++ `charger_state`
++ `charger_site`
++ `charger_session_latest`
++ `charger_session_ongoing`
 
 ## Todo
 + Documentation and examples

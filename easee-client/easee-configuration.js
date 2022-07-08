@@ -855,61 +855,71 @@ module.exports = function (RED) {
           "observationId": 190,
           "name": "InVolt_T1_T2",
           "dataType": 3,
-          "valueUnit": "V"
+          "valueUnit": "V",
+          "altName": "inVoltageT1T2"
         },
         {
           "observationId": 191,
           "name": "InVolt_T1_T3",
           "dataType": 3,
-          "valueUnit": "V"
+          "valueUnit": "V",
+          "altName": "inVoltageT1T3"
         },
         {
           "observationId": 192,
           "name": "InVolt_T1_T4",
           "dataType": 3,
-          "valueUnit": "V"
+          "valueUnit": "V",
+          "altName": "inVoltageT1T4"
         },
         {
           "observationId": 193,
           "name": "InVolt_T1_T5",
           "dataType": 3,
-          "valueUnit": "V"
+          "valueUnit": "V",
+          "altName": "inVoltageT1T5"
         },
         {
           "observationId": 194,
           "name": "InVolt_T2_T3",
           "dataType": 3,
-          "valueUnit": "V"
+          "valueUnit": "V",
+          "altName": "inVoltageT2T3"
         },
         {
           "observationId": 195,
           "name": "InVolt_T2_T4",
           "dataType": 3,
-          "valueUnit": "V"
+          "valueUnit": "V",
+          "altName": "inVoltageT2T4"
         },
         {
           "observationId": 196,
           "name": "InVolt_T2_T5",
           "dataType": 3,
-          "valueUnit": "V"
+          "valueUnit": "V",
+          "altName": "inVoltageT3T5"
         },
         {
           "observationId": 197,
           "name": "InVolt_T3_T4",
           "dataType": 3,
-          "valueUnit": "V"
+          "valueUnit": "V",
+          "altName": "inVoltageT3T4"
         },
         {
           "observationId": 198,
           "name": "InVolt_T3_T5",
           "dataType": 3,
-          "valueUnit": "V"
+          "valueUnit": "V",
+          "altName": "inVoltageT3T5"
         },
         {
           "observationId": 199,
           "name": "InVolt_T4_T5",
           "dataType": 3,
-          "valueUnit": "V"
+          "valueUnit": "V",
+          "altName": "inVoltageT4T5"
         },
         {
           "observationId": 202,
@@ -977,46 +987,57 @@ module.exports = function (RED) {
       data.valueUnit = "";
 
       for(const idx in observations){
+ 
+        if((mode=="id" && observations[idx].observationId == data.id) ){
+          // Id match
+        }else if((mode=="name" && observations[idx].name.toLowerCase() == data.dataName.toLowerCase())){
+          // Name match
+        }else if((mode=="name" && "altName" in observations[idx] && observations[idx].altName.toLowerCase() == data.dataName.toLowerCase())){
+          // Altname match
+        }else if((mode=="name" && observations[idx].name.replace(/\_/g,"").toLowerCase() == data.dataName.toLowerCase())){
+          // Altname match
+       }else{
+          continue;
+        }
+         
+        
+        data.dataName = observations[idx].name;
+        data.observationId = observations[idx].observationId;
 
-          if((mode=="id" && observations[idx].observationId == data.id) || (mode=="name" && observations[idx].name.toLowerCase() == data.dataName.toLowerCase())){
-           
-            data.dataName = observations[idx].name;
-            data.observationId = observations[idx].observationId;
+        if('valueUnit' in observations[idx] && observations[idx].valueUnit != undefined){
+          data.valueUnit = observations[idx].valueUnit;
+        }
+        const valueTypes = {
+          1: "Binary",
+          2: "Boolean",
+          3: "Double",
+          4: "Integer",
+          5: "Position",
+          6: "String",
+          7: "Statistics"
+        }
 
-            if('valueUnit' in observations[idx] && observations[idx].valueUnit != undefined){
-              data.valueUnit = observations[idx].valueUnit;
+          data.dataType = observations[idx].dataType;
+          data.dataTypeName = valueTypes[observations[idx].dataType];
+          if(data.value !== null){
+            switch(data.dataTypeName ){
+              case "Double":
+                data.value = parseFloat(data.value);
+                break;
+              case "Integer": 
+                data.value = parseInt(data.value);
+                break;
             }
-            const valueTypes = {
-              1: "Binary",
-              2: "Boolean",
-              3: "Double",
-              4: "Integer",
-              5: "Position",
-              6: "String",
-              7: "Statistics"
-            }
-
-              data.dataType = observations[idx].dataType;
-              data.dataTypeName = valueTypes[observations[idx].dataType];
-              if(data.value !== null){
-                switch(data.dataTypeName ){
-                  case "Double":
-                    data.value = parseFloat(data.value);
-                    break;
-                  case "Integer": 
-                    data.value = parseInt(data.value);
-                    break;
-                }
-  
-              }
-              
-              if('valueMapping' in observations[idx] && observations[idx].valueMapping != undefined){
-                data.valueText = observations[idx].valueMapping(data.value);
-              }
-                             
-              break;
 
           }
+          
+          if('valueMapping' in observations[idx] && observations[idx].valueMapping != undefined){
+            data.valueText = observations[idx].valueMapping(data.value);
+          }
+                          
+          break;
+
+      
       }
 
       return data;
