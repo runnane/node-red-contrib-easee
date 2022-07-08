@@ -55,7 +55,7 @@
         if (index == 4) return "ChargerUpdate";
         if (index == 5) return "CommandResponse";
       },
-      paletteLabel: 'easee charger streaming client',
+      paletteLabel: 'easee Charger Streaming Client',
 
   });
 
@@ -63,6 +63,37 @@
 })();
 </script>
 
-<script type="text/x-red" data-help-name="charger-streaming-client">
-  <p>easee charger streaming client</p>
+<script type="text/markdown" data-help-name="charger-streaming-client">
+  Connects and streams signalR updates from the easee public api
+
+  ### Inputs
+  
+  Input can be used to reset the connection for debugging. Input values
+  are ignored
+  
+  ### Outputs
+  
+  1. Connected messages (debug)
+  : payload (string) : the message
+  
+  2. Errors messages (debug)
+  : payload (string) : the message
+
+  3. Disconnected messages (debug)
+  : payload (string) : the message
+
+  4. ProductUpdate messages 
+  : payload (object) : the message with the content we usually want
+
+  5. ChargerUpdate messages (debug)
+  : payload (object) : for backwards compatibility
+
+  6. CommandResponse messages (debug)
+  : payload (string) : the message
+  
+  ### Details
+  
+  Configure the node with username/password and a Charger ID ("EH000000").
+  Streaming telemetry from the signalR enpoint will be available in the fourth output, 
+  the `ProductUpdate` one.
 </script>
