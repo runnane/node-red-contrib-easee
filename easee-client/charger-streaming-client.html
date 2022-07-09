@@ -1,0 +1,99 @@
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<script type="text/x-red" data-template-name="charger-streaming-client">
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="node-red:common.label.name"></span></label>
+    <input type="text" id="node-input-name" data-i18n="[placeholder]node-red:common.label.name" />
+  </div>
+  <div class="form-row">
+    <label for="node-input-charger"><i class="fa fa-tag"></i> Charger</label>
+    <input type="text" id="node-input-charger" data-i18n="[placeholder]node-red:common.label.name" />
+  </div>
+  <div class="form-row">
+    <label for="node-input-configuration"><i class="fa fa-bookmark"></i> Easee configuration</label>
+    <input type="text" id="node-input-configuration" />
+  </div>
+</script>
+
+<script type="text/javascript">
+
+(function() {
+
+  RED.nodes.registerType('charger-streaming-client', {
+      category: 'network',
+      defaults: {
+          name: { value: '' },
+          charger: { required: true },
+          configuration: { type: 'easee-configuration', required: true},
+          inputs: { value: 1 },
+          outputs: { value: 6 },
+      },
+      color: '#F3B567',
+      inputs: 1,
+      outputs: 6,
+      icon: 'feed.svg',
+    
+      label: function() {
+          return this.name ? this.name : this.charger;
+      },
+      outputLabels: function(index) {
+        if (index == 0) return "Connected";
+        if (index == 1) return "Errors";
+        if (index == 2) return "Disconnected";
+        if (index == 3) return "ProductUpdate";
+        if (index == 4) return "ChargerUpdate";
+        if (index == 5) return "CommandResponse";
+      },
+      paletteLabel: 'easee Charger Streaming Client',
+
+  });
+
+  
+})();
+</script>
+
+<script type="text/markdown" data-help-name="charger-streaming-client">
+  Connects and streams signalR updates from the easee public api
+
+  ### Inputs
+  
+  Input can be used to reset the connection for debugging. Input values
+  are ignored
+  
+  ### Outputs
+  
+  1. Connected messages (debug)
+  : payload (string) : the message
+  
+  2. Errors messages (debug)
+  : payload (string) : the message
+
+  3. Disconnected messages (debug)
+  : payload (string) : the message
+
+  4. ProductUpdate messages 
+  : payload (object) : the message with the content we usually want
+
+  5. ChargerUpdate messages (debug)
+  : payload (object) : for backwards compatibility
+
+  6. CommandResponse messages (debug)
+  : payload (string) : the message
+  
+  ### Details
+  
+  Configure the node with username/password and a Charger ID ("EH000000").
+  Streaming telemetry from the signalR enpoint will be available in the fourth output, 
+  the `ProductUpdate` one.
+</script>
