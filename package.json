@@ -5,6 +5,12 @@
   "author": "Jon Tungland",
   "homepage": "https://github.com/runnane/node-red-contrib-easee",
   "license": "Apache-2.0",
+  "repository": {
+    "url": "https://github.com/runnane/node-red-contrib-easee"
+  },
+  "bugs": {
+    "url": "https://github.com/runnane/node-red-contrib-easee/issues"
+  },
   "keywords": [
     "easee",
     "charger",
