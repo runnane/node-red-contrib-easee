@@ -99,17 +99,25 @@ module.exports = function (RED) {
 
             case "charger_state":
               node.genericCall("/chargers/" + node.charger + "/state", false).then( json => {
-                
-                Object.keys(json).forEach(idx => {
-                  json[idx] = node.connectionConfig.parseObservation({ dataName: idx, value: json[idx], origValue: json[idx]}, "name");
-                });
-                node.send( { topic: url, payload: json, auth: {
-                  accessToken: node.connectionConfig.accessToken,
-                  refreshToken: node.connectionConfig.refreshToken,
-                  tokenExpires: node.connectionConfig.tokenExpires,
-                  tokenExpiresIn: Math.floor((node.connectionConfig.tokenExpires-(new Date()))/1000)
-                }});
-                
+                try{
+                  if(typeof json !== "Object"){
+                    node.warn("charger_state failed");
+                    node.error("charger_state failed");
+                  }else{
+                    Object.keys(json).forEach(idx => {
+                      json[idx] = node.connectionConfig.parseObservation({ dataName: idx, value: json[idx], origValue: json[idx]}, "name");
+                    });
+                    node.send( { topic: url, payload: json, auth: {
+                      accessToken: node.connectionConfig.accessToken,
+                      refreshToken: node.connectionConfig.refreshToken,
+                      tokenExpires: node.connectionConfig.tokenExpires,
+                      tokenExpiresIn: Math.floor((node.connectionConfig.tokenExpires-(new Date()))/1000)
+                    }});
+                  }
+                } catch( e){
+                  node.warn("command failed: " + error);
+                  node.error("command failed: " + error);
+                }
               });
             break;
 
@@ -166,6 +174,7 @@ module.exports = function (RED) {
         body: (method=="post")?strPayload:null,
         }).then(response => {
           if(!response.ok){
+            console.error("Could not fetch(): " + response.statusText);
             throw Error("REST Command failed, check username/password/charger ID")
           }
           return response.json();
