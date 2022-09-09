@@ -100,8 +100,8 @@ module.exports = function (RED) {
             case "charger_state":
               node.genericCall("/chargers/" + node.charger + "/state", false).then( json => {
                 try{
-                  if(typeof json !== "Object"){
-                    node.warn("charger_state failed");
+                  if(typeof json !== "object"){
+                    //node.warn("charger_state failed");s
                     node.error("charger_state failed");
                   }else{
                     Object.keys(json).forEach(idx => {
