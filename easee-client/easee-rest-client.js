@@ -18,7 +18,9 @@
 module.exports = function (RED) {
   "use strict";
   const signalR = require("@microsoft/signalr");
-  const fetch = require('node-fetch');
+  const fetch = (...args) =>
+    import('node-fetch').then(({ default: fetch }) => fetch(...args));
+
   var inspect = require("util").inspect;
 
   // =======================

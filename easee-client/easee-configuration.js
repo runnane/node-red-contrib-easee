@@ -17,7 +17,8 @@
 
 module.exports = function (RED) {
   "use strict";
-  const fetch = require('node-fetch');
+  const fetch = (...args) =>
+    import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
   // =======================
   // === The Configuration/Connection node ===
