@@ -34,6 +34,13 @@ Implemented commands that may be sent as topic, are:
 + `charger_site`
 + `charger_session_latest`
 + `charger_session_ongoing`
++ `stop_charging`
++ `start_charging`
++ `pause_charging`
++ `resume_charging`
++ `toggle_charging`
+
+
 
 ## Todo
 + Documentation and examples
