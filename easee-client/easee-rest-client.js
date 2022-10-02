@@ -149,6 +149,10 @@ module.exports = function (RED) {
               node.genericCall("/chargers/" + node.charger + "/commands/resume_charging", true, "post");
             break;
 
+            case "toggle_charging":
+              node.genericCall("/chargers/" + node.charger + "/commands/toggle_charging", true, "post");
+            break;
+
             default:
               node.send( { topic: "error", payload: "Unknown topic"} );
               node.status({
