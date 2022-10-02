@@ -30,7 +30,13 @@
     },
     "version": ">=2.0.0"
   },
+  "engines" : { 
+    "node" : ">=9.0.0"
+  },
   "scripts": {
     "test": "echo \"Error: No test specified\""
+  },
+  "jshint.options": { 
+    "esversion": 11
   }
 }

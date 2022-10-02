@@ -1,24 +1,20 @@
 /**
- * Copyright JS Foundation and other contributors, http://js.foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
  **/
-
-
 module.exports = function (RED) {
   "use strict";
   const fetch = (...args) =>
-    import('node-fetch').then(({ default: fetch }) => fetch(...args));
+  import('node-fetch').then(({ "default": fetch }) => fetch(...args));
 
   // =======================
   // === The Configuration/Connection node ===
@@ -141,7 +137,7 @@ module.exports = function (RED) {
               1 : "Locked to 1-phase",  
               2 : "Auto phase mode", 
               3 : "Locked to 3-phase", 
-            }
+            };
             return modes[val];
           }
 
@@ -182,7 +178,7 @@ module.exports = function (RED) {
               0 : "Always allow charging if offline",
               1 : "Only allow charging if token is whitelisted in the local token cache",  
               2 : "Never allow charging if offline", 
-            }
+            };
             return modes[val];
           }
         },
@@ -204,7 +200,6 @@ module.exports = function (RED) {
               7 : "Charger is updating",  
               8 : "Charger is updating",  
               9 : "Charger is updating",  
-              9 : "Charger is updating",  
               10 : "Charger is updating",  
               11 : "Charger is updating",  
               12 : "Charger is updating",  
@@ -221,7 +216,6 @@ module.exports = function (RED) {
               21 : "Smart mode (Not charging)", 
               22 : "Smart mode (Charging)", 
 
-              22 : "Smart mode (Charging)", 
               23 : "Normal mode (Not charging)", 
               24 : "Normal mode (Charging)", 
               25 : "Waiting for authorization", 
@@ -230,7 +224,7 @@ module.exports = function (RED) {
               29 : "Pairing RFID Keys", 
               43 : "Self test mode", 
               44 : "Self test mode", 
-            }
+            };
             return modes[val];
           }
         },
@@ -397,7 +391,7 @@ module.exports = function (RED) {
 
               100 : "UndefinedError",
 
-            }
+            };
             return modes[val];
           }
         },
@@ -428,7 +422,7 @@ module.exports = function (RED) {
               "C" : "Car charging", 
               "D" : "Car needs ventilation", 
               "F" : "Fault detected (LED goes Red and charging stops)", 
-            }
+            };
             return modes[val];
           }
         },
@@ -487,7 +481,7 @@ module.exports = function (RED) {
               4 : "Completed",
               5 : "Error",
               6 : "ReadyToCharge",
-            }
+            };
             return modes[val];
           }
         },
@@ -1016,7 +1010,7 @@ module.exports = function (RED) {
           5: "Position",
           6: "String",
           7: "Statistics"
-        }
+        };
 
           data.dataType = observations[idx].dataType;
           data.dataTypeName = valueTypes[observations[idx].dataType];
@@ -1045,12 +1039,12 @@ module.exports = function (RED) {
     };
 
     node.checkToken = async () => {
-      const expiresIn = Math.floor((node.tokenExpires-(new Date()))/1000)
+      const expiresIn = Math.floor((node.tokenExpires-(new Date()))/1000);
       if(expiresIn < 43200 ){
         await node.doRefreshToken();
       }
       node.checkTokenHandler = setTimeout(() => node.checkToken(), 60 * 1000);
-    }
+    };
  
 
     node.doRefreshToken = async () => {
@@ -1090,7 +1084,7 @@ module.exports = function (RED) {
       });
 
       return response;
-    }
+    };
 
     node.doLogin = async () => {
       const url = '/accounts/login';
@@ -1126,7 +1120,7 @@ module.exports = function (RED) {
       });
 
       return response;
-    }
+    };
 
     node.checkTokenHandler = setTimeout(() => node.checkToken(), 2000);
 
@@ -1138,4 +1132,4 @@ module.exports = function (RED) {
         password: { type:"password" }
     }
   });
-}
+};

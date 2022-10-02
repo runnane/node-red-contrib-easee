@@ -1,25 +1,22 @@
 /**
- * Copyright JS Foundation and other contributors, http://js.foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- **/
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
 
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+ **/
 
 module.exports = function (RED) {
   "use strict";
   const signalR = require("@microsoft/signalr");
   const fetch = (...args) =>
-    import('node-fetch').then(({ default: fetch }) => fetch(...args));
+  import('node-fetch').then(({ "default": fetch }) => fetch(...args));
 
   var inspect = require("util").inspect;
 
@@ -136,7 +133,7 @@ module.exports = function (RED) {
             break;
             
             default:
-              node.send( { topic: "error", payload: "Unknown topic"} )
+              node.send( { topic: "error", payload: "Unknown topic"} );
               node.status({
                 fill: "red",
                 shape: "dot",
@@ -161,7 +158,7 @@ module.exports = function (RED) {
       };
       const strPayload = JSON.stringify(parms);
       if(!node.connectionConfig.accessToken){
-        node.send( { topic: "error", payload: "not logged in"} )
+        node.send( { topic: "error", payload: "not logged in"} );
         node.status({
           fill: "red",
           shape: "dot",
@@ -177,7 +174,7 @@ module.exports = function (RED) {
         }).then(response => {
           if(!response.ok){
             console.error("Could not fetch(): " + response.statusText);
-            throw Error("REST Command failed, check username/password/charger ID")
+            throw Error("REST Command failed, check username/password/charger ID");
           }
           return response.json();
         }).then(json => {
@@ -206,7 +203,7 @@ module.exports = function (RED) {
         headers: headers
       }).then(response => {
         if(!response.ok){
-          throw Error("REST Command failed, check username/password/charger ID")
+          throw Error("REST Command failed, check username/password/charger ID");
         }
         return response.json();
       }).then(json => {
@@ -237,4 +234,4 @@ module.exports = function (RED) {
     
   RED.nodes.registerType("easee-rest-client", EaseeRestClient);
 
-}
+};
