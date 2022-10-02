@@ -35,8 +35,8 @@ module.exports = function (RED) {
       return;
     }
 
-    node.genericCall = (url,send=true) => {
-      return node.doAuthRestCall(url).then( json => {
+    node.genericCall = (url, send=true, method="get") => {
+      return node.doAuthRestCall(url, method).then( json => {
         if(send && json){
           node.send( { topic: url, payload: json, auth: {
             accessToken: node.connectionConfig.accessToken,
@@ -97,7 +97,8 @@ module.exports = function (RED) {
             break;
 
             case "charger_state":
-              node.genericCall("/chargers/" + node.charger + "/state", false).then( json => {
+              const url = "/chargers/" + node.charger + "/state";
+              node.genericCall(url, false).then( json => {
                 try{
                   if(typeof json !== "object"){
                     //node.warn("charger_state failed");s
@@ -132,6 +133,22 @@ module.exports = function (RED) {
               node.genericCall("/chargers/" + node.charger + "/sessions/ongoing");
             break;
             
+            case "stop_charging":
+              node.genericCall("/chargers/" + node.charger + "/commands/stop_charging", true, "post");
+            break;
+
+            case "start_charging":
+              node.genericCall("/chargers/" + node.charger + "/commands/start_charging", true, "post");
+            break;
+
+            case "pause_charging":
+              node.genericCall("/chargers/" + node.charger + "/commands/pause_charging", true, "post");
+            break;
+
+            case "resume_charging":
+              node.genericCall("/chargers/" + node.charger + "/commands/resume_charging", true, "post");
+            break;
+
             default:
               node.send( { topic: "error", payload: "Unknown topic"} );
               node.status({
@@ -158,11 +175,11 @@ module.exports = function (RED) {
       };
       const strPayload = JSON.stringify(parms);
       if(!node.connectionConfig.accessToken){
-        node.send( { topic: "error", payload: "not logged in"} );
+        node.send( { topic: "error", payload: "Not logged in"} );
         node.status({
           fill: "red",
           shape: "dot",
-          text: "not logged in"
+          text: "Not logged in"
         });
         return;
       }
