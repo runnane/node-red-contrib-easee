@@ -1,6 +1,6 @@
 {
   "name": "@runnane/node-red-contrib-easee",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Module for streaming Easee data. Based on node-red-contrib-signalrcore",
   "author": "Jon Tungland",
   "homepage": "https://github.com/runnane/node-red-contrib-easee",
@@ -30,13 +30,13 @@
     },
     "version": ">=2.0.0"
   },
-  "engines" : { 
-    "node" : ">=9.0.0"
+  "engines": {
+    "node": ">=9.0.0"
   },
   "scripts": {
     "test": "echo \"Error: No test specified\""
   },
-  "jshint.options": { 
+  "jshint.options": {
     "esversion": 11
   }
 }
