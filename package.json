@@ -19,8 +19,8 @@
     "node-red"
   ],
   "dependencies": {
-    "@microsoft/signalr": "3.0.0",
-    "node-fetch": "*"
+    "@microsoft/signalr": ">=7.0.5",
+    "node-fetch": ">=3.3.1"
   },
   "node-red": {
     "nodes": {
