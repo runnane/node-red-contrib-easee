@@ -25,7 +25,7 @@ module.exports = function (RED) {
     var node = this;
 
     node.signalRpath = 'https://streams.easee.com/hubs/chargers';
-    node.RestApipath = 'https://api.easee.cloud/api';
+    node.RestApipath = 'https://api.easee.com/api';
 
     node.accessToken = false;
     node.refreshToken = false;
