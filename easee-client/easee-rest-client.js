@@ -83,7 +83,14 @@
               node.warn(error);
             });
 
-        
+          }else if(("payload" in msg) && (typeof msg.payload == "object") && ("path" in msg.payload)){
+            if("body" in msg.payload){
+              // Do POST
+              node.genericCall(msg.payload.path, true, "post", msg.payload.body);
+            }else{
+              // Do GET
+              node.genericCall(msg.payload.path);
+            }
 
         }else{
           try {
