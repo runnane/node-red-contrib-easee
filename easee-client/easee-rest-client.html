@@ -1,68 +1,76 @@
-<!-- SignalR Input Node -->
 <script type="text/x-red" data-template-name="easee-rest-client">
   <div class="form-row">
     <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="node-red:common.label.name"></span></label>
     <input type="text" id="node-input-name" data-i18n="[placeholder]node-red:common.label.name" />
   </div>
   <div class="form-row">
-    <label for="node-input-charger"><i class="fa fa-tag"></i> Charger</label>
+    <label for="node-input-charger"><i class="fa fa-tag"></i>Charger</label>
     <input type="text" id="node-input-charger" data-i18n="[placeholder]node-red:common.label.name" />
   </div>
   <div class="form-row">
-    <label for="node-input-configuration"><i class="fa fa-bookmark"></i> Easee configuration</label>
+    <label for="node-input-site"><i class="fa fa-tag"></i>Site</label>
+    <input type="text" id="node-input-site" data-i18n="[placeholder]node-red:common.label.name" />
+  </div>
+  <div class="form-row">
+    <label for="node-input-circuit"><i class="fa fa-tag"></i>Circuit</label>
+    <input type="text" id="node-input-circuit" data-i18n="[placeholder]node-red:common.label.name" />
+  </div>
+  <div class="form-row">
+    <label for="node-input-configuration"><i class="fa fa-bookmark"></i>Easee configuration</label>
     <input type="text" id="node-input-configuration" />
   </div>
 </script>
 
 <script type="text/javascript">
-
-(function() {
-
-  RED.nodes.registerType('easee-rest-client', {
-      category: 'network',
+  (function () {
+    RED.nodes.registerType("easee-rest-client", {
+      category: "network",
       defaults: {
-          name: { value: '' },
-          charger: { required: true },
-          configuration: { type: 'easee-configuration', required: true},
-          inputs: { value: 1 },
-          outputs: { value: 1 },
+        name: { value: "" },
+        charger: { required: false },
+        site: { required: false },
+        circuit: { required: false },
+        configuration: { type: "easee-configuration", required: true },
+        inputs: { value: 1 },
+        outputs: { value: 1 },
       },
-      color: '#F3B567',
+      color: "#F3B567",
       inputs: 1,
       outputs: 1,
-      icon: 'feed.svg',
-    
-      label: function() {
-          return this.name ? this.name : this.charger;
+      icon: "feed.svg",
+
+      label: function () {
+        return this.name ? this.name : this.charger;
       },
-      paletteLabel: 'easee Charger Rest Client',
-
-  });
-
-  
-})();
+      paletteLabel: "easee Rest Client",
+    });
+  })();
 </script>
 
 <script type="text/markdown" data-help-name="easee-rest-client">
-Simple REST client for the easee public API
+  Simple REST client for the easee public API
 
-### Inputs
-: topic (string) :  the command of the message to send (see below)
+  ### Inputs
 
-### Outputs
-1. Command response
-: payload (object) : the response from the
+  : topic (string) : the command of the message to send (see below)
 
-### Details
-Configure the node with username/password and a Charger ID ("EH000000").
-Send the your selected command as the topic into the node.
-Implemented commands that may be sent as topic, are:
-+ `login`
-+ `refresh_token`
-+ `charger`
-+ `charger_details`
-+ `charger_state`
-+ `charger_site`
-+ `charger_session_latest`
-+ `charger_session_ongoing`
+  ### Outputs
+
+  1. Command response
+     : payload (object) : the response from the
+
+  ### Details
+
+  Configure the node with username/password and a Charger ID ("EH000000").
+  Send the your selected command as the topic into the node.
+  Implemented commands that may be sent as topic, are:
+
+  - `login`
+  - `refresh_token`
+  - `charger`
+  - `charger_details`
+  - `charger_state`
+  - `charger_site`
+  - `charger_session_latest`
+  - `charger_session_ongoing`
 </script>

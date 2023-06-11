@@ -12,18 +12,14 @@
   limitations under the License.
  **/
 
-
 module.exports = function (RED) {
   "use strict";
   const signalR = require("@microsoft/signalr");
   const fetch = (...args) =>
-    import('node-fetch').then(({ "default": fetch }) => fetch(...args));
+    import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
   var inspect = require("util").inspect;
 
-  // =======================
-  // === The node itself ===
-  // =======================
   function ChargerStreamingClientNode(n) {
     RED.nodes.createNode(this, n);
     var node = this;
@@ -34,7 +30,7 @@ module.exports = function (RED) {
     node.responses = n.responses;
     node.options = {};
     node.reconnectInterval = 3000;
-    node.closing = false; // Used to check if node-red is closing, or not, and if so decline any reconnect attempts.
+    node.closing = false;
 
     if (!this.connectionConfig) {
       this.error("Missing easee configuration");
@@ -42,28 +38,28 @@ module.exports = function (RED) {
     }
 
     node.fullReconnect = () => {
-      node.connectionConfig.doLogin().then(json => {
+      node.connectionConfig.doLogin().then((json) => {
         node.startconn();
       });
     };
 
-    this.connectionConfig.on('update', (msg) => {
+    this.connectionConfig.on("update", (msg) => {
       node.status({
         fill: "green",
         shape: "dot",
-        text: msg.update
+        text: msg.update,
       });
       //console.log(msg);
     });
 
-    this.on('input', (msg, send, done) => {
+    this.on("input", (msg, send, done) => {
       node.fullReconnect();
       if (done) {
         done();
       }
     });
 
-    this.on('opened', (event) => {
+    this.on("opened", (event) => {
       node.status({
         fill: "green",
         shape: "dot",
@@ -71,14 +67,17 @@ module.exports = function (RED) {
         event: "connect",
         _session: {
           type: "signalr",
-          id: event.id
-        }
+          id: event.id,
+        },
       });
 
       // send the connected msg
-      node.send([{ _connectionId: event.id, payload: "Connected" }, null, null]);
+      node.send([
+        { _connectionId: event.id, payload: "Connected" },
+        null,
+        null,
+      ]);
 
-      //sending SubscribeWithCurrentState");
       node.connection.send("SubscribeWithCurrentState", node.charger, true);
 
       node.connection.on("ProductUpdate", (data) => {
@@ -91,12 +90,11 @@ module.exports = function (RED) {
         node.send([null, null, null, null, { payload: data }, null]);
       });
       node.connection.on("CommandResponse", (data) => {
-        //console.log("[easee] got ProductUpdate");
         node.send([null, null, null, null, null, { payload: data }]);
       });
     });
 
-    this.on('erro', (event) => {
+    this.on("erro", (event) => {
       node.status({
         fill: "red",
         shape: "ring",
@@ -104,39 +102,43 @@ module.exports = function (RED) {
         event: "error",
         _session: {
           type: "signalr",
-          id: event.id
-        }
+          id: event.id,
+        },
       });
       var errMsg = { payload: event.err };
       if (event.id) errMsg._connectionId = event.id;
       node.send([null, errMsg, null]);
     });
 
-    this.on('closed', (event) => {
+    this.on("closed", (event) => {
       var status;
       if (event.count > 0) {
         status = {
           fill: "green",
           shape: "dot",
-          text: RED._("node-red:common.status.connected")
+          text: RED._("node-red:common.status.connected"),
         };
       } else {
         status = {
           fill: "red",
           shape: "ring",
-          text: RED._("node-red:common.status.disconnected")
+          text: RED._("node-red:common.status.disconnected"),
         };
       }
       status.event = "disconnect";
       status._session = {
         type: "signalr",
-        id: event.id
+        id: event.id,
       };
       node.status(status);
-      node.send([null, null, { _connectionId: event.id, payload: "Disconnected" }]);
+      node.send([
+        null,
+        null,
+        { _connectionId: event.id, payload: "Disconnected" },
+      ]);
     });
 
-    this.on('close',  (removed, done) => {
+    this.on("close", (removed, done) => {
       node.closing = true;
       node.connection.stop();
       if (node.reconnectTimoutHandle) {
@@ -152,7 +154,7 @@ module.exports = function (RED) {
       node.status({});
       if (done) done();
     });
-   
+
     // Connect to remote endpoint
     node.startconn = () => {
       node.closing = false;
@@ -161,17 +163,20 @@ module.exports = function (RED) {
 
       if (!node.charger) {
         node.error("No charger, exiting");
-        node.emit('erro', {
+        node.emit("erro", {
           err: "No charger, exiting",
         });
         return;
       }
       if (!node.connectionConfig.accessToken) {
         node.error("No accessToken, exiting");
-        node.emit('erro', {
+        node.emit("erro", {
           err: "No accessToken, waiting",
         });
-        node.reconnectTimoutHandle = setTimeout(() => node.startconn(), node.reconnectInterval);
+        node.reconnectTimoutHandle = setTimeout(
+          () => node.startconn(),
+          node.reconnectInterval
+        );
         return;
       }
 
@@ -184,39 +189,41 @@ module.exports = function (RED) {
 
       node.connection = connection; // keep for closing
       node.handleConnection(connection);
-    }
+    };
 
     node.reconnect = () => {
       if (node.reconnectTimoutHandle) clearTimeout(node.reconnectTimoutHandle);
       if (node.closing) return;
-      node.connectionConfig.doLogin().then(json => {
-        node.reconnectTimoutHandle = setTimeout(() => node.startconn(), node.reconnectInterval);
-      })
-     
-    }
+      node.connectionConfig.doLogin().then((json) => {
+        node.reconnectTimoutHandle = setTimeout(
+          () => node.startconn(),
+          node.reconnectInterval
+        );
+      });
+    };
     node.notifyOnError = (err, id) => {
       if (!err) return;
-      node.emit('erro', {
+      node.emit("erro", {
         err: err,
-        id: id
+        id: id,
       });
-    }
+    };
 
     node.handleConnection = async (connection) => {
-      let id = '';
+      let id = "";
       try {
         await connection.start();
         // We're connected
         id = connection.connectionId;
-        node.emit('opened', {
-          count: '',
-          id: id
+        node.emit("opened", {
+          count: "",
+          id: id,
         });
 
-        connection.onclose(err => {
-          node.emit('closed', {
-            count: '',
-            id: id
+        connection.onclose((err) => {
+          node.emit("closed", {
+            count: "",
+            id: id,
           });
           node.notifyOnError(err, id);
           node.reconnect();
@@ -225,16 +232,15 @@ module.exports = function (RED) {
         node.notifyOnError(err, id);
         node.reconnect();
       }
-    }
+    };
 
     node.closing = false;
 
-
     // Start in 2 sec
-   setTimeout(() => node.fullReconnect(), 2000);
-
-
+    setTimeout(() => node.fullReconnect(), 2000);
   }
-  RED.nodes.registerType("charger-streaming-client", ChargerStreamingClientNode);
-
-}
+  RED.nodes.registerType(
+    "charger-streaming-client",
+    ChargerStreamingClientNode
+  );
+};
