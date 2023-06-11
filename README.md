@@ -15,7 +15,7 @@ Node-Red module for streaming Easee charger data.
 
 `npm i @runnane/node-red-contrib-easee`
 
-Add the `easee charger streaming client` node
+Add the `easee Charger Streaming Client` node
 Configure the node with username/password and the Charger ID.
 
 ## Streaming node
@@ -28,6 +28,10 @@ the `ProductUpdate` one.
 
 Use the `easee REST Client` node
 Configure the node with an account username/password.
+The REST node will not authenticate on its own, so you will need to authenticate/renew tokens.
+However, if you use the `easee Charger Streaming Client` node,
+you do not need to authenticate additionally with the REST node, as the signalR socket
+will authenticate and renew automatically.
 
 There are two ways of sending commands:
 
@@ -77,6 +81,11 @@ node.send({
   body: { phase1: 25, phase2: 25, phase3: 25 },
 });
 ```
+
+## Example
+
+See [example flows](https://github.com/runnane/node-red-contrib-easee/blob/main/example.json)
+![image](https://github.com/runnane/node-red-contrib-easee/assets/1679504/744fd250-3bab-46d8-a31a-3421f6d4c42d)
 
 ## Todo
 
