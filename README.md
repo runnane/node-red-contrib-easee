@@ -60,6 +60,15 @@ Implemented commands that may be sent as topic, are:
 Send the full path as msg.command, and optionally the POST body as msg.payload.
 See [developer.easee.cloud](https://developer.easee.cloud/reference/get_api-chargers) for full list of commands.
 
+Example to [set dynamic current to 3x25A](https://developer.easee.cloud/reference/post_api-sites-siteid-circuits-circuitid-dynamiccurrent) by doing a custom command with POST body:
+
+```javascript
+node.send({
+  command: "/sites/1234/circuits/1345/dynamic_current",
+  body: { phase1: 25, phase2: 25, phase3: 25 },
+});
+```
+
 ## Todo
 
 - Better documentation and examples
