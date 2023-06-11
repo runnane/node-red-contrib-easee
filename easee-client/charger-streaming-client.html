@@ -21,33 +21,31 @@
     <input type="text" id="node-input-charger" data-i18n="[placeholder]node-red:common.label.name" />
   </div>
   <div class="form-row">
-    <label for="node-input-configuration"><i class="fa fa-bookmark"></i> Easee configuration</label>
+    <label for="node-input-configuration"><i class="fa fa-bookmark"></i> Account</label>
     <input type="text" id="node-input-configuration" />
   </div>
 </script>
 
 <script type="text/javascript">
-
-(function() {
-
-  RED.nodes.registerType('charger-streaming-client', {
-      category: 'network',
+  (function () {
+    RED.nodes.registerType("charger-streaming-client", {
+      category: "network",
       defaults: {
-          name: { value: '' },
-          charger: { required: true },
-          configuration: { type: 'easee-configuration', required: true},
-          inputs: { value: 1 },
-          outputs: { value: 6 },
+        name: { value: "" },
+        charger: { required: true },
+        configuration: { type: "easee-configuration", required: true },
+        inputs: { value: 1 },
+        outputs: { value: 6 },
       },
-      color: '#F3B567',
+      color: "#F3B567",
       inputs: 1,
       outputs: 6,
-      icon: 'feed.svg',
-    
-      label: function() {
-          return this.name ? this.name : this.charger;
+      icon: "feed.svg",
+
+      label: function () {
+        return this.name ? this.name : this.charger;
       },
-      outputLabels: function(index) {
+      outputLabels: function (index) {
         if (index == 0) return "Connected";
         if (index == 1) return "Errors";
         if (index == 2) return "Disconnected";
@@ -55,45 +53,42 @@
         if (index == 4) return "ChargerUpdate";
         if (index == 5) return "CommandResponse";
       },
-      paletteLabel: 'easee Charger Streaming Client',
-
-  });
-
-  
-})();
+      paletteLabel: "easee Charger Streaming Client",
+    });
+  })();
 </script>
 
 <script type="text/markdown" data-help-name="charger-streaming-client">
   Connects and streams signalR updates from the easee public api
 
   ### Inputs
-  
+
   Input can be used to reset the connection for debugging. Input values
   are ignored
-  
+
   ### Outputs
-  
+
   1. Connected messages (debug)
-  : payload (string) : the message
-  
+     : payload (string) : the message
+
   2. Errors messages (debug)
-  : payload (string) : the message
+     : payload (string) : the message
 
   3. Disconnected messages (debug)
-  : payload (string) : the message
+     : payload (string) : the message
 
-  4. ProductUpdate messages 
-  : payload (object) : the message with the content we usually want
+  4. ProductUpdate messages
+     : payload (object) : the message with the content we usually want
 
   5. ChargerUpdate messages (debug)
-  : payload (object) : for backwards compatibility
+     : payload (object) : for backwards compatibility
 
   6. CommandResponse messages (debug)
-  : payload (string) : the message
-  
+     : payload (string) : the message
+
   ### Details
-  
+
   Configure the node with username/password and a Charger ID ("EH000000").
-  Streaming telemetry from the signalR enpoint will be available in the fourth output, 
+  Streaming telemetry from the signalR enpoint will be available in the fourth output,
   the `ProductUpdate` one.
 </script>

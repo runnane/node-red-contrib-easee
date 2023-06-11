@@ -1,41 +1,43 @@
 {
   "easee": {
     "label": {
-        "type": "Type",
-        "path": "Path",
-        "host": "Host",
-        "port": "Port",
-        "hub": "Hub",
-        "token": "Token",
-        "username": "Username",
-        "password": "Password",
-        "charger": "Charger",
-        "client": "Client",
-        "responses": "Responses",
-        "secure": "Secure (https)",
-        "reconnectInterval": "Reconnect interval (ms)"
+      "type": "Type",
+      "path": "Path",
+      "host": "Host",
+      "port": "Port",
+      "hub": "Hub",
+      "token": "Token",
+      "username": "Username",
+      "password": "Password",
+      "charger": "Charger",
+      "site": "Site",
+      "circuit": "Circuit",
+      "client": "Client",
+      "responses": "Responses",
+      "secure": "Secure (https)",
+      "reconnectInterval": "Reconnect interval (ms)"
     },
     "connectto": "Connect to",
     "sendrec": "Send/Receive",
     "payload": "payload",
     "message": "entire message",
     "tip": {
-        "path1": "By default, <code>payload</code> will contain the data to be sent over, or received from a websocket. The listener can be configured to send or receive the entire message object as a JSON formatted string.",
-        "path2": "This path will be relative to ",
-        "host": "Host can be either an IP address or hostname.",
-        "payload": "By default, <code>payload</code> will contain the data to be sent over, or received from a websocket. The client can be configured to send or receive the entire message object as a JSON formatted string.",
-        "topic": "Topic is the method name, on the server, that will be invoked when this node receives an input message.  Leave it blank, and use msg.topic, to specify the method name at runtime.",
-        "reconnectInterval": "Reconnect interval must be a number and greater than or equal to 100 (ms)"
+      "path1": "By default, <code>payload</code> will contain the data to be sent over, or received from a websocket. The listener can be configured to send or receive the entire message object as a JSON formatted string.",
+      "path2": "This path will be relative to ",
+      "host": "Host can be either an IP address or hostname.",
+      "payload": "By default, <code>payload</code> will contain the data to be sent over, or received from a websocket. The client can be configured to send or receive the entire message object as a JSON formatted string.",
+      "topic": "Topic is the method name, on the server, that will be invoked when this node receives an input message.  Leave it blank, and use msg.topic, to specify the method name at runtime.",
+      "reconnectInterval": "Reconnect interval must be a number and greater than or equal to 100 (ms)"
     },
     "status": {
-        "connected": "connected",
-        "connected_plural": "connected"
+      "connected": "connected",
+      "connected_plural": "connected"
     },
     "errors": {
-        "connect-error": "An error occurred on the ws connection: ",
-        "send-error": "An error occurred while sending: ",
-        "missing-conf": "Missing server configuration",
-        "duplicate-path": "Cannot have two WebSocket listeners on the same path: __path__"
+      "connect-error": "An error occurred on the ws connection: ",
+      "send-error": "An error occurred while sending: ",
+      "missing-conf": "Missing server configuration",
+      "duplicate-path": "Cannot have two WebSocket listeners on the same path: __path__"
     }
   }
 }
