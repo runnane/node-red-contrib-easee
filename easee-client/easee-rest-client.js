@@ -14,367 +14,259 @@
 
 module.exports = function (RED) {
   "use strict";
-  const fetch = (...args) =>
-    import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
-  function EaseeRestClient(n) {
-    RED.nodes.createNode(this, n);
-    var node = this;
-    node.charger = n.charger;
-    node.site = n.site;
-    node.circuit = n.circuit;
-    node.configurationNode = n.configuration;
-    node.connectionConfig = RED.nodes.getNode(node.configurationNode);
+  class EaseeRestClient {
+    constructor(n) {
+      RED.nodes.createNode(this, n);
+      var node = this;
+      node.charger = n.charger;
+      node.site = n.site;
+      node.circuit = n.circuit;
+      node.configurationNode = n.configuration;
+      node.connectionConfig = RED.nodes.getNode(node.configurationNode);
 
-    if (!this.connectionConfig) {
-      this.error("Missing easee configuration");
-      return;
-    }
-
-    node.genericCall = (url, send = true, method = "get", body = {}) => {
-      return node
-        .doAuthRestCall(url, method, {}, body)
-        .then((json) => {
-          if (send && json) {
-            node.send({
-              topic: url,
-              payload: json,
-              auth: {
-                accessToken: node.connectionConfig.accessToken,
-                refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires,
-                tokenExpiresIn: Math.floor(
-                  (node.connectionConfig.tokenExpires - new Date()) / 1000
-                ),
-              },
-            });
-          }
-          return json;
-        })
-        .catch((error) => {
-          node.error("easee-rest-client genericCall() failed");
-          console.error(error);
-          node.warn(error);
-        });
-    };
-
-    this.on("input", function (msg, send, done) {
-      let url = "";
-      if (msg.topic == "login") {
-        node.connectionConfig
-          .doLogin()
-          .then((json) => {
-            node.send({
-              topic: "/accounts/login/",
-              payload: json,
-              auth: {
-                accessToken: node.connectionConfig.accessToken,
-                refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires,
-                tokenExpiresIn: node.connectionConfig.tokenExpires - new Date(),
-              },
-            });
-          })
-          .catch((error) => {
-            console.error(error);
-            node.warn(error);
-          });
-      } else if (msg.topic == "refresh_token") {
-        node.connectionConfig
-          .doRefreshToken()
-          .then((json) => {
-            node.send({
-              topic: "/accounts/refresh_token/",
-              payload: json,
-              auth: {
-                accessToken: node.connectionConfig.accessToken,
-                refreshToken: node.connectionConfig.refreshToken,
-                tokenExpires: node.connectionConfig.tokenExpires,
-                tokenExpiresIn: node.connectionConfig.tokenExpires - new Date(),
-              },
-            });
-          })
-          .catch((error) => {
-            console.error(error);
-            node.warn(error);
-          });
-      } else if (
-        "payload" in msg &&
-        typeof msg.payload == "object" &&
-        "path" in msg.payload
-      ) {
-        if ("body" in msg.payload) {
-          // Do POST
-          node.genericCall(msg.payload.path, true, "post", msg.payload.body);
-        } else {
-          // Do GET
-          node.genericCall(msg.payload.path);
-        }
-      } else {
-        try {
-          switch (msg.topic) {
-            case "dynamic_current":
-              if (
-                !("payload" in msg) ||
-                !(typeof msg.payload == "object") ||
-                !("site_id" in msg.payload)
-              ) {
-                node.error("dynamic_current failed: site_id missing");
-              } else if (!("circuit_id" in msg.payload)) {
-                node.error("dynamic_current failed: circuit_id missing");
-              } else if ("body" in msg.payload) {
-                // Do POST update of circuit
-                node.genericCall(
-                  "/sites/" +
-                    msg.payload.site_id +
-                    "/circuits/" +
-                    msg.payload.circuit_id +
-                    "/dynamicCurrent",
-                  true,
-                  "post",
-                  msg.payload.body
-                );
-              } else {
-                // GET circuit information
-                node.genericCall(
-                  "/sites/" +
-                    msg.payload.site_id +
-                    "/circuits/" +
-                    msg.payload.circuit_id +
-                    "/dynamicCurrent"
-                );
-              }
-
-              break;
-
-            case "charger":
-              node.genericCall("/chargers/" + node.charger);
-              break;
-
-            case "charger_details":
-              node.genericCall("/chargers/" + node.charger + "/details");
-              break;
-
-            case "charger_state":
-              const url = "/chargers/" + node.charger + "/state";
-              node.genericCall(url, false).then((json) => {
-                try {
-                  if (typeof json !== "object") {
-                    node.error("charger_state failed");
-                  } else {
-                    Object.keys(json).forEach((idx) => {
-                      json[idx] = node.connectionConfig.parseObservation(
-                        {
-                          dataName: idx,
-                          value: json[idx],
-                          origValue: json[idx],
-                        },
-                        "name"
-                      );
-                    });
-                    node.send({
-                      topic: url,
-                      payload: json,
-                      auth: {
-                        accessToken: node.connectionConfig.accessToken,
-                        refreshToken: node.connectionConfig.refreshToken,
-                        tokenExpires: node.connectionConfig.tokenExpires,
-                        tokenExpiresIn: Math.floor(
-                          (node.connectionConfig.tokenExpires - new Date()) /
-                            1000
-                        ),
-                      },
-                    });
-                  }
-                } catch (e) {
-                  node.warn("command failed: " + error);
-                  node.error("command failed: " + error);
-                }
-              });
-              break;
-
-            case "charger_site":
-              node.genericCall("/chargers/" + node.charger + "/site");
-              break;
-
-            case "charger_session_latest":
-              node.genericCall(
-                "/chargers/" + node.charger + "/sessions/latest"
-              );
-              break;
-
-            case "charger_session_ongoing":
-              node.genericCall(
-                "/chargers/" + node.charger + "/sessions/ongoing"
-              );
-              break;
-
-            case "stop_charging":
-              node.genericCall(
-                "/chargers/" + node.charger + "/commands/stop_charging",
-                true,
-                "post"
-              );
-              break;
-
-            case "start_charging":
-              node.genericCall(
-                "/chargers/" + node.charger + "/commands/start_charging",
-                true,
-                "post"
-              );
-              break;
-
-            case "pause_charging":
-              node.genericCall(
-                "/chargers/" + node.charger + "/commands/pause_charging",
-                true,
-                "post"
-              );
-              break;
-
-            case "resume_charging":
-              node.genericCall(
-                "/chargers/" + node.charger + "/commands/resume_charging",
-                true,
-                "post"
-              );
-              break;
-
-            case "toggle_charging":
-              node.genericCall(
-                "/chargers/" + node.charger + "/commands/toggle_charging",
-                true,
-                "post"
-              );
-              break;
-
-            default:
-              node.send({ topic: "error", payload: "Unknown topic" });
-              node.status({
-                fill: "red",
-                shape: "dot",
-                text: "Unknown topic",
-              });
-              break;
-          }
-        } catch (error) {
-          node.warn("command failed: " + error);
-        }
-      }
-
-      if (done) {
-        done();
-      }
-    });
-
-    node.doAuthRestCall = async (
-      url,
-      method = "get",
-      headers = {},
-      body = {}
-    ) => {
-      headers = {
-        ...headers,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + node.connectionConfig.accessToken,
-      };
-      const bodyPayload = JSON.stringify(body);
-      if (!node.connectionConfig.accessToken) {
-        node.send({ topic: "error", payload: "Not logged in" });
-        node.status({
-          fill: "red",
-          shape: "dot",
-          text: "Not logged in",
-        });
+      if (!node.connectionConfig) {
+        node.error("Missing easee configuration");
         return;
       }
-      try {
-        const response = await fetch(node.connectionConfig.RestApipath + url, {
-          method: method,
-          headers: headers,
-          body: method == "post" ? bodyPayload : null,
+
+      // REST API GET COMMAND (wrapper)
+      node.GET = async (url) => {
+        node.status({
+          fill: "yellow",
+          shape: "dot",
+          text: "GET: sending",
         });
-
-        // console.log(response);
-        if (!response.ok) {
-          console.error("Could not fetch(): " + response.statusText);
-          throw Error("REST Command failed, check console for errors.");
-        }
-
-        const text = await response.text();
-        // console.error(text);
-        try {
-          const data = JSON.parse(text);
-          node.status({
-            fill: "green",
-            shape: "dot",
-            text: url,
+        return node.connectionConfig
+          .genericCall(url)
+          .then((response) => {
+            node.status({
+              fill: "green",
+              shape: "dot",
+              text: "GET: ok",
+            });
+            node.send({
+              topic: url,
+              payload: response,
+            });
+            return response;
+          })
+          .catch((error) => {
+            node.warn(url + " GET failed: " + error);
+            node.status({
+              fill: "red",
+              shape: "dot",
+              text: "GET: failed",
+            });
+            return error;
           });
-          return data;
-        } catch (err) {
-          node.status({
-            fill: "green",
-            shape: "dot",
-            text: url,
-          });
-          return { status: response.status, statusText: response.statusText };
-        }
-      } catch (error) {
-        node.error({
-          url: node.connectionConfig.RestApipath + url,
-          method: method,
-          headers: headers,
-          body: method == "post" ? bodyPayload : null,
-        });
-        node.error("easee-rest-client fetch() failed");
-        node.error(error);
-        console.error(error);
-        return {};
-      }
-    };
-
-    node.doRestCall = async (url, body, method = "post", headers = {}) => {
-      headers = {
-        ...headers,
-        Accept: "application/json",
-        "Content-Type": "application/json",
       };
-      const bodyPayload = JSON.stringify(body);
 
-      const response = await fetch(node.connectionConfig.RestApipath + url, {
-        method: method,
-        body: method == "post" ? bodyPayload : null,
-        headers: headers,
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw Error("REST Command failed, check console for errors.");
-          }
-          return response.json();
-        })
-        .then((json) => {
-          if ("accessToken" in json) {
-            node.connectionConfig.accessToken = json.accessToken;
-            node.connectionConfig.refreshToken = json.refreshToken;
-            var t = new Date();
-            t.setSeconds(t.getSeconds() + json.expiresIn);
-            node.connectionConfig.tokenExpires = t;
-          }
-          node.status({
-            fill: "green",
-            shape: "dot",
-            text: url,
-          });
-          return json;
-        })
-        .catch((error) => {
-          node.error(error);
-          console.error(error);
+      // REST API POST COMMAND (wrapper)
+      node.POST = async (url, body = {}) => {
+        node.status({
+          fill: "yellow",
+          shape: "dot",
+          text: "POST: sending",
         });
-      return response;
-    };
+        return node.connectionConfig
+          .genericCall(url, "post", body)
+          .then((response) => {
+            node.status({
+              fill: "green",
+              shape: "dot",
+              text: "POST: ok",
+            });
+            node.send({
+              topic: url,
+              payload: response,
+            });
+            return response;
+          })
+          .catch((error) => {
+            node.warn(url + " POST failed: " + error);
+            node.status({
+              fill: "red",
+              shape: "dot",
+              text: "GET: failed",
+            });
+            return error;
+          });
+      };
+
+      // On incoming nr message
+      node.on("input", function (msg, send, done) {
+        node.charger = msg?.charger ?? n.charger;
+        node.site = msg?.site ?? n.site;
+        node.circuit = msg?.circuit ?? n.circuit;
+
+        let url = "";
+        if (msg.topic == "login") {
+          node.connectionConfig
+            .doLogin()
+            .then((json) => {
+              node.send({
+                topic: "/accounts/login/",
+                payload: json,
+              });
+            })
+            .catch((error) => {
+              console.error(error);
+              node.warn(error);
+            });
+        } else if (msg.topic == "refresh_token") {
+          node.connectionConfig
+            .doRefreshToken()
+            .then((json) => {
+              node.send({
+                topic: "/accounts/refresh_token/",
+                payload: json,
+              });
+            })
+            .catch((error) => {
+              console.error(error);
+              node.warn(error);
+            });
+        } else if (msg?.command ?? false) {
+          // Do msg.command command
+
+          if (msg?.payload?.body ?? false) {
+            // Do POST
+            node.POST(msg.command, msg.payload.body);
+          } else {
+            // Do GET
+            node.GET(msg.command);
+          }
+        } else if (msg?.payload?.path ?? false) {
+          if (msg?.payload?.body ?? false) {
+            // Do POST
+            node.POST(msg.payload.path, msg.payload.body);
+          } else {
+            // Do GET
+            node.GET(msg.payload.path);
+          }
+        } else {
+          try {
+            switch (msg.topic) {
+              // TODO: This one should be moved to another node ??
+              case "dynamic_current":
+                if (!node.site) {
+                  node.error("dynamic_current failed: site missing");
+                } else if (!node.circuit) {
+                  node.error("dynamic_current failed: circuit missing");
+                } else if (typeof msg.payload == "object") {
+                  // Do POST update of circuit
+                  node.POST(
+                    "/sites/" +
+                      node.site +
+                      "/circuits/" +
+                      node.circuit +
+                      "/dynamicCurrent",
+                    msg.payload
+                  );
+                } else {
+                  // GET circuit information
+                  node.GET(
+                    "/sites/" +
+                      node.site +
+                      "/circuits/" +
+                      node.circuit +
+                      "/dynamicCurrent"
+                  );
+                }
+
+                break;
+
+              case "charger":
+                node.GET(
+                  "/chargers/" +
+                    node.charger +
+                    "?alwaysGetChargerAccessLevel=true"
+                );
+                break;
+
+              case "charger_details":
+                node.GET("/chargers/" + node.charger + "/details");
+                break;
+
+              case "charger_site":
+                node.GET("/chargers/" + node.charger + "/site");
+                break;
+
+              case "charger_config":
+                node.GET("/chargers/" + node.charger + "/config");
+                break;
+
+              case "charger_session_latest":
+                node.GET("/chargers/" + node.charger + "/sessions/latest");
+                break;
+
+              case "charger_session_ongoing":
+                node.GET("/chargers/" + node.charger + "/sessions/ongoing");
+                break;
+
+              case "stop_charging":
+              case "stop_charging":
+              case "pause_charging":
+              case "resume_charging":
+              case "toggle_charging":
+              case "reboot":
+                node.POST(
+                  "/chargers/" + node.charger + "/commands/" + msg.topic
+                );
+                break;
+
+              case "charger_state":
+                url = "/chargers/" + node.charger + "/state";
+                node.connectionConfig.genericCall(url).then((json) => {
+                  try {
+                    if (typeof json !== "object") {
+                      node.error("charger_state failed");
+                    } else {
+                      // Parse observations
+                      Object.keys(json).forEach((idx) => {
+                        json[idx] = node.connectionConfig.parseObservation(
+                          {
+                            dataName: idx,
+                            value: json[idx],
+                            origValue: json[idx],
+                          },
+                          "name"
+                        );
+                      });
+
+                      node.send({
+                        topic: url,
+                        payload: json,
+                      });
+                    }
+                  } catch (error) {
+                    node.warn(url + " failed: " + error);
+                    node.send({ topic: "error", payload: error, url: url });
+                  }
+                });
+                break;
+
+              default:
+                node.send({ topic: "error", payload: "Unknown topic" });
+                node.status({
+                  fill: "red",
+                  shape: "dot",
+                  text: "Unknown topic",
+                });
+                break;
+            }
+          } catch (error) {
+            node.warn("command failed: " + error);
+            node.send({ topic: "error", payload: error });
+          }
+        }
+
+        if (done) {
+          done();
+        }
+      });
+    }
   }
 
   RED.nodes.registerType("easee-rest-client", EaseeRestClient);

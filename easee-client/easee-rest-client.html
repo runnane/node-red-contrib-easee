@@ -4,19 +4,19 @@
     <input type="text" id="node-input-name" data-i18n="[placeholder]node-red:common.label.name" />
   </div>
   <div class="form-row">
-    <label for="node-input-charger"><i class="fa fa-tag"></i>Charger</label>
+    <label for="node-input-charger"><i class="fa fa-tag"></i> Charger</label>
     <input type="text" id="node-input-charger" data-i18n="[placeholder]node-red:common.label.name" />
   </div>
   <div class="form-row">
-    <label for="node-input-site"><i class="fa fa-tag"></i>Site</label>
+    <label for="node-input-site"><i class="fa fa-tag"></i> Site</label>
     <input type="text" id="node-input-site" data-i18n="[placeholder]node-red:common.label.name" />
   </div>
   <div class="form-row">
-    <label for="node-input-circuit"><i class="fa fa-tag"></i>Circuit</label>
+    <label for="node-input-circuit"><i class="fa fa-tag"></i> Circuit</label>
     <input type="text" id="node-input-circuit" data-i18n="[placeholder]node-red:common.label.name" />
   </div>
   <div class="form-row">
-    <label for="node-input-configuration"><i class="fa fa-bookmark"></i>Easee configuration</label>
+    <label for="node-input-configuration"><i class="fa fa-bookmark"></i> Account</label>
     <input type="text" id="node-input-configuration" />
   </div>
 </script>
@@ -40,9 +40,15 @@
       icon: "feed.svg",
 
       label: function () {
-        return this.name ? this.name : this.charger;
+        return (
+          this.name ||
+          (this.charger ? "Charger: " + this.charger : false) ||
+          (this.site ? "Site: " + this.site : false) ||
+          (this.circuit ? "Circuit: " + this.circuit : false) ||
+          "easee REST Client"
+        );
       },
-      paletteLabel: "easee Rest Client",
+      paletteLabel: "easee REST Client",
     });
   })();
 </script>
