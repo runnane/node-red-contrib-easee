@@ -55,6 +55,15 @@ Implemented commands that may be sent as topic, are:
 - `dynamic_current` (Without msg.payload.body for reading (GET), and with msg.payload.body for setting (POST).)
 - `reboot`
 
+Example, [get charger details](https://developer.easee.cloud/reference/get_api-chargers-id-details):
+
+```javascript
+node.send({
+  topic: "charger_details",
+  charger: "EH000000",
+});
+```
+
 ### Sending custom commands
 
 Send the full path as msg.command, and optionally the POST body as msg.payload.
