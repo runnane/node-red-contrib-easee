@@ -88,7 +88,7 @@ module.exports = function (RED) {
             node.status({
               fill: "red",
               shape: "dot",
-              text: "GET: failed",
+              text: "POST: failed",
             });
             return error;
           });
@@ -129,7 +129,6 @@ module.exports = function (RED) {
             });
         } else if (msg?.command ?? false) {
           // Do msg.command command
-
           if (msg?.payload?.body ?? false) {
             // Do POST
             node.POST(msg.command, msg.payload.body);
@@ -205,7 +204,7 @@ module.exports = function (RED) {
                 node.GET("/chargers/" + node.charger + "/sessions/ongoing");
                 break;
 
-              case "stop_charging":
+              case "start_charging":
               case "stop_charging":
               case "pause_charging":
               case "resume_charging":
