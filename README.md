@@ -87,10 +87,7 @@ node.send({
 See [example flows](https://github.com/runnane/node-red-contrib-easee/blob/main/example.json)
 ![image](https://github.com/runnane/node-red-contrib-easee/assets/1679504/744fd250-3bab-46d8-a31a-3421f6d4c42d)
 
-## Todo
-
-- Better documentation and examples
-
-## Credits
+## Credits and references
 
 - Initially forked from [node-red-contrib-signalrcore](https://github.com/scottpage/node-red-contrib-signalrcore), then rewritten
+- REST API documentation [developer.easee.cloud](https://developer.easee.cloud/)
