@@ -35,9 +35,14 @@ module.exports = function (RED) {
       }
 
       node.fullReconnect = () => {
-        node.connectionConfig.doLogin().then((json) => {
-          node.startconn();
-        });
+        node.connectionConfig
+          .doLogin()
+          .then((json) => {
+            node.startconn();
+          })
+          .catch((e) => {
+            // 
+          });
       };
 
       this.connectionConfig.on("update", (msg) => {
