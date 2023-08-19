@@ -20,7 +20,7 @@
   ],
   "dependencies": {
     "@microsoft/signalr": "3.0.0",
-    "node-fetch": ">=3.3.1"
+    "node-fetch": ">=3.3.2"
   },
   "node-red": {
     "nodes": {
@@ -34,9 +34,14 @@
     "node": ">=9.0.0"
   },
   "scripts": {
-    "test": "echo \"Error: No test specified\""
+    "test": "echo \"Error: No test specified\"",
+    "dep-update": "ncu -u -x @microsoft/signalr",
+    "release" : "np"
   },
   "jshint.options": {
     "esversion": 11
+  },
+  "devDependencies": {
+    "npm-check-updates": "^16.12.2"
   }
 }
