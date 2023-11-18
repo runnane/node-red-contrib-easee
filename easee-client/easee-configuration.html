@@ -14,22 +14,22 @@
 -->
 
 <script type="text/javascript">
-  (function() {
+  (function () {
     RED.nodes.registerType('easee-configuration', {
-        category: 'config',
-        defaults: {
-          username: { value: 'username', required: true },
-          password: { value: 'password', required: true },
-        },
-        credentials: {
-          username: {type:"text"},
-          password: {type:"password"}
+      category: 'config',
+      defaults: {
+        username: { value: 'username', required: true },
+        password: { value: 'password', required: true },
       },
-        inputs:0,
-        outputs:0,
-        label: function() {
-            return this.username ? this.username : 'easee API configuration';
-        },
+      credentials: {
+        username: { type: "text" },
+        password: { type: "password" }
+      },
+      inputs: 0,
+      outputs: 0,
+      label: function () {
+        return this.username ? this.username : 'easee API configuration';
+      },
     });
 
   })();

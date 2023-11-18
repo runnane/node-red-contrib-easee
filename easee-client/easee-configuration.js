@@ -49,40 +49,34 @@ module.exports = function (RED) {
         const bodyPayload = JSON.stringify(body);
         if (!node.accessToken) {
           throw new Error("Not logged in");
-          // node.send({ topic: "error", payload: "Not logged in" });
-          // node.status({
-          //   fill: "red",
-          //   shape: "dot",
-          //   text: "Not logged in",
-          // });
-          return;
         }
-        // try {
+
         const response = await fetch(node.RestApipath + url, {
           method: method,
           headers: headers,
           body: method == "post" ? bodyPayload : null,
+        }).catch((error) => {
+          throw new Error(error);
         });
 
-        // console.log(response);
         const text = await response.text();
 
         if (!response.ok) {
           console.error(
             "[easee] Could not fetch(): " +
-              response.status +
-              ": " +
-              response.statusText
+            response.status +
+            ": " +
+            response.statusText
           );
 
           console.error(text);
 
           throw Error(
             "REST Command failed (" +
-              response.status +
-              ": " +
-              response.statusText +
-              "), check console for errors."
+            response.status +
+            ": " +
+            response.statusText +
+            "), check console for errors."
           );
         }
 
@@ -95,21 +89,10 @@ module.exports = function (RED) {
             text: url,
           });
           return data;
-        } catch (err) {
+        } catch (error) {
           return { status: response.status, statusText: response.statusText };
         }
-        // } catch (error) {
-        //   // node.error({
-        //   //   url: node.RestApipath + url,
-        //   //   method: method,
-        //   //   headers: headers,
-        //   //   body: method == "post" ? bodyPayload : null,
-        //   // });
-        //   node.error("easee-rest-client fetch() failed");
-        //   node.error(error);
-        //   console.error(error);
-        //   throw new Error("easee-rest-client fetch() failed");
-        // }
+
       };
 
       node.doRestCall = async (url, body, method = "post", headers = {}) => {
@@ -1110,13 +1093,13 @@ module.exports = function (RED) {
             mode == "name" &&
             "altName" in observations[idx] &&
             observations[idx].altName.toLowerCase() ==
-              data.dataName.toLowerCase()
+            data.dataName.toLowerCase()
           ) {
             // Altname match
           } else if (
             mode == "name" &&
             observations[idx].name.replace(/\_/g, "").toLowerCase() ==
-              data.dataName.toLowerCase()
+            data.dataName.toLowerCase()
           ) {
             // Altname match
           } else {
@@ -1227,7 +1210,11 @@ module.exports = function (RED) {
             });
 
             return json;
-          });
+          }).catch((error) => {
+            // node.error(error);
+            // console.error(error);
+            throw new Error(error);
+          });;
 
         return response;
       };
@@ -1262,7 +1249,11 @@ module.exports = function (RED) {
               text: url,
             });
             return json;
-          });
+          }).catch((error) => {
+            // node.error(error);
+            // console.error(error);
+            throw new Error(error);
+          });;
 
         node.emit("update", {
           update: "Token retrieved (logged in)",

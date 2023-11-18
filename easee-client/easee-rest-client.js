@@ -157,20 +157,20 @@ module.exports = function (RED) {
                   // Do POST update of circuit
                   node.POST(
                     "/sites/" +
-                      node.site +
-                      "/circuits/" +
-                      node.circuit +
-                      "/dynamicCurrent",
+                    node.site +
+                    "/circuits/" +
+                    node.circuit +
+                    "/dynamicCurrent",
                     msg.payload
                   );
                 } else {
                   // GET circuit information
                   node.GET(
                     "/sites/" +
-                      node.site +
-                      "/circuits/" +
-                      node.circuit +
-                      "/dynamicCurrent"
+                    node.site +
+                    "/circuits/" +
+                    node.circuit +
+                    "/dynamicCurrent"
                   );
                 }
 
@@ -179,8 +179,8 @@ module.exports = function (RED) {
               case "charger":
                 node.GET(
                   "/chargers/" +
-                    node.charger +
-                    "?alwaysGetChargerAccessLevel=true"
+                  node.charger +
+                  "?alwaysGetChargerAccessLevel=true"
                 );
                 break;
 
