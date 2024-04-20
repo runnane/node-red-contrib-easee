@@ -30,7 +30,9 @@ module.exports = function (RED) {
       node.closing = false;
 
       if (!this.connectionConfig) {
-        this.error("Missing easee account configuration");
+        node.emit("erro", {
+          err: "Missing easee account configuration",
+        });
         return;
       }
 
@@ -41,7 +43,9 @@ module.exports = function (RED) {
             node.startconn();
           })
           .catch((e) => {
-            // 
+            node.emit("erro", {
+              err: "Error during reconnect()",
+            });
           });
       };
 
@@ -96,11 +100,19 @@ module.exports = function (RED) {
         });
       });
 
+
+      /**
+       * Error event
+       */
       this.on("erro", (event) => {
+
+        console.error(" [ERROR in easee-streaming-client] " + event.err);
+        node.warn(event.err);
+
         node.status({
           fill: "red",
           shape: "ring",
-          text: RED._("node-red:common.status.error"),
+          text: event.err,
           event: "error",
           _session: {
             type: "signalr",
@@ -153,7 +165,9 @@ module.exports = function (RED) {
         } else {
           // This node is being restarted
         }
-        node.status({});
+        node.emit("erro", {
+          err: "Disconnected",
+        });
         if (done) done();
       });
 
@@ -165,14 +179,12 @@ module.exports = function (RED) {
         node.reconnectTimoutHandle = null;
 
         if (!node.charger) {
-          node.error("No charger, exiting");
           node.emit("erro", {
             err: "No charger, exiting",
           });
           return;
         }
         if (!node.connectionConfig.accessToken) {
-          node.error("No accessToken, exiting");
           node.emit("erro", {
             err: "No accessToken, waiting",
           });

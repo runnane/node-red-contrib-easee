@@ -56,7 +56,9 @@ module.exports = function (RED) {
           headers: headers,
           body: method == "post" ? bodyPayload : null,
         }).catch((error) => {
-          throw new Error(error);
+          node.error(error);
+          return;
+          //throw new Error(error);
         });
 
         const text = await response.text();
@@ -1211,9 +1213,10 @@ module.exports = function (RED) {
 
             return json;
           }).catch((error) => {
-            // node.error(error);
-            // console.error(error);
-            throw new Error(error);
+            node.error(error);
+            node.warn(error);
+            console.error(error);
+            // throw new Error(error);
           });;
 
         return response;
@@ -1250,9 +1253,9 @@ module.exports = function (RED) {
             });
             return json;
           }).catch((error) => {
-            // node.error(error);
-            // console.error(error);
-            throw new Error(error);
+            node.error(error);
+            node.warn(error);
+            console.error(error);
           });;
 
         node.emit("update", {
