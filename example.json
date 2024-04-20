@@ -1,758 +1,700 @@
 [
   {
-    "id": "9fb1a340a4a840fc",
-    "type": "tab",
-    "label": "easee examples",
-    "disabled": false,
-    "info": "",
-    "env": []
+      "id": "9fb1a340a4a840fc",
+      "type": "tab",
+      "label": "easee examples",
+      "disabled": false,
+      "info": "",
+      "env": []
   },
   {
-    "id": "269f4ba9606214b8",
-    "type": "group",
-    "z": "9fb1a340a4a840fc",
-    "name": "Streaming node",
-    "style": {
-      "fill": "#ffffbf",
-      "label": true,
-      "color": "#000000"
-    },
-    "nodes": [
-      "0d5b9ce3e56136e4",
-      "df555c66c82bdd5b",
-      "838ad5d2d93175be",
-      "fb1e14e36205b947",
-      "bc0a23f78c13c802",
-      "125c73343bd364b6",
-      "b38b8b87dfb3d644"
-    ],
-    "x": 34,
-    "y": 339,
-    "w": 512,
-    "h": 282
-  },
-  {
-    "id": "f56116dfd9531e41",
-    "type": "group",
-    "z": "9fb1a340a4a840fc",
-    "name": "Pre-defined commands (by topic)",
-    "style": {
-      "fill": "#ffffbf",
-      "label": true,
-      "color": "#000000"
-    },
-    "nodes": [
-      "aee142b702a744fe",
-      "528a5cf13dcfe84a",
-      "e6850948d1cada54",
-      "81b8499db3ae4bd2",
-      "9256f964fead2f20",
-      "05635040ed3e51cf",
-      "0418d166cfe45bae",
-      "9d5bcc3e9b6402db",
-      "f3ad40711ce7444c",
-      "0fd6de5f89bce49c",
-      "d83e4174f25473a9",
-      "67a5637f1e19833c"
-    ],
-    "x": 14,
-    "y": 19,
-    "w": 692,
-    "h": 282
-  },
-  {
-    "id": "83e9cb2a104790fa",
-    "type": "group",
-    "z": "9fb1a340a4a840fc",
-    "name": "Custom commands (by msg.command)",
-    "style": {
-      "stroke": "#777777",
-      "label": true,
-      "color": "#000000",
-      "fill": "#ffffbf"
-    },
-    "nodes": [
-      "c462e8d85a712b13",
-      "7c4ed265871b4d82",
-      "26c9fb18c6e8ccb5",
-      "71275a9a5913cc38"
-    ],
-    "x": 574,
-    "y": 339,
-    "w": 772,
-    "h": 122
-  },
-  {
-    "id": "cb612977c8f165b1",
-    "type": "group",
-    "z": "9fb1a340a4a840fc",
-    "name": "Custom commands by passing charger id",
-    "style": {
-      "fill": "#ffffbf",
-      "label": true,
-      "color": "#000000"
-    },
-    "nodes": [
-      "1c8d9da690bec68c",
-      "471466d35d91b721",
-      "4e345d3b01eaf158"
-    ],
-    "x": 734,
-    "y": 19,
-    "w": 652,
-    "h": 122
-  },
-  {
-    "id": "567255f967ccc1df",
-    "type": "group",
-    "z": "9fb1a340a4a840fc",
-    "name": "Custom command by msg.payload.path",
-    "style": {
-      "fill": "#ffffbf",
-      "label": true,
-      "color": "#000000"
-    },
-    "nodes": [
-      "a754f676eabef18f",
-      "1e9db7f6bf95414a",
-      "55bfec4643527c4e"
-    ],
-    "x": 574,
-    "y": 479,
-    "w": 832,
-    "h": 82
-  },
-  {
-    "id": "8585cd285e0ac4ba",
-    "type": "easee-configuration",
-    "username": "username@domain.com",
-    "password": "password"
-  },
-  {
-    "id": "aee142b702a744fe",
-    "type": "easee-rest-client",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "",
-    "charger": "",
-    "site": "",
-    "circuit": "",
-    "configuration": "8585cd285e0ac4ba",
-    "inputs": 1,
-    "outputs": 1,
-    "x": 330,
-    "y": 60,
-    "wires": [
-      [
-        "528a5cf13dcfe84a"
-      ]
-    ]
-  },
-  {
-    "id": "0d5b9ce3e56136e4",
-    "type": "charger-streaming-client",
-    "z": "9fb1a340a4a840fc",
-    "g": "269f4ba9606214b8",
-    "name": "",
-    "charger": "EH123456",
-    "configuration": "8585cd285e0ac4ba",
-    "inputs": 1,
-    "outputs": 6,
-    "x": 130,
-    "y": 480,
-    "wires": [
-      [
-        "df555c66c82bdd5b"
-      ],
-      [
-        "838ad5d2d93175be"
-      ],
-      [
-        "fb1e14e36205b947"
-      ],
-      [
-        "bc0a23f78c13c802"
-      ],
-      [
-        "125c73343bd364b6"
-      ],
-      [
-        "b38b8b87dfb3d644"
-      ]
-    ]
-  },
-  {
-    "id": "df555c66c82bdd5b",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "269f4ba9606214b8",
-    "name": "* Connected messages",
-    "active": false,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 390,
-    "y": 380,
-    "wires": []
-  },
-  {
-    "id": "838ad5d2d93175be",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "269f4ba9606214b8",
-    "name": "* Error messages",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 410,
-    "y": 420,
-    "wires": []
-  },
-  {
-    "id": "fb1e14e36205b947",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "269f4ba9606214b8",
-    "name": "* Disconnected messages",
-    "active": false,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 390,
-    "y": 460,
-    "wires": []
-  },
-  {
-    "id": "bc0a23f78c13c802",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "269f4ba9606214b8",
-    "name": "* Product update messages",
-    "active": false,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 380,
-    "y": 500,
-    "wires": []
-  },
-  {
-    "id": "125c73343bd364b6",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "269f4ba9606214b8",
-    "name": "* Charger update messages",
-    "active": false,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 380,
-    "y": 540,
-    "wires": []
-  },
-  {
-    "id": "b38b8b87dfb3d644",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "269f4ba9606214b8",
-    "name": "* Command response messages",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 370,
-    "y": 580,
-    "wires": []
-  },
-  {
-    "id": "528a5cf13dcfe84a",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "login result",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": true,
-    "complete": "true",
-    "targetType": "full",
-    "statusVal": "payload",
-    "statusType": "auto",
-    "x": 590,
-    "y": 60,
-    "wires": []
-  },
-  {
-    "id": "e6850948d1cada54",
-    "type": "inject",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "login",
-    "props": [
-      {
-        "p": "topic",
-        "vt": "str"
-      }
-    ],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "login",
-    "x": 170,
-    "y": 60,
-    "wires": [
-      [
-        "aee142b702a744fe"
-      ]
-    ]
-  },
-  {
-    "id": "1c8d9da690bec68c",
-    "type": "easee-rest-client",
-    "z": "9fb1a340a4a840fc",
-    "g": "cb612977c8f165b1",
-    "name": "",
-    "charger": "",
-    "site": "",
-    "circuit": "",
-    "configuration": "8585cd285e0ac4ba",
-    "inputs": 1,
-    "outputs": 1,
-    "x": 1050,
-    "y": 100,
-    "wires": [
-      [
-        "471466d35d91b721"
-      ]
-    ]
-  },
-  {
-    "id": "471466d35d91b721",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "cb612977c8f165b1",
-    "name": "command result",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": true,
-    "complete": "true",
-    "targetType": "full",
-    "statusVal": "payload",
-    "statusType": "auto",
-    "x": 1260,
-    "y": 100,
-    "wires": []
-  },
-  {
-    "id": "4e345d3b01eaf158",
-    "type": "inject",
-    "z": "9fb1a340a4a840fc",
-    "g": "cb612977c8f165b1",
-    "name": "charger",
-    "props": [
-      {
-        "p": "topic",
-        "vt": "str"
+      "id": "269f4ba9606214b8",
+      "type": "group",
+      "z": "9fb1a340a4a840fc",
+      "name": "Streaming node",
+      "style": {
+          "fill": "#ffffbf",
+          "label": true,
+          "color": "#000000"
       },
-      {
-        "p": "charger",
-        "v": "EH123456",
-        "vt": "str"
-      }
-    ],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "charger",
-    "x": 830,
-    "y": 60,
-    "wires": [
-      [
-        "1c8d9da690bec68c"
+      "nodes": [
+          "0d5b9ce3e56136e4",
+          "df555c66c82bdd5b",
+          "838ad5d2d93175be",
+          "fb1e14e36205b947",
+          "bc0a23f78c13c802",
+          "125c73343bd364b6",
+          "b38b8b87dfb3d644"
+      ],
+      "x": 34,
+      "y": 339,
+      "w": 512,
+      "h": 282
+  },
+  {
+      "id": "f56116dfd9531e41",
+      "type": "group",
+      "z": "9fb1a340a4a840fc",
+      "name": "Pre-defined commands (by topic)",
+      "style": {
+          "fill": "#ffffbf",
+          "label": true,
+          "color": "#000000"
+      },
+      "nodes": [
+          "aee142b702a744fe",
+          "528a5cf13dcfe84a",
+          "e6850948d1cada54",
+          "81b8499db3ae4bd2",
+          "9256f964fead2f20",
+          "05635040ed3e51cf",
+          "0418d166cfe45bae",
+          "9d5bcc3e9b6402db",
+          "f3ad40711ce7444c",
+          "0fd6de5f89bce49c",
+          "d83e4174f25473a9",
+          "67a5637f1e19833c"
+      ],
+      "x": 14,
+      "y": 19,
+      "w": 692,
+      "h": 282
+  },
+  {
+      "id": "cb612977c8f165b1",
+      "type": "group",
+      "z": "9fb1a340a4a840fc",
+      "name": "Custom commands by passing charger id",
+      "style": {
+          "fill": "#ffffbf",
+          "label": true,
+          "color": "#000000"
+      },
+      "nodes": [
+          "1c8d9da690bec68c",
+          "471466d35d91b721",
+          "4e345d3b01eaf158"
+      ],
+      "x": 734,
+      "y": 219,
+      "w": 652,
+      "h": 82
+  },
+  {
+      "id": "567255f967ccc1df",
+      "type": "group",
+      "z": "9fb1a340a4a840fc",
+      "name": "Custom command by msg.payload.path",
+      "style": {
+          "fill": "#ffffbf",
+          "label": true,
+          "color": "#000000"
+      },
+      "nodes": [
+          "a754f676eabef18f",
+          "1e9db7f6bf95414a",
+          "55bfec4643527c4e",
+          "7c4ed265871b4d82",
+          "c462e8d85a712b13"
+      ],
+      "x": 574,
+      "y": 339,
+      "w": 812,
+      "h": 162
+  },
+  {
+      "id": "aee142b702a744fe",
+      "type": "easee-rest-client",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "",
+      "charger": "",
+      "site": "",
+      "circuit": "",
+      "configuration": "8585cd285e0ac4ba",
+      "inputs": 1,
+      "outputs": 1,
+      "x": 330,
+      "y": 60,
+      "wires": [
+          [
+              "528a5cf13dcfe84a"
+          ]
       ]
-    ]
   },
   {
-    "id": "a754f676eabef18f",
-    "type": "inject",
-    "z": "9fb1a340a4a840fc",
-    "g": "567255f967ccc1df",
-    "name": "custom command by msg.payload.path",
-    "props": [
-      {
-        "p": "payload"
-      }
-    ],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "payload": "{\"path\":\"/sites/3214/circuits/25163/dynamicCurrent\"}",
-    "payloadType": "json",
-    "x": 770,
-    "y": 520,
-    "wires": [
-      [
-        "1e9db7f6bf95414a"
+      "id": "0d5b9ce3e56136e4",
+      "type": "charger-streaming-client",
+      "z": "9fb1a340a4a840fc",
+      "g": "269f4ba9606214b8",
+      "name": "",
+      "charger": "EH000000",
+      "configuration": "8585cd285e0ac4ba",
+      "inputs": 1,
+      "outputs": 6,
+      "x": 130,
+      "y": 480,
+      "wires": [
+          [
+              "df555c66c82bdd5b"
+          ],
+          [
+              "838ad5d2d93175be"
+          ],
+          [
+              "fb1e14e36205b947"
+          ],
+          [
+              "bc0a23f78c13c802"
+          ],
+          [
+              "125c73343bd364b6"
+          ],
+          [
+              "b38b8b87dfb3d644"
+          ]
       ]
-    ]
   },
   {
-    "id": "81b8499db3ae4bd2",
-    "type": "easee-rest-client",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "",
-    "charger": "",
-    "site": "",
-    "circuit": "",
-    "configuration": "8585cd285e0ac4ba",
-    "inputs": 1,
-    "outputs": 1,
-    "x": 330,
-    "y": 100,
-    "wires": [
-      [
-        "9256f964fead2f20"
+      "id": "df555c66c82bdd5b",
+      "type": "debug",
+      "z": "9fb1a340a4a840fc",
+      "g": "269f4ba9606214b8",
+      "name": "* Connected messages",
+      "active": false,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": false,
+      "complete": "payload",
+      "targetType": "msg",
+      "statusVal": "",
+      "statusType": "auto",
+      "x": 390,
+      "y": 380,
+      "wires": []
+  },
+  {
+      "id": "838ad5d2d93175be",
+      "type": "debug",
+      "z": "9fb1a340a4a840fc",
+      "g": "269f4ba9606214b8",
+      "name": "* Error messages",
+      "active": true,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": false,
+      "complete": "payload",
+      "targetType": "msg",
+      "statusVal": "",
+      "statusType": "auto",
+      "x": 410,
+      "y": 420,
+      "wires": []
+  },
+  {
+      "id": "fb1e14e36205b947",
+      "type": "debug",
+      "z": "9fb1a340a4a840fc",
+      "g": "269f4ba9606214b8",
+      "name": "* Disconnected messages",
+      "active": false,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": false,
+      "complete": "payload",
+      "targetType": "msg",
+      "statusVal": "",
+      "statusType": "auto",
+      "x": 390,
+      "y": 460,
+      "wires": []
+  },
+  {
+      "id": "bc0a23f78c13c802",
+      "type": "debug",
+      "z": "9fb1a340a4a840fc",
+      "g": "269f4ba9606214b8",
+      "name": "* Product update messages",
+      "active": false,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": false,
+      "complete": "payload",
+      "targetType": "msg",
+      "statusVal": "",
+      "statusType": "auto",
+      "x": 380,
+      "y": 500,
+      "wires": []
+  },
+  {
+      "id": "125c73343bd364b6",
+      "type": "debug",
+      "z": "9fb1a340a4a840fc",
+      "g": "269f4ba9606214b8",
+      "name": "* Charger update messages",
+      "active": false,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": false,
+      "complete": "payload",
+      "targetType": "msg",
+      "statusVal": "",
+      "statusType": "auto",
+      "x": 380,
+      "y": 540,
+      "wires": []
+  },
+  {
+      "id": "b38b8b87dfb3d644",
+      "type": "debug",
+      "z": "9fb1a340a4a840fc",
+      "g": "269f4ba9606214b8",
+      "name": "* Command response messages",
+      "active": true,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": false,
+      "complete": "payload",
+      "targetType": "msg",
+      "statusVal": "",
+      "statusType": "auto",
+      "x": 370,
+      "y": 580,
+      "wires": []
+  },
+  {
+      "id": "528a5cf13dcfe84a",
+      "type": "debug",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "login result",
+      "active": true,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": true,
+      "complete": "true",
+      "targetType": "full",
+      "statusVal": "payload",
+      "statusType": "auto",
+      "x": 590,
+      "y": 60,
+      "wires": []
+  },
+  {
+      "id": "e6850948d1cada54",
+      "type": "inject",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "login",
+      "props": [
+          {
+              "p": "topic",
+              "vt": "str"
+          }
+      ],
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "onceDelay": 0.1,
+      "topic": "login",
+      "x": 170,
+      "y": 60,
+      "wires": [
+          [
+              "aee142b702a744fe"
+          ]
       ]
-    ]
   },
   {
-    "id": "9256f964fead2f20",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "refresh token result",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": true,
-    "complete": "true",
-    "targetType": "full",
-    "statusVal": "payload",
-    "statusType": "auto",
-    "x": 570,
-    "y": 120,
-    "wires": []
-  },
-  {
-    "id": "05635040ed3e51cf",
-    "type": "inject",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "refresh_token",
-    "props": [
-      {
-        "p": "topic",
-        "vt": "str"
-      }
-    ],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "refresh_token",
-    "x": 150,
-    "y": 100,
-    "wires": [
-      [
-        "81b8499db3ae4bd2"
+      "id": "1c8d9da690bec68c",
+      "type": "easee-rest-client",
+      "z": "9fb1a340a4a840fc",
+      "g": "cb612977c8f165b1",
+      "name": "",
+      "charger": "",
+      "site": "",
+      "circuit": "",
+      "configuration": "8585cd285e0ac4ba",
+      "inputs": 1,
+      "outputs": 1,
+      "x": 1050,
+      "y": 260,
+      "wires": [
+          [
+              "471466d35d91b721"
+          ]
       ]
-    ]
   },
   {
-    "id": "c462e8d85a712b13",
-    "type": "inject",
-    "z": "9fb1a340a4a840fc",
-    "g": "83e9cb2a104790fa",
-    "name": "custom command /sites",
-    "props": [
-      {
-        "p": "command",
-        "v": "/sites",
-        "vt": "str"
-      }
-    ],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 760,
-    "y": 420,
-    "wires": [
-      [
-        "26c9fb18c6e8ccb5"
+      "id": "471466d35d91b721",
+      "type": "debug",
+      "z": "9fb1a340a4a840fc",
+      "g": "cb612977c8f165b1",
+      "name": "command result",
+      "active": true,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": true,
+      "complete": "true",
+      "targetType": "full",
+      "statusVal": "payload",
+      "statusType": "auto",
+      "x": 1260,
+      "y": 260,
+      "wires": []
+  },
+  {
+      "id": "4e345d3b01eaf158",
+      "type": "inject",
+      "z": "9fb1a340a4a840fc",
+      "g": "cb612977c8f165b1",
+      "name": "charger",
+      "props": [
+          {
+              "p": "topic",
+              "vt": "str"
+          },
+          {
+              "p": "charger",
+              "v": "EH000000",
+              "vt": "str"
+          }
+      ],
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "onceDelay": 0.1,
+      "topic": "charger",
+      "x": 830,
+      "y": 260,
+      "wires": [
+          [
+              "1c8d9da690bec68c"
+          ]
       ]
-    ]
   },
   {
-    "id": "7c4ed265871b4d82",
-    "type": "inject",
-    "z": "9fb1a340a4a840fc",
-    "g": "83e9cb2a104790fa",
-    "name": "custom command /chargers",
-    "props": [
-      {
-        "p": "command",
-        "v": "/chargers",
-        "vt": "str"
-      }
-    ],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "x": 740,
-    "y": 380,
-    "wires": [
-      [
-        "26c9fb18c6e8ccb5"
+      "id": "a754f676eabef18f",
+      "type": "inject",
+      "z": "9fb1a340a4a840fc",
+      "g": "567255f967ccc1df",
+      "name": "custom command by msg.payload.path",
+      "props": [
+          {
+              "p": "payload"
+          }
+      ],
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "onceDelay": 0.1,
+      "topic": "",
+      "payload": "{\"path\":\"/sites/3214/circuits/25163/dynamicCurrent\"}",
+      "payloadType": "json",
+      "x": 770,
+      "y": 380,
+      "wires": [
+          [
+              "1e9db7f6bf95414a"
+          ]
       ]
-    ]
   },
   {
-    "id": "26c9fb18c6e8ccb5",
-    "type": "easee-rest-client",
-    "z": "9fb1a340a4a840fc",
-    "g": "83e9cb2a104790fa",
-    "name": "",
-    "charger": "",
-    "site": "",
-    "circuit": "",
-    "configuration": "8585cd285e0ac4ba",
-    "inputs": 1,
-    "outputs": 1,
-    "x": 1010,
-    "y": 400,
-    "wires": [
-      [
-        "71275a9a5913cc38"
+      "id": "81b8499db3ae4bd2",
+      "type": "easee-rest-client",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "",
+      "charger": "",
+      "site": "",
+      "circuit": "",
+      "configuration": "8585cd285e0ac4ba",
+      "inputs": 1,
+      "outputs": 1,
+      "x": 330,
+      "y": 100,
+      "wires": [
+          [
+              "9256f964fead2f20"
+          ]
       ]
-    ]
   },
   {
-    "id": "1e9db7f6bf95414a",
-    "type": "easee-rest-client",
-    "z": "9fb1a340a4a840fc",
-    "g": "567255f967ccc1df",
-    "name": "",
-    "charger": "",
-    "site": "",
-    "circuit": "",
-    "configuration": "8585cd285e0ac4ba",
-    "inputs": 1,
-    "outputs": 1,
-    "x": 1070,
-    "y": 520,
-    "wires": [
-      [
-        "55bfec4643527c4e"
+      "id": "9256f964fead2f20",
+      "type": "debug",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "refresh token result",
+      "active": true,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": true,
+      "complete": "true",
+      "targetType": "full",
+      "statusVal": "payload",
+      "statusType": "auto",
+      "x": 570,
+      "y": 120,
+      "wires": []
+  },
+  {
+      "id": "05635040ed3e51cf",
+      "type": "inject",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "refresh_token",
+      "props": [
+          {
+              "p": "topic",
+              "vt": "str"
+          }
+      ],
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "onceDelay": 0.1,
+      "topic": "refresh_token",
+      "x": 150,
+      "y": 100,
+      "wires": [
+          [
+              "81b8499db3ae4bd2"
+          ]
       ]
-    ]
   },
   {
-    "id": "0418d166cfe45bae",
-    "type": "inject",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "start_charging",
-    "props": [
-      {
-        "p": "topic",
-        "vt": "str"
-      }
-    ],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "start_charging",
-    "x": 150,
-    "y": 140,
-    "wires": [
-      [
-        "9d5bcc3e9b6402db"
+      "id": "1e9db7f6bf95414a",
+      "type": "easee-rest-client",
+      "z": "9fb1a340a4a840fc",
+      "g": "567255f967ccc1df",
+      "name": "",
+      "charger": "",
+      "site": "",
+      "circuit": "",
+      "configuration": "8585cd285e0ac4ba",
+      "inputs": 1,
+      "outputs": 1,
+      "x": 1050,
+      "y": 420,
+      "wires": [
+          [
+              "55bfec4643527c4e"
+          ]
       ]
-    ]
   },
   {
-    "id": "9d5bcc3e9b6402db",
-    "type": "easee-rest-client",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "",
-    "charger": "EH123456",
-    "site": "",
-    "circuit": "",
-    "configuration": "8585cd285e0ac4ba",
-    "inputs": 1,
-    "outputs": 1,
-    "x": 380,
-    "y": 180,
-    "wires": [
-      [
-        "f3ad40711ce7444c"
+      "id": "0418d166cfe45bae",
+      "type": "inject",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "start_charging",
+      "props": [
+          {
+              "p": "topic",
+              "vt": "str"
+          }
+      ],
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "onceDelay": 0.1,
+      "topic": "start_charging",
+      "x": 150,
+      "y": 140,
+      "wires": [
+          [
+              "9d5bcc3e9b6402db"
+          ]
       ]
-    ]
   },
   {
-    "id": "f3ad40711ce7444c",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "cmd result",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": true,
-    "complete": "true",
-    "targetType": "full",
-    "statusVal": "payload",
-    "statusType": "auto",
-    "x": 590,
-    "y": 180,
-    "wires": []
-  },
-  {
-    "id": "0fd6de5f89bce49c",
-    "type": "inject",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "stop_charging",
-    "props": [
-      {
-        "p": "topic",
-        "vt": "str"
-      }
-    ],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "stop_charging",
-    "x": 150,
-    "y": 180,
-    "wires": [
-      [
-        "9d5bcc3e9b6402db"
+      "id": "9d5bcc3e9b6402db",
+      "type": "easee-rest-client",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "",
+      "charger": "EH000000",
+      "site": "",
+      "circuit": "",
+      "configuration": "8585cd285e0ac4ba",
+      "inputs": 1,
+      "outputs": 1,
+      "x": 380,
+      "y": 180,
+      "wires": [
+          [
+              "f3ad40711ce7444c"
+          ]
       ]
-    ]
   },
   {
-    "id": "d83e4174f25473a9",
-    "type": "inject",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "pause_charging",
-    "props": [
-      {
-        "p": "topic",
-        "vt": "str"
-      }
-    ],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "pause_charging",
-    "x": 140,
-    "y": 220,
-    "wires": [
-      [
-        "9d5bcc3e9b6402db"
+      "id": "f3ad40711ce7444c",
+      "type": "debug",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "cmd result",
+      "active": true,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": true,
+      "complete": "true",
+      "targetType": "full",
+      "statusVal": "payload",
+      "statusType": "auto",
+      "x": 590,
+      "y": 180,
+      "wires": []
+  },
+  {
+      "id": "0fd6de5f89bce49c",
+      "type": "inject",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "stop_charging",
+      "props": [
+          {
+              "p": "topic",
+              "vt": "str"
+          }
+      ],
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "onceDelay": 0.1,
+      "topic": "stop_charging",
+      "x": 150,
+      "y": 180,
+      "wires": [
+          [
+              "9d5bcc3e9b6402db"
+          ]
       ]
-    ]
   },
   {
-    "id": "71275a9a5913cc38",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "83e9cb2a104790fa",
-    "name": "command result",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": true,
-    "complete": "true",
-    "targetType": "full",
-    "statusVal": "payload",
-    "statusType": "auto",
-    "x": 1220,
-    "y": 400,
-    "wires": []
-  },
-  {
-    "id": "55bfec4643527c4e",
-    "type": "debug",
-    "z": "9fb1a340a4a840fc",
-    "g": "567255f967ccc1df",
-    "name": "command result",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": true,
-    "complete": "true",
-    "targetType": "full",
-    "statusVal": "payload",
-    "statusType": "auto",
-    "x": 1280,
-    "y": 520,
-    "wires": []
-  },
-  {
-    "id": "67a5637f1e19833c",
-    "type": "inject",
-    "z": "9fb1a340a4a840fc",
-    "g": "f56116dfd9531e41",
-    "name": "resume_charging",
-    "props": [
-      {
-        "p": "topic",
-        "vt": "str"
-      }
-    ],
-    "repeat": "",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "resume_charging",
-    "x": 140,
-    "y": 260,
-    "wires": [
-      [
-        "9d5bcc3e9b6402db"
+      "id": "d83e4174f25473a9",
+      "type": "inject",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "pause_charging",
+      "props": [
+          {
+              "p": "topic",
+              "vt": "str"
+          }
+      ],
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "onceDelay": 0.1,
+      "topic": "pause_charging",
+      "x": 140,
+      "y": 220,
+      "wires": [
+          [
+              "9d5bcc3e9b6402db"
+          ]
       ]
-    ]
+  },
+  {
+      "id": "55bfec4643527c4e",
+      "type": "debug",
+      "z": "9fb1a340a4a840fc",
+      "g": "567255f967ccc1df",
+      "name": "command result",
+      "active": true,
+      "tosidebar": true,
+      "console": false,
+      "tostatus": true,
+      "complete": "true",
+      "targetType": "full",
+      "statusVal": "payload",
+      "statusType": "auto",
+      "x": 1260,
+      "y": 420,
+      "wires": []
+  },
+  {
+      "id": "67a5637f1e19833c",
+      "type": "inject",
+      "z": "9fb1a340a4a840fc",
+      "g": "f56116dfd9531e41",
+      "name": "resume_charging",
+      "props": [
+          {
+              "p": "topic",
+              "vt": "str"
+          }
+      ],
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "onceDelay": 0.1,
+      "topic": "resume_charging",
+      "x": 140,
+      "y": 260,
+      "wires": [
+          [
+              "9d5bcc3e9b6402db"
+          ]
+      ]
+  },
+  {
+      "id": "7c4ed265871b4d82",
+      "type": "inject",
+      "z": "9fb1a340a4a840fc",
+      "g": "567255f967ccc1df",
+      "name": "custom patch /chargers",
+      "props": [
+          {
+              "p": "payload"
+          }
+      ],
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "onceDelay": 0.1,
+      "topic": "",
+      "payload": "{ \"path\": \"/chargers\" }",
+      "payloadType": "json",
+      "x": 720,
+      "y": 420,
+      "wires": [
+          [
+              "1e9db7f6bf95414a"
+          ]
+      ]
+  },
+  {
+      "id": "c462e8d85a712b13",
+      "type": "inject",
+      "z": "9fb1a340a4a840fc",
+      "g": "567255f967ccc1df",
+      "name": "custom path /sites",
+      "props": [
+          {
+              "p": "payload"
+          }
+      ],
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "onceDelay": 0.1,
+      "topic": "",
+      "payload": "{ \"path\": \"/sites\" }",
+      "payloadType": "json",
+      "x": 710,
+      "y": 460,
+      "wires": [
+          [
+              "1e9db7f6bf95414a"
+          ]
+      ]
+  },
+  {
+      "id": "8585cd285e0ac4ba",
+      "type": "easee-configuration",
+      "username": "username@xx.yy",
+      "password": ""
   }
 ]
