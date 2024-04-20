@@ -72,15 +72,38 @@ node.send({
 
 Send the full path as msg.command, and optionally the POST body as msg.payload.
 See [developer.easee.cloud](https://developer.easee.cloud/reference/get_api-chargers) for full list of commands.
+When adding a body, the request will be sent as a POST, else as a GET. If you wish to send a POST without body, add an empty object as POST argument.
 
 Example to [set dynamic current to 3x25A](https://developer.easee.cloud/reference/post_api-sites-siteid-circuits-circuitid-dynamiccurrent) by doing a custom command with POST body:
 
+Set dynamic current:
+```javascript
+node.send({ 
+  payload: {
+    path: "/sites/1234/circuits/1345/dynamic_current",
+    body: { phase1: 25, phase2: 25, phase3: 25 },
+  }
+});
+```
+
+Pause charging:
+```javascript
+node.send({ 
+  payload: {
+    path: "/chargers/EH000000/commands/pause_charging",
+    body: {},
+  }
+});
+```
+
+(Old way of )setting dynamic current:
 ```javascript
 node.send({
   command: "/sites/1234/circuits/1345/dynamic_current",
   body: { phase1: 25, phase2: 25, phase3: 25 },
 });
 ```
+
 
 ## Example
 
@@ -90,4 +113,4 @@ See [example flows](https://github.com/runnane/node-red-contrib-easee/blob/main/
 ## Credits and references
 
 - Initially forked from [node-red-contrib-signalrcore](https://github.com/scottpage/node-red-contrib-signalrcore), then rewritten
-- REST API documentation [developer.easee.cloud](https://developer.easee.cloud/)
+- REST API documentation [developer.easee.com](https://developer.easee.com/docs/integrations)
