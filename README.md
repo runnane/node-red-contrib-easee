@@ -96,15 +96,6 @@ node.send({
 });
 ```
 
-(Old way of )setting dynamic current:
-```javascript
-node.send({
-  command: "/sites/1234/circuits/1345/dynamic_current",
-  body: { phase1: 25, phase2: 25, phase3: 25 },
-});
-```
-
-
 ## Example
 
 See [example flows](https://github.com/runnane/node-red-contrib-easee/blob/main/example.json)
