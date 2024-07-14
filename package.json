@@ -42,6 +42,6 @@
     "esversion": 11
   },
   "devDependencies": {
-    "npm-check-updates": "^16.12.2"
+    "npm-check-updates": "^16.14.20"
   }
 }
