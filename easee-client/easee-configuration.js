@@ -28,6 +28,25 @@ module.exports = function (RED) {
       node.refreshToken = false;
       node.tokenExpires = new Date();
 
+      node.checkTokenHandler = null;
+
+      /**
+       * Stop running token refresh on closed
+       */
+      node.on('close', function () {
+        if (node.checkTokenHandler) {
+          clearTimeout(node.checkTokenHandler);
+          node.checkTokenHandler = null;
+        }
+      });
+
+      /**
+       * Start running token refresh on start (event is emitted at end of constructor)
+       */
+      this.on("start", (event) => {
+        node.checkToken();
+      });
+
       node.genericCall = async (url, method = "get", body = {}) => {
         return node.doAuthRestCall(url, method, {}, body).then((json) => {
           return json;
@@ -40,6 +59,19 @@ module.exports = function (RED) {
         headers = {},
         body = {}
       ) => {
+
+        if (!node.accessToken) {
+          await this.doLogin().then((res) => {
+            // console.log("login ok", res)
+          }).catch((err) => {
+            console.log("login error", err);
+          })
+
+        } else {
+          // console.log("Already logged in");
+        }
+
+
         headers = {
           ...headers,
           Accept: "application/json",
@@ -47,15 +79,14 @@ module.exports = function (RED) {
           Authorization: "Bearer " + node.accessToken,
         };
         const bodyPayload = JSON.stringify(body);
-        if (!node.accessToken) {
-          throw new Error("Not logged in");
-        }
+
 
         const response = await fetch(node.RestApipath + url, {
           method: method,
           headers: headers,
           body: method == "post" ? bodyPayload : null,
         }).catch((error) => {
+          console.log("error in fetch")
           node.error(error);
           return;
           //throw new Error(error);
@@ -68,7 +99,7 @@ module.exports = function (RED) {
             "[easee] Could not fetch(): " +
             response.status +
             ": " +
-            response.statusText
+            response.statusText + " : " + text
           );
 
           console.error(text);
@@ -78,11 +109,11 @@ module.exports = function (RED) {
             response.status +
             ": " +
             response.statusText +
-            "), check console for errors."
+            ") " + text
           );
         }
 
-        // console.error(text);
+
         try {
           const data = JSON.parse(text);
           node.status({
@@ -111,10 +142,18 @@ module.exports = function (RED) {
           headers: headers,
         })
           .then((response) => {
+
             if (!response.ok) {
               throw Error("REST Command failed, check console for errors.");
             }
-            return response.json();
+
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+              return response.json();
+            } else {
+              throw new Error("Unable to do REST, response not JSON: " + response.text());
+            }
+
           })
           .then((json) => {
             if ("accessToken" in json) {
@@ -124,16 +163,12 @@ module.exports = function (RED) {
               t.setSeconds(t.getSeconds() + json.expiresIn);
               node.tokenExpires = t;
             }
-            // node.status({
-            //   fill: "green",
-            //   shape: "dot",
-            //   text: url,
-            // });
+
             return json;
           })
           .catch((error) => {
-            // node.error(error);
-            // console.error(error);
+
+
             throw new Error(error);
           });
         return response;
@@ -1154,7 +1189,8 @@ module.exports = function (RED) {
       };
 
       node.checkToken = async () => {
-        const expiresIn = Math.floor((node.tokenExpires - new Date()) / 1000);
+
+        const expiresIn = Math.floor(((node?.tokenExpires ?? 0) - new Date()) / 1000);
         if (expiresIn < 43200) {
           await node.doRefreshToken();
         }
@@ -1162,17 +1198,9 @@ module.exports = function (RED) {
       };
 
       node.doRefreshToken = async () => {
-        if (!node.accessToken) {
+        if (!node.accessToken || !node.refreshToken) {
           // Not logged in, will not refresh logged in
-          // console.log(
-          //   "[easee] EaseeConfiguration::doRefreshToken() - No accessToken, exiting"
-          // );
-          return;
-        }
-        if (!node.refreshToken) {
-          console.log(
-            "[easee] EaseeConfiguration::doRefreshToken() - No refreshToken, exiting"
-          );
+          await this.doLogin();
           return;
         }
 
@@ -1191,11 +1219,19 @@ module.exports = function (RED) {
           }
         )
           .then((response) => {
-            return response.json();
+
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+              return response.json();
+            } else {
+              throw new Error("Unable to refresh token, response not JSON: " + response.text());
+            }
+
           })
           .then((json) => {
             if (!json.accessToken) {
               // failed getting token
+              console.log("doRefreshToken error(): ", json)
               node.error(
                 "[easee] EaseeConfiguration::doRefreshToken() - Failed doRefreshToken(), exiting"
               );
@@ -1237,7 +1273,13 @@ module.exports = function (RED) {
           },
         })
           .then((response) => {
-            return response.json();
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+              return response.json();
+            } else {
+              throw new Error("Unable to doLogin(), response not JSON: " + response.text());
+            }
+
           })
           .then((json) => {
             if ("accessToken" in json) {
@@ -1256,7 +1298,7 @@ module.exports = function (RED) {
           }).catch((error) => {
             node.error(error);
             node.warn(error);
-            console.error(error);
+            console.error("error during login", error);
           });;
 
         node.emit("update", {
@@ -1266,8 +1308,11 @@ module.exports = function (RED) {
         return response;
       };
 
-      node.checkTokenHandler = setTimeout(() => node.checkToken(), 2000);
+      // Start connecting in two seconds
+      node.checkTokenHandler = setTimeout(() => node.emit("start"), 2000);
     }
+
+
   }
 
   RED.nodes.registerType("easee-configuration", EaseeConfiguration, {
@@ -1276,4 +1321,6 @@ module.exports = function (RED) {
       password: { type: "password" },
     },
   });
+
+
 };

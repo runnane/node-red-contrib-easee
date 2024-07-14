@@ -218,6 +218,7 @@ module.exports = function (RED) {
           );
         });
       };
+      
       node.notifyOnError = (err, id) => {
         if (!err) return;
         node.emit("erro", {
