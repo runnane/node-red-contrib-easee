@@ -44,7 +44,7 @@ module.exports = function (RED) {
           })
           .catch((e) => {
             node.emit("erro", {
-              err: "Error during reconnect()",
+              err: "Error during fullReconnect()",
             });
           });
       };
