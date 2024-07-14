@@ -1259,13 +1259,13 @@ module.exports = function (RED) {
         return response;
       };
 
-      node.doLogin = async () => {
+      node.doLogin = async (_username, _password) => {
         const url = "/accounts/login";
         const response = await fetch(node.RestApipath + url, {
           method: "post",
           body: JSON.stringify({
-            userName: node.credentials.username,
-            password: node.credentials.password,
+            userName: _username ?? node.credentials.username,
+            password: _password ?? node.credentials.password,
           }),
           headers: {
             Accept: "application/json",
