@@ -1163,9 +1163,10 @@ module.exports = function (RED) {
 
       node.doRefreshToken = async () => {
         if (!node.accessToken) {
-          console.log(
-            "[easee] EaseeConfiguration::doRefreshToken() - No accessToken, exiting"
-          );
+          // Not logged in, will not refresh logged in
+          // console.log(
+          //   "[easee] EaseeConfiguration::doRefreshToken() - No accessToken, exiting"
+          // );
           return;
         }
         if (!node.refreshToken) {
