@@ -30,115 +30,100 @@ module.exports = function (RED) {
         return;
       }
 
-      // REST API GET COMMAND (wrapper)
+      node.REQUEST = async (url, method = "GET", body = null) => {
+        node.status({
+          fill: "yellow",
+          shape: "dot",
+          text: method + ": sending",
+        });
+        return node.connectionConfig
+          .genericCall(url, method, body)
+          .then((response) => {
+            node.status({
+              fill: "green",
+              shape: "dot",
+              text: method + ": ok",
+            });
+            node.send({
+              status: "ok",
+              topic: url,
+              payload: response,
+            });
+            return response;
+          })
+          .catch((error) => {
+            node.status({
+              fill: "red",
+              shape: "dot",
+              text: method + ": failed",
+            });
+            node.send({
+              status: "error",
+              topic: method + ": failed",
+              payload: null,
+              error: error,
+              url: url
+            });
+            return error;
+          });
+      };
+
+
+      /**
+       * REST API GET helper command
+       * @param {*} url 
+       * @returns 
+       */
       node.GET = async (url) => {
-        node.status({
-          fill: "yellow",
-          shape: "dot",
-          text: "GET: sending",
-        });
-        return node.connectionConfig
-          .genericCall(url)
-          .then((response) => {
-            node.status({
-              fill: "green",
-              shape: "dot",
-              text: "GET: ok",
-            });
-            node.send({
-              topic: url,
-              payload: response,
-            });
-            return response;
-          })
-          .catch((error) => {
-            node.warn(url + " GET failed: " + error);
-            node.status({
-              fill: "red",
-              shape: "dot",
-              text: "GET: failed",
-            });
-            return error;
-          });
+        return node.REQUEST(url, "GET");
       };
 
-      // REST API DELETE COMMAND (wrapper)
+      /**
+       * REST API DELETE helper command
+       * 
+       * @param {*} url 
+       * @returns 
+       */
       node.DELETE = async (url) => {
-        node.status({
-          fill: "yellow",
-          shape: "dot",
-          text: "DELETE: sending",
-        });
-        return node.connectionConfig
-          .genericCall(url, "delete")
-          .then((response) => {
-            node.status({
-              fill: "green",
-              shape: "dot",
-              text: "DELETE: ok",
-            });
-            node.send({
-              topic: url,
-              payload: response,
-            });
-            return response;
-          })
-          .catch((error) => {
-            node.warn(url + " DELETE failed: " + error);
-            node.status({
-              fill: "red",
-              shape: "dot",
-              text: "DELETE: failed",
-            });
-            return error;
-          });
+        return node.REQUEST(url, "DELETE");
       };
 
-      // REST API POST COMMAND (wrapper)
+      /**
+       * REST API POST helper command
+       * 
+       * @param {*} url 
+       * @param {*} body 
+       * @returns 
+       */
       node.POST = async (url, body = {}) => {
-        node.status({
-          fill: "yellow",
-          shape: "dot",
-          text: "POST: sending",
-        });
-        return node.connectionConfig
-          .genericCall(url, "post", body)
-          .then((response) => {
-            node.status({
-              fill: "green",
-              shape: "dot",
-              text: "POST: ok",
-            });
-            node.send({
-              topic: url,
-              payload: response,
-            });
-            return response;
-          })
-          .catch((error) => {
-            node.warn(url + " POST failed: " + error);
-            node.status({
-              fill: "red",
-              shape: "dot",
-              text: "POST: failed",
-            });
-            return error;
-          });
+        return node.REQUEST(url, "POST", body);
       };
 
-      // On incoming nodered message
+      /**
+       * On incoming nodered message
+       */
       node.on("input", function (msg, send, done) {
         node.charger = msg?.charger ?? n.charger;
         node.site = msg?.site ?? n.site;
         node.circuit = msg?.circuit ?? n.circuit;
 
         let method = "GET";
-        //   let parms = [];
         let path = "";
         let body;
         let url = "";
+
         if (msg?.payload?.method ?? false) {
           method = msg.payload.method.toUpperCase();
+        }
+
+        if (node[method] == undefined) {
+          node.send({
+            status: "error",
+            topic: "error",
+            payload: null,
+            error: `Invalid HTTP method: ${method}`,
+          });
+          return;
         }
 
         if (msg?.payload?.path ?? false) {
@@ -151,10 +136,8 @@ module.exports = function (RED) {
           body = msg.payload.body;
         }
 
-
         if (path && method && method in node) {
-          // Run full path as defined by NR parameters
-          console.debug(`Running ${method} against ${path} with ${body}`);
+          // Run full path as defined by node-red parameters
           node[method](path, body);
         } else if (msg?.topic ?? false) {
           // Run command as defined by topic
@@ -163,32 +146,47 @@ module.exports = function (RED) {
               .doLogin()
               .then((json) => {
                 node.send({
+                  status: "ok",
                   topic: "/accounts/login/",
                   payload: json,
                 });
               })
               .catch((error) => {
                 console.error(error);
-                node.warn(error);
+                // node.warn(error);
+                node.send({
+                  status: "error",
+                  topic: "login: failed",
+                  payload: null,
+                  error: error,
+                  url: url
+                });
               });
           } else if (msg.topic == "refresh_token") {
             node.connectionConfig
               .doRefreshToken()
               .then((json) => {
                 node.send({
+                  status: "ok",
                   topic: "/accounts/refresh_token/",
                   payload: json,
                 });
               })
               .catch((error) => {
                 console.error(error);
-                node.warn(error);
+                // node.warn(error);
+                node.send({
+                  status: "error",
+                  topic: "refresh_token: failed",
+                  payload: null,
+                  error: error,
+                  url: url
+                });
               });
 
           } else {
             try {
               switch (msg.topic) {
-                // TODO: This one should be moved to another node ??
                 case "dynamic_current":
                   if (!node.site) {
                     node.error("dynamic_current failed: site missing");
@@ -259,51 +257,81 @@ module.exports = function (RED) {
                 case "charger_state":
                   url = "/chargers/" + node.charger + "/state";
                   node.connectionConfig.genericCall(url).then((json) => {
-                    try {
-                      if (typeof json !== "object") {
-                        node.error("charger_state failed");
-                      } else {
-                        // Parse observations
-                        Object.keys(json).forEach((idx) => {
-                          json[idx] = node.connectionConfig.parseObservation(
-                            {
-                              dataName: idx,
-                              value: json[idx],
-                              origValue: json[idx],
-                            },
-                            "name"
-                          );
-                        });
-
-                        node.send({
-                          topic: url,
-                          payload: json,
-                        });
-                      }
-                    } catch (error) {
-                      node.warn(url + " failed: " + error);
-                      node.send({ topic: "error", payload: error, url: url });
+                    if (typeof json !== "object") {
+                      node.error("charger_state failed");
+                    } else {
+                      // Parse observations
+                      Object.keys(json).forEach((idx) => {
+                        json[idx] = node.connectionConfig.parseObservation(
+                          {
+                            dataName: idx,
+                            value: json[idx],
+                            origValue: json[idx],
+                          },
+                          "name"
+                        );
+                      });
+                      node.send({
+                        status: "ok",
+                        topic: url,
+                        payload: json,
+                      });
                     }
+
+                  }).catch((error) => {
+                    //  node.warn(url + " failed: " + error);
+                    node.status({
+                      fill: "red",
+                      shape: "dot",
+                      text: "Command failed",
+                    });
+                    node.send({
+                      status: "error",
+                      topic: "charger_state command failed",
+                      payload: null,
+                      error: error,
+                    });
                   });
                   break;
 
                 default:
-                  node.send({ topic: "error", payload: "Unknown topic '" + msg.topic + "'" });
+
                   node.status({
                     fill: "red",
                     shape: "dot",
                     text: "Unknown topic",
                   });
+
+                  node.send({
+                    status: "error",
+                    topic: "Unknown topic '" + msg.topic + "'",
+                    payload: null,
+                    error: error,
+                  });
+
                   break;
               }
+
+
             } catch (error) {
-              node.warn("Command failed: " + error);
-              node.send({ topic: "error", payload: error });
+              node.warn("REST client command failed: " + error);
+
+              node.send({
+                status: "error",
+                topic: "REST client command failed",
+                payload: null,
+                error: error,
+              });
             }
           }
         } else {
           // Missing topic
-          node.send({ topic: "error", payload: "Missing required payload.path or topic" });
+          node.send({
+            status: "error",
+            topic: "error",
+            payload: null,
+            error: "Missing required payload.path or topic",
+          });
           node.status({
             fill: "red",
             shape: "dot",

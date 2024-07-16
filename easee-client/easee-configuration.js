@@ -47,30 +47,25 @@ module.exports = function (RED) {
         node.checkToken();
       });
 
-      node.genericCall = async (url, method = "get", body = {}) => {
-        return node.doAuthRestCall(url, method, {}, body).then((json) => {
-          return json;
+      node.genericCall = async (url, method = "GET", body = null) => {
+        return node.doAuthRestCall(url, method, {}, body).then((response) => {
+          return response;
         });
       };
 
       node.doAuthRestCall = async (
         url,
-        method = "get",
-        headers = {},
-        body = {}
+        method = "GET",
+        headers = null,
+        body = null
       ) => {
 
         if (!node.accessToken) {
           await this.doLogin().then((res) => {
-            // console.log("login ok", res)
           }).catch((err) => {
             console.log("login error", err);
           })
-
-        } else {
-          // console.log("Already logged in");
         }
-
 
         headers = {
           ...headers,
@@ -78,101 +73,119 @@ module.exports = function (RED) {
           "Content-Type": "application/json",
           Authorization: "Bearer " + node.accessToken,
         };
-        const bodyPayload = JSON.stringify(body);
+        const bodyPayload = body ? JSON.stringify(body) : null;
 
 
         const response = await fetch(node.RestApipath + url, {
           method: method,
           headers: headers,
-          body: method == "post" ? bodyPayload : null,
+          body: bodyPayload,
         }).catch((error) => {
-          console.log("error in fetch")
+          console.log(`Critical error in doAuthRestCall() fetch, failing`)
           node.error(error);
           return;
-          //throw new Error(error);
         });
 
-        const text = await response.text();
+        const http_text = await response.text();
+        let http_json = null
+        try {
+          http_json = JSON.parse(http_text);
+        } catch (err) {
 
-        if (!response.ok) {
-          console.error(
-            "[easee] Could not fetch(): " +
-            response.status +
-            ": " +
-            response.statusText + " : " + text
-          );
-
-          console.error(text);
-
-          throw Error(
-            "REST Command failed (" +
-            response.status +
-            ": " +
-            response.statusText +
-            ") " + text
-          );
         }
 
+        const http_status = response.status;
+        const http_statusText = response.statusText;
+        const is_ok = response.ok;
+        const is_json = (typeof http_json === "object");
 
-        try {
-          const data = JSON.parse(text);
+
+        if (!is_ok) {
+          // Do we have valid JSON and JSON message?
+          if (is_json) {
+            if (is_json?.message ?? false) {
+              let errormsg = `REST Command failed (${http_status}: ${http_statusText}) ${is_json.message}`;
+              //      node.error(errormsg);
+              throw Error(errormsg /*JSON.stringify({ error: errormsg, http_status: http_status, http_statusText: http_statusText, http_json: http_json })*/);
+
+            } else {
+              let errormsg = `REST Command failed (${http_status}: ${http_statusText}) ${http_text}`;
+              //   node.error(errormsg);
+              throw Error(errormsg /*JSON.stringify({ error: errormsg, http_status: http_status, http_statusText: http_statusText, http_json: http_json }) */);
+            }
+          }
+
+          // We do not have valid JSON
+          let errormsg = `REST Command failed (${http_status}: ${http_statusText}) ${http_text}`;
+          //   node.error(errormsg);
+          throw Error(errormsg /*JSON.stringify({ error: errormsg, http_status: http_status, http_statusText: http_statusText, http_text: http_text })*/);
+        }
+        if (is_json && http_json !== null) {
           node.status({
             fill: "green",
             shape: "dot",
             text: url,
           });
-          return data;
-        } catch (error) {
-          return { status: response.status, statusText: response.statusText };
+          return http_json;
+        } else {
+          let errormsg = `REST Command return invalid data (${http_status}: ${http_statusText}) ${http_text}`;
+          throw Error(errormsg /*JSON.stringify({ error: errormsg, http_status: http_status, http_statusText: http_statusText, http_text: http_text })*/);
+
         }
+        // try {
+        //   const data = JSON.parse(http_text);
 
-      };
+        // } catch (error) {
+        //   return { status: response.status, statusText: response.statusText };
+        // }
 
-      node.doRestCall = async (url, body, method = "post", headers = {}) => {
-        headers = {
-          ...headers,
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        };
-        const bodyPayload = JSON.stringify(body);
+      }; // node.doAuthRestCall()
 
-        const response = await fetch(node.RestApipath + url, {
-          method: method,
-          body: method == "post" ? bodyPayload : null,
-          headers: headers,
-        })
-          .then((response) => {
+      // node.doRestCall = async (url, body, method = "post", headers = {}) => {
+      //   headers = {
+      //     ...headers,
+      //     Accept: "application/json",
+      //     "Content-Type": "application/json",
+      //   };
+      //   const bodyPayload = JSON.stringify(body);
 
-            if (!response.ok) {
-              throw Error("REST Command failed, check console for errors.");
-            }
+      //   const response = await fetch(node.RestApipath + url, {
+      //     method: method,
+      //     body: method == "post" ? bodyPayload : null,
+      //     headers: headers,
+      //   })
+      //     .then((response) => {
 
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1) {
-              return response.json();
-            } else {
-              throw new Error("Unable to do REST, response not JSON: " + response.text());
-            }
+      //       if (!response.ok) {
+      //         throw Error("REST Command failed, check console for errors.");
+      //       }
 
-          })
-          .then((json) => {
-            if ("accessToken" in json) {
-              node.accessToken = json.accessToken;
-              node.refreshToken = json.refreshToken;
-              var t = new Date();
-              t.setSeconds(t.getSeconds() + json.expiresIn);
-              node.tokenExpires = t;
-            }
+      //       const contentType = response.headers.get("content-type");
+      //       if (contentType && contentType.indexOf("application/json") !== -1) {
+      //         return response.json();
+      //       } else {
+      //         throw new Error("Unable to do REST, response not JSON: " + response.text());
+      //       }
 
-            return json;
-          })
-          .catch((error) => {
+      //     })
+      //     .then((json) => {
+      //       if ("accessToken" in json) {
+      //         node.accessToken = json.accessToken;
+      //         node.refreshToken = json.refreshToken;
+      //         var t = new Date();
+      //         t.setSeconds(t.getSeconds() + json.expiresIn);
+      //         node.tokenExpires = t;
+      //       }
+
+      //       return json;
+      //     })
+      //     .catch((error) => {
 
 
-            throw new Error(error);
-          });
-        return response;
-      };
+      //       throw new Error(error);
+      //     });
+      //   return response;
+      // }; // node.doRestCall()
 
       node.parseObservation = (data, mode = "id") => {
         const observations = [
@@ -1186,7 +1199,7 @@ module.exports = function (RED) {
         }
 
         return data;
-      };
+      }; // node.parseObservation()
 
       node.checkToken = async () => {
 
@@ -1233,7 +1246,7 @@ module.exports = function (RED) {
               // failed getting token
               console.log("doRefreshToken error(): ", json)
               node.error(
-                "[easee] EaseeConfiguration::doRefreshToken() - Failed doRefreshToken(), exiting"
+                "[easee] EaseeConfiguration::doRefreshToken() - Failed doRefreshToken(), REST command did not return token, exiting"
               );
               return;
             }
@@ -1254,6 +1267,8 @@ module.exports = function (RED) {
             node.warn(error);
             console.error(error);
             // throw new Error(error);
+            console.error("Fatal error during doRefreshToken()", error);
+
           });;
 
         return response;
@@ -1297,8 +1312,8 @@ module.exports = function (RED) {
             return json;
           }).catch((error) => {
             node.error(error);
-            node.warn(error);
-            console.error("error during login", error);
+            //node.warn(error);
+            console.error("Fatal error during doLogin()", error);
           });;
 
         node.emit("update", {
