@@ -47,12 +47,27 @@ module.exports = function (RED) {
         node.checkToken();
       });
 
-      node.genericCall = async (url, method = "GET", body = null) => {
+      /**
+       * 
+       * @param {string} url 
+       * @param {string} method 
+       * @param {*} body 
+       * @returns 
+       */
+      node.genericCall = async (url, method = "get", body = {}) => {
         return node.doAuthRestCall(url, method, {}, body).then((response) => {
           return response;
         });
       };
 
+      /**
+       * 
+       * @param {*} url 
+       * @param {*} method 
+       * @param {*} headers 
+       * @param {*} body 
+       * @returns 
+       */
       node.doAuthRestCall = async (
         url,
         method = "GET",
@@ -74,7 +89,6 @@ module.exports = function (RED) {
           Authorization: "Bearer " + node.accessToken,
         };
         const bodyPayload = body ? JSON.stringify(body) : null;
-
 
         const response = await fetch(node.RestApipath + url, {
           method: method,
@@ -99,26 +113,19 @@ module.exports = function (RED) {
         const is_ok = response.ok;
         const is_json = (typeof http_json === "object");
 
-
         if (!is_ok) {
           // Do we have valid JSON and JSON message?
           if (is_json) {
             if (is_json?.message ?? false) {
-              let errormsg = `REST Command failed (${http_status}: ${http_statusText}) ${is_json.message}`;
-              //      node.error(errormsg);
-              throw Error(errormsg /*JSON.stringify({ error: errormsg, http_status: http_status, http_statusText: http_statusText, http_json: http_json })*/);
+              throw Error(`REST Command failed (${http_status}: ${http_statusText}) ${is_json.message}`);
 
             } else {
-              let errormsg = `REST Command failed (${http_status}: ${http_statusText}) ${http_text}`;
-              //   node.error(errormsg);
-              throw Error(errormsg /*JSON.stringify({ error: errormsg, http_status: http_status, http_statusText: http_statusText, http_json: http_json }) */);
+              throw Error(`REST Command failed (${http_status}: ${http_statusText}) ${http_text}`);
             }
           }
 
           // We do not have valid JSON
-          let errormsg = `REST Command failed (${http_status}: ${http_statusText}) ${http_text}`;
-          //   node.error(errormsg);
-          throw Error(errormsg /*JSON.stringify({ error: errormsg, http_status: http_status, http_statusText: http_statusText, http_text: http_text })*/);
+          throw Error(`REST Command failed (${http_status}: ${http_statusText}) ${http_text}`);
         }
         if (is_json && http_json !== null) {
           node.status({
@@ -128,68 +135,20 @@ module.exports = function (RED) {
           });
           return http_json;
         } else {
-          let errormsg = `REST Command return invalid data (${http_status}: ${http_statusText}) ${http_text}`;
-          throw Error(errormsg /*JSON.stringify({ error: errormsg, http_status: http_status, http_statusText: http_statusText, http_text: http_text })*/);
+          throw Error(`REST Command return invalid data (${http_status}: ${http_statusText}) ${http_text}`);
 
         }
-        // try {
-        //   const data = JSON.parse(http_text);
-
-        // } catch (error) {
-        //   return { status: response.status, statusText: response.statusText };
-        // }
-
       }; // node.doAuthRestCall()
 
-      // node.doRestCall = async (url, body, method = "post", headers = {}) => {
-      //   headers = {
-      //     ...headers,
-      //     Accept: "application/json",
-      //     "Content-Type": "application/json",
-      //   };
-      //   const bodyPayload = JSON.stringify(body);
-
-      //   const response = await fetch(node.RestApipath + url, {
-      //     method: method,
-      //     body: method == "post" ? bodyPayload : null,
-      //     headers: headers,
-      //   })
-      //     .then((response) => {
-
-      //       if (!response.ok) {
-      //         throw Error("REST Command failed, check console for errors.");
-      //       }
-
-      //       const contentType = response.headers.get("content-type");
-      //       if (contentType && contentType.indexOf("application/json") !== -1) {
-      //         return response.json();
-      //       } else {
-      //         throw new Error("Unable to do REST, response not JSON: " + response.text());
-      //       }
-
-      //     })
-      //     .then((json) => {
-      //       if ("accessToken" in json) {
-      //         node.accessToken = json.accessToken;
-      //         node.refreshToken = json.refreshToken;
-      //         var t = new Date();
-      //         t.setSeconds(t.getSeconds() + json.expiresIn);
-      //         node.tokenExpires = t;
-      //       }
-
-      //       return json;
-      //     })
-      //     .catch((error) => {
-
-
-      //       throw new Error(error);
-      //     });
-      //   return response;
-      // }; // node.doRestCall()
-
+      /**
+       * 
+       * https://developer.easee.com/reference/get_api-resources-observation-properties
+       * 
+       * @param {*} data 
+       * @param {*} mode 
+       * @returns 
+       */
       node.parseObservation = (data, mode = "id") => {
-        // https://developer.easee.com/reference/get_api-resources-observation-properties
-
         const observations = [
           {
             observationId: 15,
@@ -1247,8 +1206,10 @@ module.exports = function (RED) {
         return data;
       }; // node.parseObservation()
 
+      /**
+       * 
+       */
       node.checkToken = async () => {
-
         const expiresIn = Math.floor(((node?.tokenExpires ?? 0) - new Date()) / 1000);
         if (expiresIn < 43200) {
           await node.doRefreshToken();
@@ -1256,6 +1217,10 @@ module.exports = function (RED) {
         node.checkTokenHandler = setTimeout(() => node.checkToken(), 60 * 1000);
       };
 
+      /**
+       * 
+       * @returns 
+       */
       node.doRefreshToken = async () => {
         if (!node.accessToken || !node.refreshToken) {
           // Not logged in, will not refresh logged in
@@ -1278,7 +1243,6 @@ module.exports = function (RED) {
           }
         )
           .then((response) => {
-
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
               return response.json();
@@ -1312,7 +1276,6 @@ module.exports = function (RED) {
             node.error(error);
             node.warn(error);
             console.error(error);
-            // throw new Error(error);
             console.error("Fatal error during doRefreshToken()", error);
 
           });;
@@ -1320,6 +1283,12 @@ module.exports = function (RED) {
         return response;
       };
 
+      /**
+       * 
+       * @param {*} _username 
+       * @param {*} _password 
+       * @returns 
+       */
       node.doLogin = async (_username, _password) => {
         const url = "/accounts/login";
         const response = await fetch(node.RestApipath + url, {
@@ -1358,7 +1327,6 @@ module.exports = function (RED) {
             return json;
           }).catch((error) => {
             node.error(error);
-            //node.warn(error);
             console.error("Fatal error during doLogin()", error);
           });;
 
@@ -1372,8 +1340,6 @@ module.exports = function (RED) {
       // Start connecting in two seconds
       node.checkTokenHandler = setTimeout(() => node.emit("start"), 2000);
     }
-
-
   }
 
   RED.nodes.registerType("easee-configuration", EaseeConfiguration, {

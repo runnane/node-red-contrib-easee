@@ -79,19 +79,9 @@ module.exports = function (RED) {
       };
 
       /**
-       * REST API DELETE helper command
+       * REST API POST COMMAND (wrapper)
        * 
-       * @param {*} url 
-       * @returns 
-       */
-      node.DELETE = async (url) => {
-        return node.REQUEST(url, "DELETE");
-      };
-
-      /**
-       * REST API POST helper command
-       * 
-       * @param {*} url 
+       * @param {string} url 
        * @param {*} body 
        * @returns 
        */
