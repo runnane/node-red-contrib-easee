@@ -54,8 +54,8 @@ module.exports = function (RED) {
        * @param {*} body 
        * @returns 
        */
-      node.genericCall = async (url, method = "get", body = {}) => {
-        return node.doAuthRestCall(url, method, {}, body).then((response) => {
+      node.genericCall = async (url, method = "GET", body = null) => {
+        return node.doAuthRestCall(url, method, null, body).then((response) => {
           return response;
         });
       };

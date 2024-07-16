@@ -31,7 +31,51 @@ module.exports = function (RED) {
       }
 
       /**
-       * Wrapper for 
+       * Helper func for sending sailure
+       * @param string url 
+       * @param {string} method 
+       * @param {*} error 
+       */
+      node.fail = async (url, method, error) => {
+        console.error(error);
+        node.status({
+          fill: "red",
+          shape: "dot",
+          text: method + ": failed",
+        });
+        node.send({
+          status: "error",
+          topic: method + ": failed",
+          payload: null,
+          error: error,
+          url: url
+        });
+        return true;
+      };
+
+      /**
+      * Helper func for sending success
+      * @param {string} url 
+      * @param {string} method 
+      * @param {*} response 
+      */
+      node.ok = async (url, method, response) => {
+        node.status({
+          fill: "green",
+          shape: "dot",
+          text: method + ": ok",
+        });
+        node.send({
+          status: "ok",
+          topic: url,
+          payload: response,
+        });
+        return true;
+      };
+
+      /**
+       * Wrapper for easee-configuration.genericCall()
+       * 
        * @param {*} url 
        * @param {*} method 
        * @param {*} body 
@@ -46,32 +90,10 @@ module.exports = function (RED) {
         return node.connection
           .genericCall(url, method, body)
           .then((response) => {
-            node.status({
-              fill: "green",
-              shape: "dot",
-              text: method + ": ok",
-            });
-            node.send({
-              status: "ok",
-              topic: url,
-              payload: response,
-            });
-            return response;
+            return node.ok(url, method, response);
           })
           .catch((error) => {
-            node.status({
-              fill: "red",
-              shape: "dot",
-              text: method + ": failed",
-            });
-            node.send({
-              status: "error",
-              topic: method + ": failed",
-              payload: null,
-              error: error,
-              url: url
-            });
-            return error;
+            return node.fail(url, method, error);
           });
       };
 
@@ -114,13 +136,7 @@ module.exports = function (RED) {
         }
 
         if (node[method] == undefined) {
-          node.send({
-            status: "error",
-            topic: "error",
-            payload: null,
-            error: `Invalid HTTP method: ${method}`,
-          });
-          return;
+          return node.fail("error", "POST", `Invalid HTTP method: ${method}`);
         }
 
         if (msg?.payload?.path ?? false) {
@@ -133,207 +149,130 @@ module.exports = function (RED) {
           body = msg.payload.body;
         }
 
-        if (path && method && method in node) {
+        if (path && method) {
           // Run full path as defined by node-red parameters
           node[method](path, body);
+
         } else if (msg?.topic ?? false) {
           // Run command as defined by topic
-          if (msg.topic == "login") {
-            node.connection
-              .doLogin()
-              .then((json) => {
-                node.send({
-                  status: "ok",
-                  topic: "/accounts/login/",
-                  payload: json,
-                });
-              })
-              .catch((error) => {
-                console.error(error);
-                // node.warn(error);
-                node.send({
-                  status: "error",
-                  topic: "login: failed",
-                  payload: null,
-                  error: error,
-                  url: url
-                });
-              });
-          } else if (msg.topic == "refresh_token") {
-            node.connection
-              .doRefreshToken()
-              .then((json) => {
-                node.send({
-                  status: "ok",
-                  topic: "/accounts/refresh_token/",
-                  payload: json,
-                });
-              })
-              .catch((error) => {
-                console.error(error);
-                // node.warn(error);
-                node.send({
-                  status: "error",
-                  topic: "refresh_token: failed",
-                  payload: null,
-                  error: error,
-                  url: url
-                });
-              });
+          try {
+            switch (msg.topic) {
+              case "login":
+                node.connection
+                  .doLogin()
+                  .then((json) => {
+                    return node.ok("/accounts/login/", "POST", json);
+                  })
+                  .catch((error) => {
+                    return node.fail("/accounts/login/", "POST", error);
+                  });
+                break;
+              case "refresh_token":
+                node.connection
+                  .doRefreshToken()
+                  .then((json) => {
+                    return node.ok("/accounts/refresh_token/", "POST", json);
+                  })
+                  .catch((error) => {
+                    return node.fail("/accounts/refresh_token/", "POST", error);
 
-          } else {
-            try {
-              switch (msg.topic) {
-                case "dynamic_current":
-                  if (!node.site) {
-                    node.error("dynamic_current failed: site missing");
-                  } else if (!node.circuit) {
-                    node.error("dynamic_current failed: circuit missing");
-                  } else if (typeof msg.payload == "object") {
-                    // Do POST update of circuit
-                    node.POST(
-                      "/sites/" +
-                      node.site +
-                      "/circuits/" +
-                      node.circuit +
-                      "/dynamicCurrent",
-                      msg.payload
-                    );
+                  });
+
+                break;
+              case "dynamic_current":
+                if (!node.site) {
+                  node.error("dynamic_current failed: site missing");
+                  return;
+                } else if (!node.circuit) {
+                  node.error("dynamic_current failed: circuit missing");
+                  return;
+                } else if (typeof msg.payload == "object") {
+                  // Do POST update of circuit
+                  node.POST(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`, msg.payload);
+                } else {
+                  // GET circuit information
+                  node.GET(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`);
+                }
+                break;
+
+              case "charger":
+                node.GET(`/chargers/${node.charger}?alwaysGetChargerAccessLevel=true`);
+                break;
+
+              case "charger_details":
+                node.GET(`/chargers/${node.charger}/details`);
+                break;
+
+              case "charger_site":
+                node.GET(`/chargers/${node.charger}/site`);
+                break;
+
+              case "charger_config":
+                node.GET(`/chargers/${node.charger}/config`);
+                break;
+
+              case "charger_session_latest":
+                node.GET(`/chargers/${node.charger}/sessions/latest`);
+                break;
+
+              case "charger_session_ongoing":
+                node.GET(`/chargers/${node.charger}/sessions/ongoing`);
+                break;
+
+              case "start_charging":
+              case "stop_charging":
+              case "pause_charging":
+              case "resume_charging":
+              case "toggle_charging":
+              case "reboot":
+                node.POST(`/chargers/${node.charger}/commands/${msg.topic}`);
+                break;
+
+              case "charger_state":
+                url = `/chargers/${node.charger}/state`;
+                node.connection.genericCall(url).then((json) => {
+                  if (typeof json !== "object") {
+                    node.error("charger_state failed");
                   } else {
-                    // GET circuit information
-                    node.GET(
-                      "/sites/" +
-                      node.site +
-                      "/circuits/" +
-                      node.circuit +
-                      "/dynamicCurrent"
-                    );
+                    // Parse observations
+                    Object.keys(json).forEach((idx) => {
+                      json[idx] = node.connection.parseObservation(
+                        {
+                          dataName: idx,
+                          value: json[idx],
+                          origValue: json[idx],
+                        },
+                        "name"
+                      );
+                    });
+                    return node.ok(url, "GET", json);
+
                   }
 
-                  break;
+                }).catch((error) => {
+                  return node.fail(url, "GET", error);
 
-                case "charger":
-                  node.GET(
-                    "/chargers/" +
-                    node.charger +
-                    "?alwaysGetChargerAccessLevel=true"
-                  );
-                  break;
+                });
+                break;
 
-                case "charger_details":
-                  node.GET("/chargers/" + node.charger + "/details");
-                  break;
+              default:
 
-                case "charger_site":
-                  node.GET("/chargers/" + node.charger + "/site");
-                  break;
-
-                case "charger_config":
-                  node.GET("/chargers/" + node.charger + "/config");
-                  break;
-
-                case "charger_session_latest":
-                  node.GET("/chargers/" + node.charger + "/sessions/latest");
-                  break;
-
-                case "charger_session_ongoing":
-                  node.GET("/chargers/" + node.charger + "/sessions/ongoing");
-                  break;
-
-                case "start_charging":
-                case "stop_charging":
-                case "pause_charging":
-                case "resume_charging":
-                case "toggle_charging":
-                case "reboot":
-                  node.POST(
-                    "/chargers/" + node.charger + "/commands/" + msg.topic
-                  );
-                  break;
-
-                case "charger_state":
-                  url = "/chargers/" + node.charger + "/state";
-                  node.connection.genericCall(url).then((json) => {
-                    if (typeof json !== "object") {
-                      node.error("charger_state failed");
-                    } else {
-                      // Parse observations
-                      Object.keys(json).forEach((idx) => {
-                        json[idx] = node.connection.parseObservation(
-                          {
-                            dataName: idx,
-                            value: json[idx],
-                            origValue: json[idx],
-                          },
-                          "name"
-                        );
-                      });
-                      node.send({
-                        status: "ok",
-                        topic: url,
-                        payload: json,
-                      });
-                    }
-
-                  }).catch((error) => {
-                    //  node.warn(url + " failed: " + error);
-                    node.status({
-                      fill: "red",
-                      shape: "dot",
-                      text: "Command failed",
-                    });
-                    node.send({
-                      status: "error",
-                      topic: "charger_state command failed",
-                      payload: null,
-                      error: error,
-                    });
-                  });
-                  break;
-
-                default:
-
-                  node.status({
-                    fill: "red",
-                    shape: "dot",
-                    text: "Unknown topic",
-                  });
-
-                  node.send({
-                    status: "error",
-                    topic: "Unknown topic '" + msg.topic + "'",
-                    payload: null,
-                    error: error,
-                  });
-
-                  break;
-              }
+                return node.fail("error", "GET", `Unknown topic ${msg.topic}`);
 
 
-            } catch (error) {
-              node.warn("REST client command failed: " + error);
-
-              node.send({
-                status: "error",
-                topic: "REST client command failed",
-                payload: null,
-                error: error,
-              });
+                break;
             }
+
+
+          } catch (error) {
+            return node.fail("REST client command failed", "GET", error);
+
           }
+
         } else {
           // Missing topic
-          node.send({
-            status: "error",
-            topic: "error",
-            payload: null,
-            error: "Missing required payload.path or topic",
-          });
-          node.status({
-            fill: "red",
-            shape: "dot",
-            text: "Missing required payload.path or topic",
-          });
+          return node.fail("error", "GET", `Missing required payload.path or topic`);
+
         }
         if (done) {
           done();
