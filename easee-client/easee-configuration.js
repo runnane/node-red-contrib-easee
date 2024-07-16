@@ -188,6 +188,8 @@ module.exports = function (RED) {
       // }; // node.doRestCall()
 
       node.parseObservation = (data, mode = "id") => {
+        // https://developer.easee.com/reference/get_api-resources-observation-properties
+
         const observations = [
           {
             observationId: 15,
@@ -1238,9 +1240,8 @@ module.exports = function (RED) {
           break;
         }
         if (!data.observationId) {
-          console.error(`Unknown observation id ${data.id}:`);
-          console.error(data);
-
+          // console.error(`Unknown observation id ${data.id}:`);
+          // console.error(data);
         }
 
         return data;
