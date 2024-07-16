@@ -23,20 +23,27 @@ module.exports = function (RED) {
       node.site = n.site;
       node.circuit = n.circuit;
       node.configurationNode = n.configuration;
-      node.connectionConfig = RED.nodes.getNode(node.configurationNode);
+      node.connection = RED.nodes.getNode(node.configurationNode);
 
-      if (!node.connectionConfig) {
+      if (!node.connection) {
         node.error("Missing easee configuration");
         return;
       }
 
+      /**
+       * Wrapper for 
+       * @param {*} url 
+       * @param {*} method 
+       * @param {*} body 
+       * @returns 
+       */
       node.REQUEST = async (url, method = "GET", body = null) => {
         node.status({
           fill: "yellow",
           shape: "dot",
           text: method + ": sending",
         });
-        return node.connectionConfig
+        return node.connection
           .genericCall(url, method, body)
           .then((response) => {
             node.status({
@@ -132,7 +139,7 @@ module.exports = function (RED) {
         } else if (msg?.topic ?? false) {
           // Run command as defined by topic
           if (msg.topic == "login") {
-            node.connectionConfig
+            node.connection
               .doLogin()
               .then((json) => {
                 node.send({
@@ -153,7 +160,7 @@ module.exports = function (RED) {
                 });
               });
           } else if (msg.topic == "refresh_token") {
-            node.connectionConfig
+            node.connection
               .doRefreshToken()
               .then((json) => {
                 node.send({
@@ -246,13 +253,13 @@ module.exports = function (RED) {
 
                 case "charger_state":
                   url = "/chargers/" + node.charger + "/state";
-                  node.connectionConfig.genericCall(url).then((json) => {
+                  node.connection.genericCall(url).then((json) => {
                     if (typeof json !== "object") {
                       node.error("charger_state failed");
                     } else {
                       // Parse observations
                       Object.keys(json).forEach((idx) => {
-                        json[idx] = node.connectionConfig.parseObservation(
+                        json[idx] = node.connection.parseObservation(
                           {
                             dataName: idx,
                             value: json[idx],
