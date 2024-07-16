@@ -105,3 +105,4 @@ See [example flows](https://github.com/runnane/node-red-contrib-easee/blob/main/
 
 - Initially forked from [node-red-contrib-signalrcore](https://github.com/scottpage/node-red-contrib-signalrcore), then rewritten
 - REST API documentation [developer.easee.com](https://developer.easee.com/docs/integrations)
+- Enumerations [developer.easee.com](https://developer.easee.com/docs/enumerations)

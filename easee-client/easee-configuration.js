@@ -287,7 +287,7 @@ module.exports = function (RED) {
             name: "PhaseMode",
             dataType: 4,
             valueMapping: (val) => {
-              // https://developer.easee.cloud/docs/enumerations
+              // https://developer.easee.com/docs/enumerations#phasemode-38
               const modes = {
                 0: "Ignore,no phase mode reported",
                 1: "Locked to 1-phase",
@@ -327,7 +327,7 @@ module.exports = function (RED) {
             name: "OfflineChargingMode",
             dataType: 4,
             valueMapping: (val) => {
-              // https://developer.easee.cloud/docs/enumerations
+              // https://developer.easee.com/docs/enumerations#offline-charging-mode-45
               const modes = {
                 0: "Always allow charging if offline",
                 1: "Only allow charging if token is whitelisted in the local token cache",
@@ -341,7 +341,7 @@ module.exports = function (RED) {
             name: "LEDMode",
             dataType: 4,
             valueMapping: (val) => {
-              // https://developer.easee.cloud/docs/enumerations
+              // https://developer.easee.com/docs/enumerations#led-mode-46
               const modes = {
                 0: "Charger is disabled",
 
@@ -483,6 +483,24 @@ module.exports = function (RED) {
             observationId: 89,
             name: "RebootReason",
             dataType: 4,
+            valueMapping: (val) => {
+              // https://developer.easee.com/docs/enumerations#rebootreason-89
+              const modes = {
+                0: "FirewallReset",
+                1: "OptionByteLoaderReset",
+                2: "PinReset",
+                3: "BOR",
+                4: "SoftwareReset",
+                5: "IndependentWindowWatchdogReset",
+                6: "WindowWatchdogReset",
+                7: "LowPowerReset",
+
+                12: "Brownout",
+                20: "Reboot",
+
+              };
+              return modes[val];
+            },
           },
           {
             observationId: 90,
@@ -499,7 +517,7 @@ module.exports = function (RED) {
             name: "ReasonForNoCurrent",
             dataType: 4,
             valueMapping: (val) => {
-              // https://developer.easee.cloud/docs/enumerations
+              // https://developer.easee.com/docs/enumerations#reasonfornocurrent-96
               const modes = {
                 0: "Charger Fine - Charger is OK, use main charger status",
 
@@ -567,7 +585,7 @@ module.exports = function (RED) {
             name: "PilotMode",
             dataType: 6,
             valueMapping: (val) => {
-              // https://developer.easee.cloud/docs/enumerations
+              // https://developer.easee.com/docs/enumerations#pilotmode-100
               const modes = {
                 A: "Car disconnected",
                 B: "Car connected",
@@ -623,15 +641,17 @@ module.exports = function (RED) {
             name: "ChargerOpMode",
             dataType: 4,
             valueMapping: (val) => {
-              // https://developer.easee.cloud/docs/enumerations
+              // https://developer.easee.com/docs/enumerations#op-mode-109
               const modes = {
-                0: "Offline",
-                1: "Disconnected",
-                2: "AwaitingStart",
-                3: "Charging",
-                4: "Completed",
-                5: "Error",
-                6: "ReadyToCharge",
+                0: "Offline - Offline.",
+                1: "Disconnected - No car connected.",
+                2: "AwaitingStart - Car connected, charger is waiting for EV or load balancing. SuspendedEVSE.",
+                3: "Charging - 	Charging.",
+                4: "Completed - Car has paused/stopped charging.",
+                5: "Error - Error in charger.",
+                6: "ReadyToCharge - Charger is waiting for car to take energy. SuspendedEV.",
+                7: "Awaiting Authentication - Charger is waiting for authentication.",
+                8: "De-authenticating - Charger is de-authenticating.",
               };
               return modes[val];
             },
@@ -640,6 +660,26 @@ module.exports = function (RED) {
             observationId: 110,
             name: "OutputPhase",
             dataType: 4,
+            valueMapping: (val) => {
+              // https://developer.easee.com/docs/enumerations#output-phase-110
+              const modes = {
+                0: "Unassigned",
+
+                10: "1-phase (N+L1)",
+                11: "1-phase (L1+L2)",
+                12: "1-phase (N+L2)",
+                13: "1-phase (L1+L3)",
+                14: "1-phase (N+L3)",
+                15: "1-phase (L2+L3)",
+
+                20: "2-phases on TN (N+L1, N+L2)",
+                21: "2-phases on TN (N+L2, N+L3)",
+                22: "2-phases on IT (L1+L2, L2+L3)",
+
+                30: "3-phases (N+L1, N+L2, N+L3)",
+              };
+              return modes[val];
+            },
             /*
             public enum OutputPhaseType {
               UNASSIGNED = 0,
@@ -1196,6 +1236,11 @@ module.exports = function (RED) {
           }
 
           break;
+        }
+        if (!data.observationId) {
+          console.error(`Unknown observation id ${data.id}:`);
+          console.error(data);
+
         }
 
         return data;
