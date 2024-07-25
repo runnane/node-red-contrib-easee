@@ -135,8 +135,15 @@ module.exports = function (RED) {
           });
           return http_json;
         } else {
-          throw Error(`REST Command return invalid data (${http_status}: ${http_statusText}) ${http_text}`);
-
+          node.status({
+            fill: "green",
+            shape: "dot",
+            text: url,
+          });
+          return {
+            result: http_status,
+            resultText: http_statusText
+          };
         }
       }; // node.doAuthRestCall()
 
@@ -1242,12 +1249,13 @@ module.exports = function (RED) {
             }),
           }
         )
-          .then((response) => {
+          .then(async (response) => {
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
               return response.json();
             } else {
-              throw new Error("Unable to refresh token, response not JSON: " + response.text());
+              const errortxt = await response.text();
+              throw new Error("Unable to refresh token, response not JSON: " + errortxt);
             }
 
           })
