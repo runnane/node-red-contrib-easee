@@ -59,7 +59,7 @@ Implemented commands that may be sent as topic, are:
 - `dynamic_current` (Without msg.payload.body for reading (GET), and with msg.payload.body for setting (POST).)
 - `reboot`
 
-Example, [get charger details](https://developer.easee.cloud/reference/get_api-chargers-id-details):
+Example, [get charger details](https://developer.easee.com/reference/get_api-chargers-id-details):
 
 ```javascript
 node.send({
@@ -71,10 +71,10 @@ node.send({
 ### Sending custom commands
 
 Send the full path as msg.command, and optionally the POST body as msg.payload.
-See [developer.easee.cloud](https://developer.easee.cloud/reference/get_api-chargers) for full list of commands.
+See [get_api-chargers](https://developer.easee.com/reference/get_api-chargers) for full list of commands.
 When adding a body, the request will be sent as a POST, else as a GET. If you wish to send a POST without body, add an empty object as POST argument.
 
-Example to [set dynamic current to 3x25A](https://developer.easee.cloud/reference/post_api-sites-siteid-circuits-circuitid-dynamiccurrent) by doing a custom command with POST body:
+Example to [set dynamic current to 3x25A](https://developer.easee.com/reference/post_api-sites-siteid-circuits-circuitid-dynamiccurrent) by doing a custom command with POST body:
 
 Set dynamic current:
 ```javascript
