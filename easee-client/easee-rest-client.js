@@ -133,10 +133,8 @@ module.exports = function (RED) {
 
         if (msg?.payload?.method ?? false) {
           method = msg.payload.method.toUpperCase();
-        }
-
-        if (node[method] == undefined) {
-          return node.fail("error", "POST", `Invalid HTTP method: ${method}`);
+        } else if (msg?.payload?.body ?? false) {
+          method = "POST";
         }
 
         if (msg?.payload?.path ?? false) {
@@ -147,6 +145,11 @@ module.exports = function (RED) {
 
         if (msg?.payload?.body ?? false) {
           body = msg.payload.body;
+        }
+
+
+        if (node[method] == undefined) {
+          return node.fail("error", "POST", `Invalid HTTP method: ${method}`);
         }
 
         if (path && method) {
