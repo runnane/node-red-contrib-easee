@@ -1,6 +1,6 @@
 {
   "name": "@runnane/node-red-contrib-easee",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Module for streaming Easee data. Based on node-red-contrib-signalrcore",
   "author": "Jon Tungland",
   "homepage": "https://github.com/runnane/node-red-contrib-easee",
