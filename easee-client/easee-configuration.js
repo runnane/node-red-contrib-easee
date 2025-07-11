@@ -29,6 +29,10 @@ module.exports = function (RED) {
       node.tokenExpires = new Date();
 
       node.checkTokenHandler = null;
+      node.refreshRetryCount = 0;
+      node.maxRefreshRetries = 5;
+      node.loginRetryCount = 0;
+      node.maxLoginRetries = 5;
 
       /**
        * Stop running token refresh on closed
@@ -76,10 +80,24 @@ module.exports = function (RED) {
       ) => {
 
         if (!node.accessToken) {
-          await this.doLogin().then((res) => {
-          }).catch((err) => {
-            console.log("login error", err);
-          })
+          console.log("No access token available, attempting login");
+          node.status({
+            fill: "yellow",
+            shape: "ring",
+            text: "Authenticating...",
+          });
+          
+          try {
+            await node.doLogin();
+          } catch (err) {
+            console.log("Login error in doAuthRestCall:", err);
+            node.status({
+              fill: "red",
+              shape: "ring",
+              text: "Authentication failed",
+            });
+            throw err;
+          }
         }
 
         headers = {
@@ -1214,24 +1232,79 @@ module.exports = function (RED) {
       }; // node.parseObservation()
 
       /**
-       * 
+       * Check token expiration and refresh if needed
        */
       node.checkToken = async () => {
         const expiresIn = Math.floor(((node?.tokenExpires ?? 0) - new Date()) / 1000);
         if (expiresIn < 43200) {
-          await node.doRefreshToken();
+          node.status({
+            fill: "yellow",
+            shape: "ring",
+            text: "Refreshing token...",
+          });
+          
+          const refreshResult = await node.doRefreshToken();
+          
+          // If refresh failed (returned null), try fresh login
+          if (refreshResult === null) {
+            node.status({
+              fill: "yellow",
+              shape: "ring",
+              text: "Token expired, re-authenticating...",
+            });
+            
+            try {
+              await node.doLogin();
+              // Reset retry counters on successful login
+              node.refreshRetryCount = 0;
+              node.loginRetryCount = 0;
+            } catch (loginError) {
+              console.error("Fresh login also failed:", loginError);
+              node.loginRetryCount++;
+              
+              if (node.loginRetryCount >= node.maxLoginRetries) {
+                node.status({
+                  fill: "red",
+                  shape: "ring",
+                  text: "Authentication failed - check credentials",
+                });
+                node.error("Authentication failed after maximum retries. Please check credentials and reconfigure the node.");
+                
+                // Clear all tokens to force reconfiguration
+                node.accessToken = false;
+                node.refreshToken = false;
+                node.tokenExpires = new Date();
+                node.refreshRetryCount = 0;
+                node.loginRetryCount = 0;
+                
+                // Stop the token check cycle
+                if (node.checkTokenHandler) {
+                  clearTimeout(node.checkTokenHandler);
+                  node.checkTokenHandler = null;
+                }
+                return;
+              } else {
+                node.status({
+                  fill: "yellow",
+                  shape: "ring",
+                  text: `Login retry ${node.loginRetryCount}/${node.maxLoginRetries}`,
+                });
+              }
+            }
+          }
         }
         node.checkTokenHandler = setTimeout(() => node.checkToken(), 60 * 1000);
       };
 
       /**
-       * 
-       * @returns 
+       * Refresh the access token using the refresh token
+       * @returns {Promise<Object|null>} The refresh response or null if refresh failed
        */
       node.doRefreshToken = async () => {
         if (!node.accessToken || !node.refreshToken) {
-          // Not logged in, will not refresh logged in
-          await this.doLogin();
+          // Not logged in, will not refresh - attempt login instead
+          console.log("No tokens available for refresh, attempting fresh login");
+          await node.doLogin();
           return;
         }
 
@@ -1252,7 +1325,16 @@ module.exports = function (RED) {
           .then(async (response) => {
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
-              return response.json();
+              const json = await response.json();
+              
+              // Check if the response indicates an error (like invalid refresh token)
+              if (!response.ok) {
+                const errorMsg = json.title || json.errorCodeName || 'Unknown error';
+                const errorDetail = json.detail || '';
+                throw new Error(`Token refresh failed (${response.status}): ${errorMsg}${errorDetail ? ' - ' + errorDetail : ''}`);
+              }
+              
+              return json;
             } else {
               const errortxt = await response.text();
               throw new Error("Unable to refresh token, response not JSON: " + errortxt);
@@ -1261,14 +1343,16 @@ module.exports = function (RED) {
           })
           .then((json) => {
             if (!json.accessToken) {
-              // failed getting token
+              // Failed getting token
               console.log("doRefreshToken error(): ", json)
               node.error(
-                "[easee] EaseeConfiguration::doRefreshToken() - Failed doRefreshToken(), REST command did not return token, exiting"
+                "[easee] EaseeConfiguration::doRefreshToken() - Failed doRefreshToken(), REST command did not return token"
               );
-              return;
+              return null;
             }
 
+            // Successful refresh - reset retry counter
+            node.refreshRetryCount = 0;
             node.accessToken = json.accessToken;
             node.refreshToken = json.refreshToken;
             var t = new Date();
@@ -1276,29 +1360,126 @@ module.exports = function (RED) {
             node.tokenExpires = t;
 
             node.emit("update", {
-              update: "Token refreshed",
+              update: "Token refreshed successfully",
             });
 
             return json;
           }).catch((error) => {
-            node.error(error);
-            node.warn(error);
-            console.error(error);
-            console.error("Fatal error during doRefreshToken()", error);
+            // Determine if this is a token validity issue or network/other issue
+            const isTokenInvalid = error.message.includes('Invalid refresh token') || 
+                                   error.message.includes('Token refresh failed') ||
+                                   error.message.includes('401');
+            
+            const isNetworkError = error.message.includes('fetch') ||
+                                   error.message.includes('network') ||
+                                   error.message.includes('timeout');
 
-          });;
+            if (isTokenInvalid) {
+              // Token is invalid - clear tokens and request fresh login
+              console.log("Refresh token invalid, clearing tokens and will attempt fresh login");
+              node.accessToken = false;
+              node.refreshToken = false;
+              node.tokenExpires = new Date();
+              node.refreshRetryCount = 0; // Reset refresh retry counter
+              
+              node.emit("update", {
+                update: "Token refresh failed, will attempt fresh login",
+              });
+              
+              return null; // Return null to indicate we should try fresh login
+            } else if (isNetworkError && node.refreshRetryCount < node.maxRefreshRetries) {
+              // Network error - retry refresh
+              node.refreshRetryCount++;
+              console.log(`Network error during token refresh, retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`);
+              
+              node.emit("update", {
+                update: `Token refresh retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`,
+              });
+              
+              // Wait a bit before retrying and return a promise
+              return new Promise((resolve) => {
+                setTimeout(async () => {
+                  try {
+                    const retryResult = await node.doRefreshToken();
+                    resolve(retryResult);
+                  } catch (retryError) {
+                    resolve(null);
+                  }
+                }, 2000 * node.refreshRetryCount);
+              });
+            } else {
+              // Max retries reached or other error
+              console.error("Token refresh failed after retries or due to other error:", error);
+              node.refreshRetryCount++;
+              
+              if (node.refreshRetryCount >= node.maxRefreshRetries) {
+                console.log("Max refresh retries reached, clearing tokens and attempting fresh login");
+                node.accessToken = false;
+                node.refreshToken = false;
+                node.tokenExpires = new Date();
+                node.refreshRetryCount = 0;
+                
+                node.emit("update", {
+                  update: "Token refresh failed after retries, attempting fresh login",
+                });
+                
+                return null; // Return null to indicate we should try fresh login
+              }
+              
+              node.error(error);
+              node.warn(error);
+              console.error("Fatal error during doRefreshToken()", error);
+              return null;
+            }
+          });
 
         return response;
       };
 
       /**
-       * 
-       * @param {*} _username 
-       * @param {*} _password 
-       * @returns 
+       * Reset authentication state and clear all tokens
+       * Used when authentication completely fails
+       */
+      node.resetAuthenticationState = () => {
+        console.log("Resetting authentication state");
+        node.accessToken = false;
+        node.refreshToken = false;
+        node.tokenExpires = new Date();
+        node.refreshRetryCount = 0;
+        node.loginRetryCount = 0;
+        
+        node.status({
+          fill: "red",
+          shape: "ring",
+          text: "Authentication reset - reconfiguration required",
+        });
+        
+        node.emit("update", {
+          update: "Authentication failed - node requires reconfiguration",
+        });
+      };
+
+      /**
+       * Perform login with username and password
+       * @param {string} _username - Username (optional, uses stored credentials if not provided)
+       * @param {string} _password - Password (optional, uses stored credentials if not provided)
+       * @returns {Promise<Object>} The login response
        */
       node.doLogin = async (_username, _password) => {
         const url = "/accounts/login";
+        
+        if (!_username && !node.credentials.username) {
+          const error = new Error("No username provided for login");
+          node.error(error);
+          throw error;
+        }
+        
+        if (!_password && !node.credentials.password) {
+          const error = new Error("No password provided for login");
+          node.error(error);
+          throw error;
+        }
+
         const response = await fetch(node.RestApipath + url, {
           method: "post",
           body: JSON.stringify({
@@ -1310,14 +1491,23 @@ module.exports = function (RED) {
             "Content-Type": "application/json",
           },
         })
-          .then((response) => {
+          .then(async (response) => {
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
-              return response.json();
+              const json = await response.json();
+              
+              // Check if login failed
+              if (!response.ok) {
+                const errorMsg = json.title || json.errorCodeName || 'Login failed';
+                const errorDetail = json.detail || '';
+                throw new Error(`Login failed (${response.status}): ${errorMsg}${errorDetail ? ' - ' + errorDetail : ''}`);
+              }
+              
+              return json;
             } else {
-              throw new Error("Unable to doLogin(), response not JSON: " + response.text());
+              const errortxt = await response.text();
+              throw new Error("Unable to login, response not JSON: " + errortxt);
             }
-
           })
           .then((json) => {
             if ("accessToken" in json) {
@@ -1326,21 +1516,51 @@ module.exports = function (RED) {
               var t = new Date();
               t.setSeconds(t.getSeconds() + json.expiresIn);
               node.tokenExpires = t;
+              
+              // Reset retry counters on successful login
+              node.refreshRetryCount = 0;
+              node.loginRetryCount = 0;
+              
+              node.status({
+                fill: "green",
+                shape: "dot",
+                text: "Authenticated successfully",
+              });
+              
+              node.emit("update", {
+                update: "Login successful, token retrieved",
+              });
+              
+              return json;
+            } else {
+              throw new Error("Login response did not contain access token");
             }
-            node.status({
-              fill: "green",
-              shape: "dot",
-              text: url,
-            });
-            return json;
           }).catch((error) => {
+            // Check if this is a credential error
+            const isCredentialError = error.message.includes('401') || 
+                                      error.message.includes('Unauthorized') ||
+                                      error.message.includes('Invalid credentials') ||
+                                      error.message.includes('Login failed');
+            
+            if (isCredentialError) {
+              node.status({
+                fill: "red",
+                shape: "ring",
+                text: "Invalid credentials",
+              });
+              console.error("Login failed due to invalid credentials:", error.message);
+            } else {
+              node.status({
+                fill: "red",
+                shape: "ring",
+                text: "Login error",
+              });
+              console.error("Login failed due to other error:", error.message);
+            }
+            
             node.error(error);
-            console.error("Fatal error during doLogin()", error);
-          });;
-
-        node.emit("update", {
-          update: "Token retrieved (logged in)",
-        });
+            throw error; // Re-throw to be handled by caller
+          });
 
         return response;
       };
@@ -1356,6 +1576,5 @@ module.exports = function (RED) {
       password: { type: "password" },
     },
   });
-
 
 };
