@@ -42,6 +42,8 @@
     "esversion": 11
   },
   "devDependencies": {
-    "npm-check-updates": "^16.14.20"
+    "npm-check-updates": "^18.0.1",
+    "jshint": "^2.13.1",
+    "np": "^10.2.0"
   }
 }
