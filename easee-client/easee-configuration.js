@@ -38,12 +38,19 @@ module.exports = function (RED) {
       node.accessToken = false;
       node.refreshToken = false;
       node.tokenExpires = new Date();
+      node.tokenIssuedAt = new Date();
+      node.tokenLifetime = 0; // Token lifetime in seconds
 
       node.checkTokenHandler = null;
       node.refreshRetryCount = 0;
       node.maxRefreshRetries = 5;
       node.loginRetryCount = 0;
       node.maxLoginRetries = 5;
+
+      // Token renewal thresholds (best practices)
+      node.RENEWAL_THRESHOLD_PERCENTAGE = 0.75; // Renew at 75% of lifetime
+      node.MIN_BUFFER_TIME = 300; // Minimum 5 minutes buffer before expiration
+      node.EARLY_RENEWAL_THRESHOLD = 600; // 10 minutes - for very short tokens
 
       /**
        * Stop running token refresh on closed
@@ -60,7 +67,7 @@ module.exports = function (RED) {
        */
       this.on("start", (event) => {
         node.checkToken().catch((error) => {
-          console.error("Error in checkToken during start:", error);
+          console.error("[easee] Error in checkToken during start:", error);
           node.status({
             fill: "red",
             shape: "ring",
@@ -104,7 +111,7 @@ module.exports = function (RED) {
             shape: "ring",
             text: "Authenticating...",
           });
-          
+
           try {
             await node.doLogin();
           } catch (err) {
@@ -131,13 +138,13 @@ module.exports = function (RED) {
           headers: headers,
           body: bodyPayload,
         }).catch((error) => {
-          console.log(`Critical error in doAuthRestCall() fetch, failing`)
+          console.log(`[easee] Critical error in doAuthRestCall() fetch, failing`);
           node.error(error);
           return;
         });
 
         const http_text = await response.text();
-        let http_json = null
+        let http_json = null;
         try {
           http_json = JSON.parse(http_text);
         } catch (err) {
@@ -1250,12 +1257,12 @@ module.exports = function (RED) {
       }; // node.parseObservation()
 
       /**
-       * Check token expiration and refresh if needed
+       * Check token expiration and refresh if needed using best practices
        */
       node.checkToken = async () => {
         // Check if credentials are configured before attempting any authentication
         if (!node.credentials || (!node.credentials.username && !node.credentials.password)) {
-          console.log("No credentials configured, skipping authentication");
+          console.log("[easee] No credentials configured, skipping authentication");
           node.status({
             fill: "red",
             shape: "ring",
@@ -1264,17 +1271,47 @@ module.exports = function (RED) {
           // Don't schedule another check if no credentials are configured
           return;
         }
-        
-        const expiresIn = Math.floor(((node?.tokenExpires ?? 0) - new Date()) / 1000);
-        if (expiresIn < 43200) {
+
+        const now = new Date();
+        const timeToExpire = Math.floor((node.tokenExpires - now) / 1000);
+        const tokenAge = Math.floor((now - node.tokenIssuedAt) / 1000);
+
+        // Determine if we need to refresh the token based on best practices
+        let shouldRefresh = false;
+        let reason = "";
+
+        if (!node.accessToken) {
+          shouldRefresh = true;
+          reason = "No access token";
+        } else if (timeToExpire <= 0) {
+          shouldRefresh = true;
+          reason = "Token expired";
+        } else if (timeToExpire <= node.MIN_BUFFER_TIME) {
+          shouldRefresh = true;
+          reason = `Token expires in ${timeToExpire}s (within buffer time)`;
+        } else if (node.tokenLifetime > 0) {
+          // Use percentage-based renewal for tokens with known lifetime
+          const renewalThreshold = node.tokenLifetime * node.RENEWAL_THRESHOLD_PERCENTAGE;
+          if (tokenAge >= renewalThreshold) {
+            shouldRefresh = true;
+            reason = `Token age ${tokenAge}s exceeds ${Math.floor(node.RENEWAL_THRESHOLD_PERCENTAGE * 100)}% of lifetime (${renewalThreshold}s)`;
+          }
+        } else if (timeToExpire <= node.EARLY_RENEWAL_THRESHOLD) {
+          // Fallback for tokens without known lifetime - renew if less than 10 minutes remain
+          shouldRefresh = true;
+          reason = `Token expires in ${timeToExpire}s (early renewal threshold)`;
+        }
+
+        if (shouldRefresh) {
+          console.log(`[easee] Token refresh needed: ${reason}`);
           node.status({
             fill: "yellow",
             shape: "ring",
             text: "Refreshing token...",
           });
-          
+
           const refreshResult = await node.doRefreshToken();
-          
+
           // If refresh failed (returned null), try fresh login
           if (refreshResult === null) {
             node.status({
@@ -1282,31 +1319,33 @@ module.exports = function (RED) {
               shape: "ring",
               text: "Token expired, re-authenticating...",
             });
-            
+
             try {
               await node.doLogin();
               // Reset retry counters on successful login
               node.refreshRetryCount = 0;
               node.loginRetryCount = 0;
             } catch (loginError) {
-              console.error("Fresh login also failed:", loginError);
+              console.error("[easee] Fresh login also failed:", loginError);
               node.loginRetryCount++;
-              
+
               if (node.loginRetryCount >= node.maxLoginRetries) {
                 node.status({
                   fill: "red",
                   shape: "ring",
                   text: "Authentication failed - check credentials",
                 });
-                node.error("Authentication failed after maximum retries. Please check credentials and reconfigure the node.");
-                
+                node.error("[easee] Authentication failed after maximum retries. Please check credentials and reconfigure the node.");
+
                 // Clear all tokens to force reconfiguration
                 node.accessToken = false;
                 node.refreshToken = false;
                 node.tokenExpires = new Date();
+                node.tokenIssuedAt = new Date();
+                node.tokenLifetime = 0;
                 node.refreshRetryCount = 0;
                 node.loginRetryCount = 0;
-                
+
                 // Stop the token check cycle
                 if (node.checkTokenHandler) {
                   clearTimeout(node.checkTokenHandler);
@@ -1323,15 +1362,38 @@ module.exports = function (RED) {
             }
           }
         }
-        
-        // Schedule next token check
-        // If no credentials are configured, check less frequently
+
+        // Calculate adaptive check interval based on token lifetime and expiration
+        let checkInterval;
         const hasCredentials = node.credentials && (node.credentials.username || node.credentials.password);
-        const checkInterval = hasCredentials ? 60 * 1000 : 300 * 1000; // 1 min vs 5 min
-        
+
+        if (!hasCredentials) {
+          checkInterval = 300 * 1000; // 5 minutes for no credentials
+        } else if (!node.accessToken) {
+          checkInterval = 60 * 1000; // 1 minute if no token
+        } else {
+          const timeToExpireMs = (node.tokenExpires - now);
+          const timeToRenewal = timeToExpireMs - (node.MIN_BUFFER_TIME * 1000);
+
+          if (node.tokenLifetime > 0) {
+            // For tokens with known lifetime, check at strategic intervals
+            const renewalTime = (node.tokenLifetime * node.RENEWAL_THRESHOLD_PERCENTAGE * 1000) - (tokenAge * 1000);
+            checkInterval = Math.max(Math.min(renewalTime / 4, 300 * 1000), 30 * 1000); // Between 30s and 5min
+          } else if (timeToRenewal > 0) {
+            // For tokens without known lifetime, check based on time to renewal
+            checkInterval = Math.max(Math.min(timeToRenewal / 3, 300 * 1000), 30 * 1000); // Between 30s and 5min
+          } else {
+            // Token needs attention soon
+            checkInterval = 30 * 1000; // 30 seconds
+          }
+        }
+
+        console.log(`[easee] Next token check in ${Math.floor(checkInterval / 1000)}s (time to expire: ${timeToExpire}s, token age: ${tokenAge}s)`);
+
+        // Schedule next token check
         node.checkTokenHandler = setTimeout(() => {
           node.checkToken().catch((error) => {
-            console.error("Error in checkToken during scheduled check:", error);
+            console.error("[easee] Error in checkToken during scheduled check:", error);
             node.status({
               fill: "red",
               shape: "ring",
@@ -1381,14 +1443,14 @@ module.exports = function (RED) {
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
               const json = await response.json();
-              
+
               // Check if the response indicates an error (like invalid refresh token)
               if (!response.ok) {
                 const errorMsg = json.title || json.errorCodeName || 'Unknown error';
                 const errorDetail = json.detail || '';
                 throw new Error(`Token refresh failed (${response.status}): ${errorMsg}${errorDetail ? ' - ' + errorDetail : ''}`);
               }
-              
+
               return json;
             } else {
               const errortxt = await response.text();
@@ -1399,20 +1461,28 @@ module.exports = function (RED) {
           .then((json) => {
             if (!json.accessToken) {
               // Failed getting token
-              console.log("doRefreshToken error(): ", json)
+              console.log("[easee] doRefreshToken error(): ", json);
               node.error(
                 "[easee] EaseeConfiguration::doRefreshToken() - Failed doRefreshToken(), REST command did not return token"
               );
               return null;
             }
 
-            // Successful refresh - reset retry counter
+            // Successful refresh - reset retry counter and update token info
             node.refreshRetryCount = 0;
             node.accessToken = json.accessToken;
             node.refreshToken = json.refreshToken;
+
+            // Update token timing information for best-practice renewal
+            const now = new Date();
+            node.tokenIssuedAt = now;
+            node.tokenLifetime = json.expiresIn || 0;
+
             var t = new Date();
             t.setSeconds(t.getSeconds() + json.expiresIn);
             node.tokenExpires = t;
+
+            console.log(`[easee] Token refreshed successfully. Lifetime: ${node.tokenLifetime}s, expires at: ${t.toISOString()}`);
 
             node.emit("update", {
               update: "Token refreshed successfully",
@@ -1421,36 +1491,38 @@ module.exports = function (RED) {
             return json;
           }).catch((error) => {
             // Determine if this is a token validity issue or network/other issue
-            const isTokenInvalid = error.message.includes('Invalid refresh token') || 
-                                   error.message.includes('Token refresh failed') ||
-                                   error.message.includes('401');
-            
+            const isTokenInvalid = error.message.includes('Invalid refresh token') ||
+              error.message.includes('Token refresh failed') ||
+              error.message.includes('401');
+
             const isNetworkError = error.message.includes('fetch') ||
-                                   error.message.includes('network') ||
-                                   error.message.includes('timeout');
+              error.message.includes('network') ||
+              error.message.includes('timeout');
 
             if (isTokenInvalid) {
               // Token is invalid - clear tokens and request fresh login
-              console.log("Refresh token invalid, clearing tokens and will attempt fresh login");
+              console.log("[easee] Refresh token invalid, clearing tokens and will attempt fresh login");
               node.accessToken = false;
               node.refreshToken = false;
               node.tokenExpires = new Date();
+              node.tokenIssuedAt = new Date();
+              node.tokenLifetime = 0;
               node.refreshRetryCount = 0; // Reset refresh retry counter
-              
+
               node.emit("update", {
                 update: "Token refresh failed, will attempt fresh login",
               });
-              
+
               return null; // Return null to indicate we should try fresh login
             } else if (isNetworkError && node.refreshRetryCount < node.maxRefreshRetries) {
               // Network error - retry refresh
               node.refreshRetryCount++;
               console.log(`Network error during token refresh, retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`);
-              
+
               node.emit("update", {
                 update: `Token refresh retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`,
               });
-              
+
               // Wait a bit before retrying and return a promise
               return new Promise((resolve) => {
                 setTimeout(async () => {
@@ -1466,21 +1538,23 @@ module.exports = function (RED) {
               // Max retries reached or other error
               console.error("Token refresh failed after retries or due to other error:", error);
               node.refreshRetryCount++;
-              
+
               if (node.refreshRetryCount >= node.maxRefreshRetries) {
-                console.log("Max refresh retries reached, clearing tokens and attempting fresh login");
+                console.log("[easee] Max refresh retries reached, clearing tokens and attempting fresh login");
                 node.accessToken = false;
                 node.refreshToken = false;
                 node.tokenExpires = new Date();
+                node.tokenIssuedAt = new Date();
+                node.tokenLifetime = 0;
                 node.refreshRetryCount = 0;
-                
+
                 node.emit("update", {
                   update: "Token refresh failed after retries, attempting fresh login",
                 });
-                
+
                 return null; // Return null to indicate we should try fresh login
               }
-              
+
               node.error(error);
               node.warn(error);
               console.error("Fatal error during doRefreshToken()", error);
@@ -1496,19 +1570,21 @@ module.exports = function (RED) {
        * Used when authentication completely fails
        */
       node.resetAuthenticationState = () => {
-        console.log("Resetting authentication state");
+        console.log("[easee] Resetting authentication state");
         node.accessToken = false;
         node.refreshToken = false;
         node.tokenExpires = new Date();
+        node.tokenIssuedAt = new Date();
+        node.tokenLifetime = 0;
         node.refreshRetryCount = 0;
         node.loginRetryCount = 0;
-        
+
         node.status({
           fill: "red",
           shape: "ring",
           text: "Authentication reset - reconfiguration required",
         });
-        
+
         node.emit("update", {
           update: "Authentication failed - node requires reconfiguration",
         });
@@ -1522,7 +1598,7 @@ module.exports = function (RED) {
        */
       node.doLogin = async (_username, _password) => {
         const url = "/accounts/login";
-        
+
         if (!_username && !node.credentials.username) {
           const error = new Error("No username provided for login");
           console.error("Login failed: No username configured");
@@ -1533,7 +1609,7 @@ module.exports = function (RED) {
           });
           throw error;
         }
-        
+
         if (!_password && !node.credentials.password) {
           const error = new Error("No password provided for login");
           console.error("Login failed: No password configured");
@@ -1560,14 +1636,14 @@ module.exports = function (RED) {
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
               const json = await response.json();
-              
+
               // Check if login failed
               if (!response.ok) {
                 const errorMsg = json.title || json.errorCodeName || 'Login failed';
                 const errorDetail = json.detail || '';
                 throw new Error(`Login failed (${response.status}): ${errorMsg}${errorDetail ? ' - ' + errorDetail : ''}`);
               }
-              
+
               return json;
             } else {
               const errortxt = await response.text();
@@ -1578,51 +1654,59 @@ module.exports = function (RED) {
             if ("accessToken" in json) {
               node.accessToken = json.accessToken;
               node.refreshToken = json.refreshToken;
+
+              // Update token timing information for best-practice renewal
+              const now = new Date();
+              node.tokenIssuedAt = now;
+              node.tokenLifetime = json.expiresIn || 0;
+
               var t = new Date();
               t.setSeconds(t.getSeconds() + json.expiresIn);
               node.tokenExpires = t;
-              
+
               // Reset retry counters on successful login
               node.refreshRetryCount = 0;
               node.loginRetryCount = 0;
-              
+
+              console.log(`[easee] Login successful. Token lifetime: ${node.tokenLifetime}s, expires at: ${t.toISOString()}`);
+
               node.status({
                 fill: "green",
                 shape: "dot",
                 text: "Authenticated successfully",
               });
-              
+
               node.emit("update", {
                 update: "Login successful, token retrieved",
               });
-              
+
               return json;
             } else {
               throw new Error("Login response did not contain access token");
             }
           }).catch((error) => {
             // Check if this is a credential error
-            const isCredentialError = error.message.includes('401') || 
-                                      error.message.includes('Unauthorized') ||
-                                      error.message.includes('Invalid credentials') ||
-                                      error.message.includes('Login failed');
-            
+            const isCredentialError = error.message.includes('401') ||
+              error.message.includes('Unauthorized') ||
+              error.message.includes('Invalid credentials') ||
+              error.message.includes('Login failed');
+
             if (isCredentialError) {
               node.status({
                 fill: "red",
                 shape: "ring",
                 text: "Invalid credentials",
               });
-              console.error("Login failed due to invalid credentials:", error.message);
+              console.error("[easee] Login failed due to invalid credentials:", error.message);
             } else {
               node.status({
                 fill: "red",
                 shape: "ring",
                 text: "Login error",
               });
-              console.error("Login failed due to other error:", error.message);
+              console.error("[easee] Login failed due to other error:", error.message);
             }
-            
+
             node.error(error);
             throw error; // Re-throw to be handled by caller
           });

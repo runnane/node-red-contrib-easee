@@ -274,9 +274,6 @@ module.exports = function (RED) {
               default:
 
                 return node.fail("error", "GET", `Unknown topic ${msg.topic}`);
-
-
-                break;
             }
 
 
