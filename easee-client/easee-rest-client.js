@@ -38,6 +38,12 @@ module.exports = function (RED) {
       node.configurationNode = n.configuration;
       node.connection = RED.nodes.getNode(node.configurationNode);
 
+      // Use configuration node's logging if available, fallback to console
+      node.logInfo = node.connection?.logInfo || function(msg, data) { console.log(`[easee] ${msg}`, data || ''); };
+      node.logDebug = node.connection?.logDebug || function(msg, data) { if (node.connection?.debugLogging) console.log(`[easee] DEBUG: ${msg}`, data || ''); };
+      node.logError = node.connection?.logError || function(msg, error) { console.error(`[easee] ERROR: ${msg}`, error || ''); };
+      node.logWarn = node.connection?.logWarn || function(msg, data) { console.warn(`[easee] WARN: ${msg}`, data || ''); };
+
       if (!node.connection) {
         node.error("[easee] Missing easee configuration node");
         node.status({
@@ -66,7 +72,7 @@ module.exports = function (RED) {
        * @param {*} error 
        */
       node.fail = async (url, method, error) => {
-        console.error("[easee] Error in easee-rest-client:", error);
+        node.logError("Error in easee-rest-client:", error);
         node.status({
           fill: "red",
           shape: "dot",

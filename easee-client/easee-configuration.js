@@ -32,6 +32,91 @@ module.exports = function (RED) {
       RED.nodes.createNode(this, n);
       var node = this;
 
+      // Debug logging configuration - set early for use in validation
+      node.debugLogging = n.debugLogging || false;
+      node.debugToNodeWarn = n.debugToNodeWarn || false;
+
+      /**
+       * Centralized logging helper functions following Node-RED standards
+       * Define these early so they can be used in validation and throughout the node
+       */
+      
+      // Log info level messages (equivalent to console.log)
+      node.logInfo = function(message, data = null) {
+        const formattedMessage = `[easee] ${message}`;
+        
+        // Always log to console
+        if (data !== null && typeof data === 'object') {
+          console.log(formattedMessage, data);
+        } else if (data !== null) {
+          console.log(`${formattedMessage} ${data}`);
+        } else {
+          console.log(formattedMessage);
+        }
+        
+        // Also log to node warn if configured
+        if (node.debugToNodeWarn) {
+          node.warn(data !== null ? `${formattedMessage} ${JSON.stringify(data)}` : formattedMessage);
+        }
+      };
+
+      // Log debug level messages (only when debug logging is enabled)
+      node.logDebug = function(message, data = null) {
+        if (!node.debugLogging) return;
+        
+        const formattedMessage = `[easee] DEBUG: ${message}`;
+        
+        // Log to console when debug is enabled
+        if (data !== null && typeof data === 'object') {
+          console.log(formattedMessage, data);
+        } else if (data !== null) {
+          console.log(`${formattedMessage} ${data}`);
+        } else {
+          console.log(formattedMessage);
+        }
+        
+        // Also log to node warn if configured
+        if (node.debugToNodeWarn) {
+          node.warn(data !== null ? `${formattedMessage} ${JSON.stringify(data)}` : formattedMessage);
+        }
+      };
+
+      // Log error level messages (equivalent to console.error)
+      node.logError = function(message, error = null) {
+        const formattedMessage = `[easee] ERROR: ${message}`;
+        
+        // Always log errors to console
+        if (error !== null) {
+          console.error(formattedMessage, error);
+        } else {
+          console.error(formattedMessage);
+        }
+        
+        // Also log to node error for Node-RED error handling
+        if (error !== null) {
+          node.error(`${formattedMessage} ${error.message || error}`);
+        } else {
+          node.error(formattedMessage);
+        }
+      };
+
+      // Log warning level messages
+      node.logWarn = function(message, data = null) {
+        const formattedMessage = `[easee] WARN: ${message}`;
+        
+        // Log to console
+        if (data !== null && typeof data === 'object') {
+          console.warn(formattedMessage, data);
+        } else if (data !== null) {
+          console.warn(`${formattedMessage} ${data}`);
+        } else {
+          console.warn(formattedMessage);
+        }
+        
+        // Always log warnings to node warn
+        node.warn(data !== null ? `${formattedMessage} ${JSON.stringify(data)}` : formattedMessage);
+      };
+
       // Validate credentials are provided during node creation
       node.validateCredentials = () => {
         if (!node.credentials) {
@@ -57,7 +142,7 @@ module.exports = function (RED) {
       // Perform initial validation
       const validation = node.validateCredentials();
       if (!validation.valid) {
-        console.error(`[easee] Configuration node validation failed: ${validation.message}`);
+        node.logError(`Configuration node validation failed: ${validation.message}`);
         node.status({
           fill: "red",
           shape: "ring",
@@ -104,7 +189,7 @@ module.exports = function (RED) {
        */
       this.on("start", (event) => {
         node.checkToken().catch((error) => {
-          console.error("[easee] Error in checkToken during start:", error);
+          node.logError("Error in checkToken during start:", error);
           node.status({
             fill: "red",
             shape: "ring",
@@ -145,7 +230,7 @@ module.exports = function (RED) {
         const authAvailable = await node.ensureAuthentication();
         if (!authAvailable) {
           const error = new Error("Authentication not available");
-          console.log("[easee] Authentication not available for doAuthRestCall");
+          node.logError("Authentication not available for doAuthRestCall");
           node.status({
             fill: "red",
             shape: "ring",
@@ -167,7 +252,7 @@ module.exports = function (RED) {
           headers: headers,
           body: bodyPayload,
         }).catch((error) => {
-          console.log(`[easee] Critical error in doAuthRestCall() fetch, failing`);
+          node.logError("Critical error in doAuthRestCall() fetch, failing", error);
           node.error(error);
           return;
         });
@@ -1299,13 +1384,13 @@ module.exports = function (RED) {
         // Validate credentials first
         const credentialsCheck = node.validateCredentials();
         if (!credentialsCheck.valid) {
-          console.log(`[easee] Cannot ensure authentication: ${credentialsCheck.message}`);
+          node.logDebug(`Cannot ensure authentication: ${credentialsCheck.message}`);
           return false;
         }
 
         // If authentication is already in progress, wait for it to complete
         if (node.authenticationInProgress) {
-          console.log("[easee] Authentication already in progress, waiting...");
+          node.logDebug("Authentication already in progress, waiting...");
           // Wait for current authentication to complete (max 30 seconds)
           let waitCount = 0;
           while (node.authenticationInProgress && waitCount < 300) {
@@ -1332,7 +1417,7 @@ module.exports = function (RED) {
           await node.checkToken();
           return !!node.accessToken;
         } catch (error) {
-          console.error("[easee] Error ensuring authentication:", error);
+          node.logError("Error ensuring authentication:", error);
           return false;
         }
       };
@@ -1344,7 +1429,7 @@ module.exports = function (RED) {
         // Validate credentials before attempting any authentication
         const credentialsCheck = node.validateCredentials();
         if (!credentialsCheck.valid) {
-          console.log(`[easee] Cannot authenticate: ${credentialsCheck.message}`);
+          node.logDebug(`Cannot authenticate: ${credentialsCheck.message}`);
           node.status({
             fill: "red",
             shape: "ring",
@@ -1356,7 +1441,7 @@ module.exports = function (RED) {
 
         // Prevent concurrent authentication attempts
         if (node.authenticationInProgress) {
-          console.log("[easee] Authentication already in progress, skipping duplicate checkToken call");
+          node.logDebug("Authentication already in progress, skipping duplicate checkToken call");
           return;
         }
 
@@ -1395,7 +1480,7 @@ module.exports = function (RED) {
           }
 
           if (shouldRefresh) {
-            console.log(`[easee] Token refresh needed: ${reason}`);
+            node.logInfo(`Token refresh needed: ${reason}`);
             node.status({
               fill: "yellow",
               shape: "ring",
@@ -1418,7 +1503,7 @@ module.exports = function (RED) {
                 node.refreshRetryCount = 0;
                 node.loginRetryCount = 0;
               } catch (loginError) {
-                console.error("[easee] Fresh login also failed:", loginError);
+                node.logError("Fresh login also failed:", loginError);
                 node.loginRetryCount++;
 
                 if (node.loginRetryCount >= node.maxLoginRetries) {
@@ -1487,12 +1572,12 @@ module.exports = function (RED) {
           const logTimeToExpire = Math.floor((node.tokenExpires - logTime) / 1000);
           const logTokenAge = Math.floor((logTime - node.tokenIssuedAt) / 1000);
 
-          console.log(`[easee] Next token check in ${Math.floor(checkInterval / 1000)}s (time to expire: ${logTimeToExpire}s, token age: ${logTokenAge}s)`);
+          node.logDebug(`Next token check in ${Math.floor(checkInterval / 1000)}s (time to expire: ${logTimeToExpire}s, token age: ${logTokenAge}s)`);
 
           // Schedule next token check
           node.checkTokenHandler = setTimeout(() => {
             node.checkToken().catch((error) => {
-              console.error("[easee] Error in checkToken during scheduled check:", error);
+              node.logError("Error in checkToken during scheduled check:", error);
               node.status({
                 fill: "red",
                 shape: "ring",
@@ -1513,12 +1598,12 @@ module.exports = function (RED) {
       node.doRefreshToken = async () => {
         if (!node.accessToken || !node.refreshToken) {
           // Not logged in, will not refresh - attempt login instead
-          console.log("[easee] No tokens available for refresh, attempting fresh login");
+          node.logInfo("No tokens available for refresh, attempting fresh login");
           try {
             await node.doLogin();
             return;
           } catch (loginError) {
-            console.error("[easee] Login failed during refresh:", loginError);
+            node.logError("Login failed during refresh:", loginError);
             node.status({
               fill: "red",
               shape: "ring",
@@ -1564,7 +1649,7 @@ module.exports = function (RED) {
           .then((json) => {
             if (!json.accessToken) {
               // Failed getting token
-              console.log("[easee] doRefreshToken error(): ", json);
+              node.logError("doRefreshToken error(): ", json);
               node.error(
                 "[easee] EaseeConfiguration::doRefreshToken() - Failed doRefreshToken(), REST command did not return token"
               );
@@ -1585,7 +1670,7 @@ module.exports = function (RED) {
             t.setSeconds(t.getSeconds() + json.expiresIn);
             node.tokenExpires = t;
 
-            console.log(`[easee] Token refreshed successfully. Lifetime: ${node.tokenLifetime}s, expires at: ${t.toISOString()}`);
+            node.logInfo(`Token refreshed successfully. Lifetime: ${node.tokenLifetime}s, expires at: ${t.toISOString()}`);
 
             node.emit("update", {
               update: "Token refreshed successfully",
@@ -1604,7 +1689,7 @@ module.exports = function (RED) {
 
             if (isTokenInvalid) {
               // Token is invalid - clear tokens and request fresh login
-              console.log("[easee] Refresh token invalid, clearing tokens and will attempt fresh login");
+              node.logInfo("Refresh token invalid, clearing tokens and will attempt fresh login");
               node.accessToken = false;
               node.refreshToken = false;
               node.tokenExpires = new Date();
@@ -1620,7 +1705,7 @@ module.exports = function (RED) {
             } else if (isNetworkError && node.refreshRetryCount < node.maxRefreshRetries) {
               // Network error - retry refresh
               node.refreshRetryCount++;
-              console.log(`[easee] Network error during token refresh, retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`);
+              node.logInfo(`Network error during token refresh, retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`);
               
               node.emit("update", {
                 update: `Token refresh retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`,
@@ -1639,9 +1724,10 @@ module.exports = function (RED) {
               });
             } else {
               // Max retries reached or other error
-              console.error("[easee] Token refresh failed after retries or due to other error:", error);
-              node.refreshRetryCount++;              if (node.refreshRetryCount >= node.maxRefreshRetries) {
-                console.log("[easee] Max refresh retries reached, clearing tokens and attempting fresh login");
+              node.logError("Token refresh failed after retries or due to other error:", error);
+              node.refreshRetryCount++;
+              if (node.refreshRetryCount >= node.maxRefreshRetries) {
+                node.logInfo("Max refresh retries reached, clearing tokens and attempting fresh login");
                 node.accessToken = false;
                 node.refreshToken = false;
                 node.tokenExpires = new Date();
@@ -1658,7 +1744,7 @@ module.exports = function (RED) {
 
               node.error(error);
               node.warn(error);
-              console.error("[easee] Fatal error during doRefreshToken()", error);
+              node.logError("Fatal error during doRefreshToken()", error);
               return null;
             }
           });
@@ -1671,7 +1757,7 @@ module.exports = function (RED) {
        * Used when authentication completely fails
        */
       node.resetAuthenticationState = () => {
-        console.log("[easee] Resetting authentication state");
+        node.logInfo("Resetting authentication state");
         node.accessToken = false;
         node.refreshToken = false;
         node.tokenExpires = new Date();
@@ -1705,7 +1791,7 @@ module.exports = function (RED) {
           const credentialsCheck = node.validateCredentials();
           if (!credentialsCheck.valid) {
             const error = new Error(`Cannot login: ${credentialsCheck.message}`);
-            console.error(`[easee] Login failed: ${credentialsCheck.message}`);
+            node.logError(`Login failed: ${credentialsCheck.message}`);
             node.status({
               fill: "red",
               shape: "ring",
@@ -1717,7 +1803,7 @@ module.exports = function (RED) {
 
         if (!_username && !node.credentials?.username) {
           const error = new Error("No username provided for login");
-          console.error("[easee] Login failed: No username configured");
+          node.logError("Login failed: No username configured");
           node.status({
             fill: "red",
             shape: "ring",
@@ -1728,7 +1814,7 @@ module.exports = function (RED) {
         
         if (!_password && !node.credentials?.password) {
           const error = new Error("No password provided for login");
-          console.error("[easee] Login failed: No password configured");
+          node.logError("Login failed: No password configured");
           node.status({
             fill: "red",
             shape: "ring",
@@ -1782,7 +1868,7 @@ module.exports = function (RED) {
               node.refreshRetryCount = 0;
               node.loginRetryCount = 0;
 
-              console.log(`[easee] Login successful. Token lifetime: ${node.tokenLifetime}s, expires at: ${t.toISOString()}`);
+              node.logInfo(`Login successful. Token lifetime: ${node.tokenLifetime}s, expires at: ${t.toISOString()}`);
 
               node.status({
                 fill: "green",

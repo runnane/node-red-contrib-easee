@@ -38,6 +38,12 @@ module.exports = function (RED) {
       node.responses = n.responses;
       node.connectionConfig = RED.nodes.getNode(node.configurationNode);
       node.responses = n.responses;
+
+      // Use configuration node's logging if available, fallback to console
+      node.logInfo = node.connectionConfig?.logInfo || function(msg, data) { console.log(`[easee] ${msg}`, data || ''); };
+      node.logDebug = node.connectionConfig?.logDebug || function(msg, data) { if (node.connectionConfig?.debugLogging) console.log(`[easee] DEBUG: ${msg}`, data || ''); };
+      node.logError = node.connectionConfig?.logError || function(msg, error) { console.error(`[easee] ERROR: ${msg}`, error || ''); };
+      node.logWarn = node.connectionConfig?.logWarn || function(msg, data) { console.warn(`[easee] WARN: ${msg}`, data || ''); };
       node.options = {};
       node.reconnectInterval = 3000;
       node.closing = false;
@@ -143,7 +149,7 @@ module.exports = function (RED) {
        */
       this.on("erro", (event) => {
 
-        console.error(" [ERROR in easee-streaming-client] " + event.err);
+        node.logError("Error in easee-streaming-client:", event.err);
         node.warn(event.err);
 
         node.status({
@@ -255,10 +261,10 @@ module.exports = function (RED) {
               node.reconnectInterval
             );
           } else {
-            console.error("[easee] Authentication failed during reconnect");
+            node.logError("Authentication failed during reconnect");
           }
         }).catch((error) => {
-          console.error("[easee] Error during reconnect:", error);
+          node.logError("Error during reconnect:", error);
         });
       };
       
