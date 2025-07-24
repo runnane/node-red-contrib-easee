@@ -44,20 +44,44 @@ module.exports = function (RED) {
 
       if (!this.connectionConfig) {
         node.emit("erro", {
-          err: "Missing easee account configuration",
+          err: "[easee] Missing easee account configuration node",
+        });
+        node.status({
+          fill: "red",
+          shape: "ring",
+          text: "Missing configuration",
+        });
+        return;
+      }
+
+      // Check if the configuration node has valid credentials
+      if (!node.connectionConfig.isConfigurationValid || !node.connectionConfig.isConfigurationValid()) {
+        node.emit("erro", {
+          err: "[easee] Configuration node is invalid - missing username or password",
+        });
+        node.status({
+          fill: "red",
+          shape: "ring",
+          text: "Invalid configuration - missing credentials",
         });
         return;
       }
 
       node.fullReconnect = () => {
         node.connectionConfig
-          .doLogin()
-          .then((json) => {
-            node.startconn();
+          .ensureAuthentication()
+          .then((isAuthenticated) => {
+            if (isAuthenticated) {
+              node.startconn();
+            } else {
+              node.emit("erro", {
+                err: "Authentication failed during fullReconnect()",
+              });
+            }
           })
           .catch((e) => {
             node.emit("erro", {
-              err: "Error during fullReconnect()",
+              err: "Error during fullReconnect(): " + e.message,
             });
           });
       };
@@ -224,11 +248,17 @@ module.exports = function (RED) {
         if (node.reconnectTimoutHandle)
           clearTimeout(node.reconnectTimoutHandle);
         if (node.closing) return;
-        node.connectionConfig.doLogin().then((json) => {
-          node.reconnectTimoutHandle = setTimeout(
-            () => node.startconn(),
-            node.reconnectInterval
-          );
+        node.connectionConfig.ensureAuthentication().then((isAuthenticated) => {
+          if (isAuthenticated) {
+            node.reconnectTimoutHandle = setTimeout(
+              () => node.startconn(),
+              node.reconnectInterval
+            );
+          } else {
+            console.error("[easee] Authentication failed during reconnect");
+          }
+        }).catch((error) => {
+          console.error("[easee] Error during reconnect:", error);
         });
       };
       

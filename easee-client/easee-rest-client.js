@@ -39,7 +39,23 @@ module.exports = function (RED) {
       node.connection = RED.nodes.getNode(node.configurationNode);
 
       if (!node.connection) {
-        node.error("Missing easee configuration");
+        node.error("[easee] Missing easee configuration node");
+        node.status({
+          fill: "red",
+          shape: "ring",
+          text: "Missing configuration",
+        });
+        return;
+      }
+
+      // Check if the configuration node has valid credentials
+      if (!node.connection.isConfigurationValid || !node.connection.isConfigurationValid()) {
+        node.error("[easee] Configuration node is invalid - missing username or password");
+        node.status({
+          fill: "red",
+          shape: "ring",
+          text: "Invalid configuration - missing credentials",
+        });
         return;
       }
 
@@ -175,9 +191,13 @@ module.exports = function (RED) {
             switch (msg.topic) {
               case "login":
                 node.connection
-                  .doLogin()
-                  .then((json) => {
-                    return node.ok("/accounts/login/", "POST", json);
+                  .ensureAuthentication()
+                  .then((isAuthenticated) => {
+                    if (isAuthenticated) {
+                      return node.ok("/accounts/login/", "POST", { success: true, message: "Authentication verified" });
+                    } else {
+                      return node.fail("/accounts/login/", "POST", new Error("Authentication failed"));
+                    }
                   })
                   .catch((error) => {
                     return node.fail("/accounts/login/", "POST", error);

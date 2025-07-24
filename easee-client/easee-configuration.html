@@ -18,18 +18,41 @@
     RED.nodes.registerType('easee-configuration', {
       category: 'config',
       defaults: {
-        username: { value: 'username', required: true },
-        password: { value: 'password', required: true },
+        username: { value: '', required: false },
+        password: { value: '', required: false },
       },
       credentials: {
-        username: { type: "text" },
-        password: { type: "password" }
+        username: { type: "text", required: true },
+        password: { type: "password", required: true }
       },
       inputs: 0,
       outputs: 0,
       label: function () {
-        return this.username ? this.username : 'easee API configuration';
+        return this.credentials?.username ? this.credentials.username : 'easee API configuration';
       },
+      oneditprepare: function() {
+        $("#node-config-input-username").val(this.credentials.username || '');
+        $("#node-config-input-password").val(this.credentials.password || '');
+      },
+      oneditsave: function() {
+        this.credentials = this.credentials || {};
+        this.credentials.username = $("#node-config-input-username").val();
+        this.credentials.password = $("#node-config-input-password").val();
+      },
+      validate: function() {
+        const username = $("#node-config-input-username").val()?.trim();
+        const password = $("#node-config-input-password").val()?.trim();
+        
+        if (!username || username.length === 0) {
+          return false;
+        }
+        
+        if (!password || password.length === 0) {
+          return false;
+        }
+        
+        return true;
+      }
     });
 
   })();
@@ -37,12 +60,21 @@
 
 <script type="text/x-red" data-template-name="easee-configuration">
   <div class="form-row">
-    <label for="node-config-input-username"><i class="fa fa-train"></i> Username</label>
-    <input id="node-config-input-username" type="text" />
+    <label for="node-config-input-username"><i class="fa fa-user"></i> Username</label>
+    <input id="node-config-input-username" type="text" placeholder="Enter your Easee username" required />
+    <div class="form-tips">
+      <b>Required:</b> Your Easee account username/email
+    </div>
   </div>
   <div class="form-row">
-    <label for="node-config-input-password"><i class="fa fa-train"></i> Password</label>
-    <input id="node-config-input-password" type="password" />
+    <label for="node-config-input-password"><i class="fa fa-lock"></i> Password</label>
+    <input id="node-config-input-password" type="password" placeholder="Enter your Easee password" required />
+    <div class="form-tips">
+      <b>Required:</b> Your Easee account password
+    </div>
+  </div>
+  <div class="form-tips">
+    <p><strong>Note:</strong> Both username and password are required for the Easee API authentication. The configuration will not be valid without both credentials.</p>
   </div>
 </script>
 

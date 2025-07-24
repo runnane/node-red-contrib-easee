@@ -32,6 +32,42 @@ module.exports = function (RED) {
       RED.nodes.createNode(this, n);
       var node = this;
 
+      // Validate credentials are provided during node creation
+      node.validateCredentials = () => {
+        if (!node.credentials) {
+          return { valid: false, message: "No credentials object found" };
+        }
+        
+        if (!node.credentials.username || node.credentials.username.trim() === '') {
+          return { valid: false, message: "Username is required" };
+        }
+        
+        if (!node.credentials.password || node.credentials.password.trim() === '') {
+          return { valid: false, message: "Password is required" };
+        }
+        
+        return { valid: true, message: "Credentials are valid" };
+      };
+
+      // Check if this configuration node is ready for use by other nodes
+      node.isConfigurationValid = () => {
+        return node.validateCredentials().valid;
+      };
+
+      // Perform initial validation
+      const validation = node.validateCredentials();
+      if (!validation.valid) {
+        console.error(`[easee] Configuration node validation failed: ${validation.message}`);
+        node.status({
+          fill: "red",
+          shape: "ring",
+          text: "Invalid configuration - missing credentials",
+        });
+        node.error(`[easee] Configuration node is invalid: ${validation.message}. Please edit the configuration and provide both username and password.`);
+        node.warn(`[easee] This node will not function until valid credentials are provided.`);
+        // Don't return or throw - let the node exist but be non-functional
+      }
+
       node.signalRpath = "https://streams.easee.com/hubs/chargers";
       node.RestApipath = "https://api.easee.com/api";
 
@@ -46,6 +82,7 @@ module.exports = function (RED) {
       node.maxRefreshRetries = 5;
       node.loginRetryCount = 0;
       node.maxLoginRetries = 5;
+      node.authenticationInProgress = false; // Prevent concurrent authentication attempts
 
       // Token renewal thresholds (best practices)
       node.RENEWAL_THRESHOLD_PERCENTAGE = 0.75; // Renew at 75% of lifetime
@@ -104,26 +141,20 @@ module.exports = function (RED) {
         body = null
       ) => {
 
-        if (!node.accessToken) {
-          console.log("[easee] No access token available, attempting login");
+        // Ensure authentication is available before making the call
+        const authAvailable = await node.ensureAuthentication();
+        if (!authAvailable) {
+          const error = new Error("Authentication not available");
+          console.log("[easee] Authentication not available for doAuthRestCall");
           node.status({
-            fill: "yellow",
+            fill: "red",
             shape: "ring",
-            text: "Authenticating...",
+            text: "Authentication failed",
           });
-          
-          try {
-            await node.doLogin();
-          } catch (err) {
-            console.log("[easee] Login error in doAuthRestCall:", err);
-            node.status({
-              fill: "red",
-              shape: "ring",
-              text: "Authentication failed",
-            });
-            throw err;
-          }
-        }        headers = {
+          throw error;
+        }
+
+        headers = {
           ...headers,
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -1255,150 +1286,224 @@ module.exports = function (RED) {
       }; // node.parseObservation()
 
       /**
+       * Ensures authentication is available, using existing token or triggering refresh if needed
+       * This is the preferred method for consumer nodes to ensure authentication.
+       * 
+       * IMPORTANT: This method prevents double login issues by checking token validity
+       * before triggering authentication, unlike doLogin() which always performs a fresh login.
+       * Consumer nodes (REST client, streaming client) should use this instead of doLogin().
+       * 
+       * @returns {Promise<boolean>} true if authentication is available, false otherwise
+       */
+      node.ensureAuthentication = async () => {
+        // Validate credentials first
+        const credentialsCheck = node.validateCredentials();
+        if (!credentialsCheck.valid) {
+          console.log(`[easee] Cannot ensure authentication: ${credentialsCheck.message}`);
+          return false;
+        }
+
+        // If authentication is already in progress, wait for it to complete
+        if (node.authenticationInProgress) {
+          console.log("[easee] Authentication already in progress, waiting...");
+          // Wait for current authentication to complete (max 30 seconds)
+          let waitCount = 0;
+          while (node.authenticationInProgress && waitCount < 300) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            waitCount++;
+          }
+          // Return current authentication status
+          return !!node.accessToken;
+        }
+
+        // If we have a valid token, use it
+        if (node.accessToken) {
+          const now = new Date();
+          const timeToExpire = Math.floor((node.tokenExpires - now) / 1000);
+          
+          // If token is still valid (more than 1 minute remaining), use it
+          if (timeToExpire > 60) {
+            return true;
+          }
+        }
+
+        // Token is missing or expiring soon, trigger a check which will refresh/login as needed
+        try {
+          await node.checkToken();
+          return !!node.accessToken;
+        } catch (error) {
+          console.error("[easee] Error ensuring authentication:", error);
+          return false;
+        }
+      };
+
+      /**
        * Check token expiration and refresh if needed using best practices
        */
       node.checkToken = async () => {
-        // Check if credentials are configured before attempting any authentication
-        if (!node.credentials || (!node.credentials.username && !node.credentials.password)) {
-          console.log("[easee] No credentials configured, skipping authentication");
+        // Validate credentials before attempting any authentication
+        const credentialsCheck = node.validateCredentials();
+        if (!credentialsCheck.valid) {
+          console.log(`[easee] Cannot authenticate: ${credentialsCheck.message}`);
           node.status({
             fill: "red",
             shape: "ring",
-            text: "No credentials configured",
+            text: "Invalid configuration - edit to add credentials",
           });
-          // Don't schedule another check if no credentials are configured
+          // Don't schedule another check if credentials are invalid
           return;
         }
 
-        const now = new Date();
-        const timeToExpire = Math.floor((node.tokenExpires - now) / 1000);
-        const tokenAge = Math.floor((now - node.tokenIssuedAt) / 1000);
-
-        // Determine if we need to refresh the token based on best practices
-        let shouldRefresh = false;
-        let reason = "";
-
-        if (!node.accessToken) {
-          shouldRefresh = true;
-          reason = "No access token";
-        } else if (timeToExpire <= 0) {
-          shouldRefresh = true;
-          reason = "Token expired";
-        } else if (timeToExpire <= node.MIN_BUFFER_TIME) {
-          shouldRefresh = true;
-          reason = `Token expires in ${timeToExpire}s (within buffer time)`;
-        } else if (node.tokenLifetime > 0) {
-          // Use percentage-based renewal for tokens with known lifetime
-          const renewalThreshold = node.tokenLifetime * node.RENEWAL_THRESHOLD_PERCENTAGE;
-          if (tokenAge >= renewalThreshold) {
-            shouldRefresh = true;
-            reason = `Token age ${tokenAge}s exceeds ${Math.floor(node.RENEWAL_THRESHOLD_PERCENTAGE * 100)}% of lifetime (${renewalThreshold}s)`;
-          }
-        } else if (timeToExpire <= node.EARLY_RENEWAL_THRESHOLD) {
-          // Fallback for tokens without known lifetime - renew if less than 10 minutes remain
-          shouldRefresh = true;
-          reason = `Token expires in ${timeToExpire}s (early renewal threshold)`;
+        // Prevent concurrent authentication attempts
+        if (node.authenticationInProgress) {
+          console.log("[easee] Authentication already in progress, skipping duplicate checkToken call");
+          return;
         }
 
-        if (shouldRefresh) {
-          console.log(`[easee] Token refresh needed: ${reason}`);
-          node.status({
-            fill: "yellow",
-            shape: "ring",
-            text: "Refreshing token...",
-          });
+        // Set authentication flag
+        node.authenticationInProgress = true;
 
-          const refreshResult = await node.doRefreshToken();
+        try {
+          const now = new Date();
+          const timeToExpire = Math.floor((node.tokenExpires - now) / 1000);
+          const tokenAge = Math.floor((now - node.tokenIssuedAt) / 1000);
 
-          // If refresh failed (returned null), try fresh login
-          if (refreshResult === null) {
+          // Determine if we need to refresh the token based on best practices
+          let shouldRefresh = false;
+          let reason = "";
+
+          if (!node.accessToken) {
+            shouldRefresh = true;
+            reason = "No access token";
+          } else if (timeToExpire <= 0) {
+            shouldRefresh = true;
+            reason = "Token expired";
+          } else if (timeToExpire <= node.MIN_BUFFER_TIME) {
+            shouldRefresh = true;
+            reason = `Token expires in ${timeToExpire}s (within buffer time)`;
+          } else if (node.tokenLifetime > 0) {
+            // Use percentage-based renewal for tokens with known lifetime
+            const renewalThreshold = node.tokenLifetime * node.RENEWAL_THRESHOLD_PERCENTAGE;
+            if (tokenAge >= renewalThreshold) {
+              shouldRefresh = true;
+              reason = `Token age ${tokenAge}s exceeds ${Math.floor(node.RENEWAL_THRESHOLD_PERCENTAGE * 100)}% of lifetime (${renewalThreshold}s)`;
+            }
+          } else if (timeToExpire <= node.EARLY_RENEWAL_THRESHOLD) {
+            // Fallback for tokens without known lifetime - renew if less than 10 minutes remain
+            shouldRefresh = true;
+            reason = `Token expires in ${timeToExpire}s (early renewal threshold)`;
+          }
+
+          if (shouldRefresh) {
+            console.log(`[easee] Token refresh needed: ${reason}`);
             node.status({
               fill: "yellow",
               shape: "ring",
-              text: "Token expired, re-authenticating...",
+              text: "Refreshing token...",
             });
 
-            try {
-              await node.doLogin();
-              // Reset retry counters on successful login
-              node.refreshRetryCount = 0;
-              node.loginRetryCount = 0;
-            } catch (loginError) {
-              console.error("[easee] Fresh login also failed:", loginError);
-              node.loginRetryCount++;
+            const refreshResult = await node.doRefreshToken();
 
-              if (node.loginRetryCount >= node.maxLoginRetries) {
-                node.status({
-                  fill: "red",
-                  shape: "ring",
-                  text: "Authentication failed - check credentials",
-                });
-                node.error("[easee] Authentication failed after maximum retries. Please check credentials and reconfigure the node.");
+            // If refresh failed (returned null), try fresh login
+            if (refreshResult === null) {
+              node.status({
+                fill: "yellow",
+                shape: "ring",
+                text: "Token expired, re-authenticating...",
+              });
 
-                // Clear all tokens to force reconfiguration
-                node.accessToken = false;
-                node.refreshToken = false;
-                node.tokenExpires = new Date();
-                node.tokenIssuedAt = new Date();
-                node.tokenLifetime = 0;
+              try {
+                await node.doLogin();
+                // Reset retry counters on successful login
                 node.refreshRetryCount = 0;
                 node.loginRetryCount = 0;
+              } catch (loginError) {
+                console.error("[easee] Fresh login also failed:", loginError);
+                node.loginRetryCount++;
 
-                // Stop the token check cycle
-                if (node.checkTokenHandler) {
-                  clearTimeout(node.checkTokenHandler);
-                  node.checkTokenHandler = null;
+                if (node.loginRetryCount >= node.maxLoginRetries) {
+                  node.status({
+                    fill: "red",
+                    shape: "ring",
+                    text: "Authentication failed - check credentials",
+                  });
+                  node.error("[easee] Authentication failed after maximum retries. Please check credentials and reconfigure the node.");
+
+                  // Clear all tokens to force reconfiguration
+                  node.accessToken = false;
+                  node.refreshToken = false;
+                  node.tokenExpires = new Date();
+                  node.tokenIssuedAt = new Date();
+                  node.tokenLifetime = 0;
+                  node.refreshRetryCount = 0;
+                  node.loginRetryCount = 0;
+
+                  // Stop the token check cycle
+                  if (node.checkTokenHandler) {
+                    clearTimeout(node.checkTokenHandler);
+                    node.checkTokenHandler = null;
+                  }
+                  return;
+                } else {
+                  node.status({
+                    fill: "yellow",
+                    shape: "ring",
+                    text: `Login retry ${node.loginRetryCount}/${node.maxLoginRetries}`,
+                  });
                 }
-                return;
-              } else {
-                node.status({
-                  fill: "yellow",
-                  shape: "ring",
-                  text: `Login retry ${node.loginRetryCount}/${node.maxLoginRetries}`,
-                });
               }
             }
           }
-        }
 
-        // Calculate adaptive check interval based on token lifetime and expiration
-        let checkInterval;
-        const hasCredentials = node.credentials && (node.credentials.username || node.credentials.password);
+          // Calculate adaptive check interval based on token lifetime and expiration
+          let checkInterval;
+          const credentialsValid = node.validateCredentials();
 
-        if (!hasCredentials) {
-          checkInterval = 300 * 1000; // 5 minutes for no credentials
-        } else if (!node.accessToken) {
-          checkInterval = 60 * 1000; // 1 minute if no token
-        } else {
-          const timeToExpireMs = (node.tokenExpires - now);
-          const timeToRenewal = timeToExpireMs - (node.MIN_BUFFER_TIME * 1000);
-
-          if (node.tokenLifetime > 0) {
-            // For tokens with known lifetime, check at strategic intervals
-            const renewalTime = (node.tokenLifetime * node.RENEWAL_THRESHOLD_PERCENTAGE * 1000) - (tokenAge * 1000);
-            checkInterval = Math.max(Math.min(renewalTime / 4, 300 * 1000), 30 * 1000); // Between 30s and 5min
-          } else if (timeToRenewal > 0) {
-            // For tokens without known lifetime, check based on time to renewal
-            checkInterval = Math.max(Math.min(timeToRenewal / 3, 300 * 1000), 30 * 1000); // Between 30s and 5min
+          if (!credentialsValid.valid) {
+            checkInterval = 300 * 1000; // 5 minutes for invalid credentials
+          } else if (!node.accessToken) {
+            checkInterval = 60 * 1000; // 1 minute if no token
           } else {
-            // Token needs attention soon
-            checkInterval = 30 * 1000; // 30 seconds
+            const currentTime = new Date();
+            const timeToExpireMs = (node.tokenExpires - currentTime);
+            const timeToRenewal = timeToExpireMs - (node.MIN_BUFFER_TIME * 1000);
+            const currentTokenAge = Math.floor((currentTime - node.tokenIssuedAt) / 1000);
+
+            if (node.tokenLifetime > 0) {
+              // For tokens with known lifetime, check at strategic intervals
+              const renewalTime = (node.tokenLifetime * node.RENEWAL_THRESHOLD_PERCENTAGE * 1000) - (currentTokenAge * 1000);
+              checkInterval = Math.max(Math.min(renewalTime / 4, 300 * 1000), 30 * 1000); // Between 30s and 5min
+            } else if (timeToRenewal > 0) {
+              // For tokens without known lifetime, check based on time to renewal
+              checkInterval = Math.max(Math.min(timeToRenewal / 3, 300 * 1000), 30 * 1000); // Between 30s and 5min
+            } else {
+              // Token needs attention soon
+              checkInterval = 30 * 1000; // 30 seconds
+            }
           }
-        }
 
-        console.log(`[easee] Next token check in ${Math.floor(checkInterval / 1000)}s (time to expire: ${timeToExpire}s, token age: ${tokenAge}s)`);
+          // Recalculate current timing for accurate logging
+          const logTime = new Date();
+          const logTimeToExpire = Math.floor((node.tokenExpires - logTime) / 1000);
+          const logTokenAge = Math.floor((logTime - node.tokenIssuedAt) / 1000);
 
-        // Schedule next token check
-        node.checkTokenHandler = setTimeout(() => {
-          node.checkToken().catch((error) => {
-            console.error("[easee] Error in checkToken during scheduled check:", error);
-            node.status({
-              fill: "red",
-              shape: "ring",
-              text: "Authentication error",
+          console.log(`[easee] Next token check in ${Math.floor(checkInterval / 1000)}s (time to expire: ${logTimeToExpire}s, token age: ${logTokenAge}s)`);
+
+          // Schedule next token check
+          node.checkTokenHandler = setTimeout(() => {
+            node.checkToken().catch((error) => {
+              console.error("[easee] Error in checkToken during scheduled check:", error);
+              node.status({
+                fill: "red",
+                shape: "ring",
+                text: "Authentication error",
+              });
             });
-          });
-        }, checkInterval);
+          }, checkInterval);
+        } finally {
+          // Always clear the authentication flag
+          node.authenticationInProgress = false;
+        }
       };
 
       /**
@@ -1594,8 +1699,23 @@ module.exports = function (RED) {
        */
       node.doLogin = async (_username, _password) => {
         const url = "/accounts/login";
+        
+        // If no parameters provided, validate stored credentials
+        if (!_username && !_password) {
+          const credentialsCheck = node.validateCredentials();
+          if (!credentialsCheck.valid) {
+            const error = new Error(`Cannot login: ${credentialsCheck.message}`);
+            console.error(`[easee] Login failed: ${credentialsCheck.message}`);
+            node.status({
+              fill: "red",
+              shape: "ring",
+              text: "Invalid configuration - missing credentials",
+            });
+            throw error;
+          }
+        }
 
-        if (!_username && !node.credentials.username) {
+        if (!_username && !node.credentials?.username) {
           const error = new Error("No username provided for login");
           console.error("[easee] Login failed: No username configured");
           node.status({
@@ -1606,7 +1726,7 @@ module.exports = function (RED) {
           throw error;
         }
         
-        if (!_password && !node.credentials.password) {
+        if (!_password && !node.credentials?.password) {
           const error = new Error("No password provided for login");
           console.error("[easee] Login failed: No password configured");
           node.status({
