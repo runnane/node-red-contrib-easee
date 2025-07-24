@@ -18,4 +18,4 @@
 - Fix dependabot and add code owners file
 - Use actual functions for testing and not mocking. 
 - Add coverage testing and reports
-- Use https://github.com/node-red/node-red-node-test-helper for testing, reducing the need for mocks
+- ✅ Use https://github.com/node-red/node-red-node-test-helper for testing, reducing the need for mocks
