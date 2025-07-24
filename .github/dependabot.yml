@@ -57,5 +57,3 @@ updates:
     target-branch: "main"
     # Allow Dependabot to rebase PRs
     rebase-strategy: "auto"
-    # Vendor dependencies
-    vendor: false
