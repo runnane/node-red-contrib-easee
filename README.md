@@ -2,6 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@runnane/node-red-contrib-easee.svg?maxAge=2592000)](https://www.npmjs.com/package/@runnane/node-red-contrib-easee)
 [![downloads](https://img.shields.io/npm/dt/@runnane/node-red-contrib-easee.svg?maxAge=2592000)](https://www.npmjs.com/package/@runnane/node-red-contrib-easee)
+[![license](https://img.shields.io/npm/l/@runnane/node-red-contrib-easee.svg)](https://github.com/runnane/node-red-contrib-easee/blob/main/LICENSE)
 
 Node-Red module for streaming Easee charger data.
 
@@ -101,8 +102,23 @@ node.send({
 See [example flows](https://github.com/runnane/node-red-contrib-easee/blob/main/example.json)
 ![image](https://github.com/runnane/node-red-contrib-easee/assets/1679504/744fd250-3bab-46d8-a31a-3421f6d4c42d)
 
-## Credits and references
+## License
 
-- Initially forked from [node-red-contrib-signalrcore](https://github.com/scottpage/node-red-contrib-signalrcore), then rewritten
-- REST API documentation [developer.easee.com](https://developer.easee.com/docs/integrations)
-- Enumerations [developer.easee.com](https://developer.easee.com/docs/enumerations)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Credits and Attribution
+
+- **Author**: Jon Tungland (@runnane)
+- **Original Fork**: Initially forked from [node-red-contrib-signalrcore](https://github.com/scottpage/node-red-contrib-signalrcore) by Scott Page (Apache License 2.0), then extensively rewritten
+- **API Documentation**: [developer.easee.com](https://developer.easee.com/docs/integrations)
+- **Enumerations**: [developer.easee.com](https://developer.easee.com/docs/enumerations)
+
+### License Migration Notice
+
+This project was migrated from Apache License 2.0 to MIT License in 2025. The original Apache License 2.0 code from the forked project `node-red-contrib-signalrcore` has been preserved in the LICENSE file for attribution purposes. All subsequent modifications and additions by Jon Tungland are licensed under the MIT License.
+
+## Dependencies
+
+All dependencies are compatible with the MIT License:
+- `@microsoft/signalr`: MIT License
+- `node-fetch`: MIT License
