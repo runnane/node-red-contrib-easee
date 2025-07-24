@@ -10,3 +10,8 @@
 ## Features
 
 - Refactor into seperate modules so it can be used as a seperate lib? [ref](https://github.com/runnane/node-red-contrib-easee/issues/14)
+
+## Chores/Testing
+
+- Fix dependabot and add code owners file
+- Use actual functions for testing and not mcking. 
