@@ -48,7 +48,14 @@ module.exports = function (RED) {
        * Start running token refresh on start (event is emitted at end of constructor)
        */
       this.on("start", (event) => {
-        node.checkToken();
+        node.checkToken().catch((error) => {
+          console.error("Error in checkToken during start:", error);
+          node.status({
+            fill: "red",
+            shape: "ring",
+            text: "Authentication error",
+          });
+        });
       });
 
       /**
@@ -1235,6 +1242,18 @@ module.exports = function (RED) {
        * Check token expiration and refresh if needed
        */
       node.checkToken = async () => {
+        // Check if credentials are configured before attempting any authentication
+        if (!node.credentials || (!node.credentials.username && !node.credentials.password)) {
+          console.log("No credentials configured, skipping authentication");
+          node.status({
+            fill: "red",
+            shape: "ring",
+            text: "No credentials configured",
+          });
+          // Don't schedule another check if no credentials are configured
+          return;
+        }
+        
         const expiresIn = Math.floor(((node?.tokenExpires ?? 0) - new Date()) / 1000);
         if (expiresIn < 43200) {
           node.status({
@@ -1293,7 +1312,22 @@ module.exports = function (RED) {
             }
           }
         }
-        node.checkTokenHandler = setTimeout(() => node.checkToken(), 60 * 1000);
+        
+        // Schedule next token check
+        // If no credentials are configured, check less frequently
+        const hasCredentials = node.credentials && (node.credentials.username || node.credentials.password);
+        const checkInterval = hasCredentials ? 60 * 1000 : 300 * 1000; // 1 min vs 5 min
+        
+        node.checkTokenHandler = setTimeout(() => {
+          node.checkToken().catch((error) => {
+            console.error("Error in checkToken during scheduled check:", error);
+            node.status({
+              fill: "red",
+              shape: "ring",
+              text: "Authentication error",
+            });
+          });
+        }, checkInterval);
       };
 
       /**
@@ -1480,13 +1514,23 @@ module.exports = function (RED) {
         
         if (!_username && !node.credentials.username) {
           const error = new Error("No username provided for login");
-          node.error(error);
+          console.error("Login failed: No username configured");
+          node.status({
+            fill: "red",
+            shape: "ring",
+            text: "No username configured",
+          });
           throw error;
         }
         
         if (!_password && !node.credentials.password) {
           const error = new Error("No password provided for login");
-          node.error(error);
+          console.error("Login failed: No password configured");
+          node.status({
+            fill: "red",
+            shape: "ring",
+            text: "No password configured",
+          });
           throw error;
         }
 
