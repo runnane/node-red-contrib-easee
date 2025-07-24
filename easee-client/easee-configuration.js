@@ -26,8 +26,6 @@
  **/
 module.exports = function (RED) {
   "use strict";
-  const fetch = (...args) =>
-    import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
   class EaseeConfiguration {
     constructor(n) {
