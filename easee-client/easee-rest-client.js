@@ -50,7 +50,7 @@ module.exports = function (RED) {
        * @param {*} error 
        */
       node.fail = async (url, method, error) => {
-        console.error(error);
+        console.error("[easee] Error in easee-rest-client:", error);
         node.status({
           fill: "red",
           shape: "dot",

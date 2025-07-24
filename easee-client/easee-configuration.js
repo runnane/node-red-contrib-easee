@@ -105,17 +105,17 @@ module.exports = function (RED) {
       ) => {
 
         if (!node.accessToken) {
-          console.log("No access token available, attempting login");
+          console.log("[easee] No access token available, attempting login");
           node.status({
             fill: "yellow",
             shape: "ring",
             text: "Authenticating...",
           });
-
+          
           try {
             await node.doLogin();
           } catch (err) {
-            console.log("Login error in doAuthRestCall:", err);
+            console.log("[easee] Login error in doAuthRestCall:", err);
             node.status({
               fill: "red",
               shape: "ring",
@@ -123,9 +123,7 @@ module.exports = function (RED) {
             });
             throw err;
           }
-        }
-
-        headers = {
+        }        headers = {
           ...headers,
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -1410,12 +1408,12 @@ module.exports = function (RED) {
       node.doRefreshToken = async () => {
         if (!node.accessToken || !node.refreshToken) {
           // Not logged in, will not refresh - attempt login instead
-          console.log("No tokens available for refresh, attempting fresh login");
+          console.log("[easee] No tokens available for refresh, attempting fresh login");
           try {
             await node.doLogin();
             return;
           } catch (loginError) {
-            console.error("Login failed during refresh:", loginError);
+            console.error("[easee] Login failed during refresh:", loginError);
             node.status({
               fill: "red",
               shape: "ring",
@@ -1517,12 +1515,12 @@ module.exports = function (RED) {
             } else if (isNetworkError && node.refreshRetryCount < node.maxRefreshRetries) {
               // Network error - retry refresh
               node.refreshRetryCount++;
-              console.log(`Network error during token refresh, retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`);
-
+              console.log(`[easee] Network error during token refresh, retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`);
+              
               node.emit("update", {
                 update: `Token refresh retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`,
               });
-
+              
               // Wait a bit before retrying and return a promise
               return new Promise((resolve) => {
                 setTimeout(async () => {
@@ -1536,10 +1534,8 @@ module.exports = function (RED) {
               });
             } else {
               // Max retries reached or other error
-              console.error("Token refresh failed after retries or due to other error:", error);
-              node.refreshRetryCount++;
-
-              if (node.refreshRetryCount >= node.maxRefreshRetries) {
+              console.error("[easee] Token refresh failed after retries or due to other error:", error);
+              node.refreshRetryCount++;              if (node.refreshRetryCount >= node.maxRefreshRetries) {
                 console.log("[easee] Max refresh retries reached, clearing tokens and attempting fresh login");
                 node.accessToken = false;
                 node.refreshToken = false;
@@ -1557,7 +1553,7 @@ module.exports = function (RED) {
 
               node.error(error);
               node.warn(error);
-              console.error("Fatal error during doRefreshToken()", error);
+              console.error("[easee] Fatal error during doRefreshToken()", error);
               return null;
             }
           });
@@ -1601,7 +1597,7 @@ module.exports = function (RED) {
 
         if (!_username && !node.credentials.username) {
           const error = new Error("No username provided for login");
-          console.error("Login failed: No username configured");
+          console.error("[easee] Login failed: No username configured");
           node.status({
             fill: "red",
             shape: "ring",
@@ -1609,19 +1605,17 @@ module.exports = function (RED) {
           });
           throw error;
         }
-
+        
         if (!_password && !node.credentials.password) {
           const error = new Error("No password provided for login");
-          console.error("Login failed: No password configured");
+          console.error("[easee] Login failed: No password configured");
           node.status({
             fill: "red",
             shape: "ring",
             text: "No password configured",
           });
           throw error;
-        }
-
-        const response = await fetch(node.RestApipath + url, {
+        }        const response = await fetch(node.RestApipath + url, {
           method: "post",
           body: JSON.stringify({
             userName: _username ?? node.credentials.username,
