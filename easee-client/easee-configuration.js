@@ -1304,8 +1304,18 @@ module.exports = function (RED) {
         if (!node.accessToken || !node.refreshToken) {
           // Not logged in, will not refresh - attempt login instead
           console.log("No tokens available for refresh, attempting fresh login");
-          await node.doLogin();
-          return;
+          try {
+            await node.doLogin();
+            return;
+          } catch (loginError) {
+            console.error("Login failed during refresh:", loginError);
+            node.status({
+              fill: "red",
+              shape: "ring",
+              text: "Authentication failed",
+            });
+            return null;
+          }
         }
 
         const response = await fetch(
