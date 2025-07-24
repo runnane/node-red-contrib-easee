@@ -1,0 +1,126 @@
+# .npmignore - Exclude unnecessary files from npm package
+# This file ensures only essential files are included in the published package
+
+# Development and Testing
+tests/
+*.test.js
+*.spec.js
+test/
+spec/
+coverage/
+.nyc_output/
+jest.config.js
+.jshintrc
+
+# Documentation and Examples (keep README.md)
+TODO.md
+CHANGELOG.md
+CONTRIBUTING.md
+example.json
+docs/
+doc/
+
+# Build and Development Tools
+.github/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git and Version Control
+.git/
+.gitignore
+.gitattributes
+
+# Dependencies (users will install these)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment and Configuration
+.env*
+.npmrc
+.nvmrc
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.tmp
+
+# IDE and Editor Files
+*.sublime-workspace
+*.sublime-project
+
+# Build Outputs (if any)
+dist/
+build/
+lib/
+out/
+*.tsbuildinfo
+
+# TypeScript (if used)
+*.d.ts.map
+*.js.map
+tsconfig.json
+
+# Logs
+logs/
+*.log
+
+# Runtime and Temporary Files
+pids/
+*.pid
+*.seed
+*.pid.lock
+tmp/
+temp/
+
+# Linting and Formatting
+.eslintrc*
+.eslintcache
+.prettierrc*
+.prettierignore
+
+# Other Development Files
+.babelrc*
+webpack.config.js
+rollup.config.js
+
+# Backup Files
+*.backup
+*.bak
+*.old
+
+# Archives
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Node-RED specific development files
+flows.json
+flows_cred.json
+.config.json
+.sessions.json
+
+# Security and credentials (extra safety)
+*.key
+*.pem
+*.p12
+*.crt
+secrets.json
