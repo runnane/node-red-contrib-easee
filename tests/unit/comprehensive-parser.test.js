@@ -1020,6 +1020,67 @@ describe('Comprehensive Parser Migration', () => {
             });
         });
 
+        test('should convert all Boolean observations correctly', () => {
+            // Test with all Boolean observation IDs from official documentation
+            const booleanObservations = [
+                { id: 15, name: 'LocalPreAuthorizeEnabled' },
+                { id: 16, name: 'LocalAuthorizeOfflineEnabled' },
+                { id: 17, name: 'AllowOfflineTxForUnknownId' },
+                { id: 30, name: 'LockCablePermanently' },
+                { id: 31, name: 'IsEnabled' },
+                { id: 41, name: 'LocalAuthorizationRequired' },
+                { id: 42, name: 'AuthorizationRequired' },
+                { id: 43, name: 'RemoteStartRequired' },
+                { id: 44, name: 'SmartButtonEnabled' },
+                { id: 102, name: 'SmartCharging' },
+                { id: 103, name: 'CableLocked' },
+                { id: 116, name: 'DeratingActive' },
+                { id: 250, name: 'ConnectedToCloud' }
+            ];
+
+            booleanObservations.forEach(obs => {
+                // Test string 'true'
+                const trueData = {
+                    id: obs.id,
+                    value: 'true',
+                    timestamp: '2023-12-31T12:00:00Z'
+                };
+                const trueResult = parseObservation(trueData);
+                expect(trueResult.dataTypeName).toBe('Boolean');
+                expect(trueResult.value).toBe(true);
+
+                // Test string 'false'
+                const falseData = {
+                    id: obs.id,
+                    value: 'false',
+                    timestamp: '2023-12-31T12:00:00Z'
+                };
+                const falseResult = parseObservation(falseData);
+                expect(falseResult.dataTypeName).toBe('Boolean');
+                expect(falseResult.value).toBe(false);
+
+                // Test number 1
+                const oneData = {
+                    id: obs.id,
+                    value: 1,
+                    timestamp: '2023-12-31T12:00:00Z'
+                };
+                const oneResult = parseObservation(oneData);
+                expect(oneResult.dataTypeName).toBe('Boolean');
+                expect(oneResult.value).toBe(true);
+
+                // Test number 0
+                const zeroData = {
+                    id: obs.id,
+                    value: 0,
+                    timestamp: '2023-12-31T12:00:00Z'
+                };
+                const zeroResult = parseObservation(zeroData);
+                expect(zeroResult.dataTypeName).toBe('Boolean');
+                expect(zeroResult.value).toBe(false);
+            });
+        });
+
         test('should handle invalid JSON gracefully', () => {
             const invalidJsonData = {
                 id: 129, // ChargingSession

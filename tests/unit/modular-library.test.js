@@ -107,7 +107,7 @@ describe('Easee Library Modules', () => {
         
         expect(parsed.dataName).toBe('CableLocked');
         expect(parsed.dataTypeName).toBe('Boolean');
-        expect(parsed.value).toBe('true'); // Boolean values remain as-is per original implementation
+        expect(parsed.value).toBe(true); // Boolean values are now converted to actual boolean type
         expect(parsed.valueUnit).toBe('');
       });
       
