@@ -29,8 +29,8 @@ describe('Configuration Node Validation', () => {
 
   describe('validateCredentials', () => {
     test('should return valid for proper credentials', () => {
-      // Setup the module
-      const moduleExports = EaseeConfiguration(RED);
+      // Setup the module - the module is now a function that registers the node type
+      EaseeConfiguration(RED);
       
       // Create a mock configuration with valid credentials
       const mockConfig = {
@@ -64,8 +64,8 @@ describe('Configuration Node Validation', () => {
     });
 
     test('should return invalid for missing username', () => {
-      // Setup the module
-      const moduleExports = EaseeConfiguration(RED);
+      // Setup the module - the module is now a function that registers the node type
+      EaseeConfiguration(RED);
       
       // Create a mock configuration with missing username
       const mockConfig = {
@@ -94,8 +94,8 @@ describe('Configuration Node Validation', () => {
     });
 
     test('should return invalid for missing password', () => {
-      // Setup the module
-      const moduleExports = EaseeConfiguration(RED);
+      // Setup the module - the module is now a function that registers the node type
+      EaseeConfiguration(RED);
       
       // Create a mock configuration with missing password
       const mockConfig = {
@@ -124,8 +124,8 @@ describe('Configuration Node Validation', () => {
     });
 
     test('should return invalid for missing credentials object', () => {
-      // Setup the module
-      const moduleExports = EaseeConfiguration(RED);
+      // Setup the module - the module is now a function that registers the node type
+      EaseeConfiguration(RED);
       
       // Create a mock configuration with no credentials
       const mockConfig = {};
@@ -151,8 +151,8 @@ describe('Configuration Node Validation', () => {
 
   describe('isConfigurationValid', () => {
     test('should return true for valid configuration', () => {
-      // Setup the module
-      const moduleExports = EaseeConfiguration(RED);
+      // Setup the module - the module is now a function that registers the node type
+      EaseeConfiguration(RED);
       
       const mockConfig = {
         credentials: {
@@ -178,8 +178,8 @@ describe('Configuration Node Validation', () => {
     });
 
     test('should return false for invalid configuration', () => {
-      // Setup the module
-      const moduleExports = EaseeConfiguration(RED);
+      // Setup the module - the module is now a function that registers the node type
+      EaseeConfiguration(RED);
       
       const mockConfig = {
         credentials: {

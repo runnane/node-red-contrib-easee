@@ -29,7 +29,7 @@ jest-coverage/
 # Build outputs
 dist/
 build/
-lib/
+# lib/
 *.tsbuildinfo
 
 # TypeScript
@@ -100,3 +100,7 @@ docs/build/
 
 # Runtime configuration
 .npmrc
+
+
+# Custom
+/backup/

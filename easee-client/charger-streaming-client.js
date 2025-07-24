@@ -38,12 +38,6 @@ module.exports = function (RED) {
       node.responses = n.responses;
       node.connectionConfig = RED.nodes.getNode(node.configurationNode);
       node.responses = n.responses;
-
-      // Use configuration node's logging if available, fallback to console
-      node.logInfo = node.connectionConfig?.logInfo || function(msg, data) { console.log(`[easee] ${msg}`, data || ''); };
-      node.logDebug = node.connectionConfig?.logDebug || function(msg, data) { if (node.connectionConfig?.debugLogging) console.log(`[easee] DEBUG: ${msg}`, data || ''); };
-      node.logError = node.connectionConfig?.logError || function(msg, error) { console.error(`[easee] ERROR: ${msg}`, error || ''); };
-      node.logWarn = node.connectionConfig?.logWarn || function(msg, data) { console.warn(`[easee] WARN: ${msg}`, data || ''); };
       node.options = {};
       node.reconnectInterval = 3000;
       node.closing = false;
@@ -60,15 +54,42 @@ module.exports = function (RED) {
         return;
       }
 
-      // Check if the configuration node has valid credentials
-      if (!node.connectionConfig.isConfigurationValid || !node.connectionConfig.isConfigurationValid()) {
+      // Get the Easee client from the configuration node
+      const easeeClient = this.connectionConfig.easeeClient;
+      if (!easeeClient) {
         node.emit("erro", {
-          err: "[easee] Configuration node is invalid - missing username or password",
+          err: "[easee] Configuration node not properly initialized",
         });
         node.status({
           fill: "red",
           shape: "ring",
-          text: "Invalid configuration - missing credentials",
+          text: "Configuration not initialized",
+        });
+        return;
+      }
+
+      // Check if credentials are valid using modular validation
+      try {
+        const validation = this.connectionConfig.validateCredentials();
+        if (!validation.valid) {
+          node.emit("erro", {
+            err: `[easee] Configuration node is invalid: ${validation.message}`,
+          });
+          node.status({
+            fill: "red",
+            shape: "ring",
+            text: "Invalid configuration",
+          });
+          return;
+        }
+      } catch (error) {
+        node.emit("erro", {
+          err: `[easee] Error validating configuration: ${error.message}`,
+        });
+        node.status({
+          fill: "red",
+          shape: "ring",
+          text: "Configuration error",
         });
         return;
       }
@@ -130,13 +151,27 @@ module.exports = function (RED) {
         node.connection.send("SubscribeWithCurrentState", node.charger, true);
 
         node.connection.on("ProductUpdate", (data) => {
-          data = node.connectionConfig.parseObservation(data);
-          node.send([null, null, null, { payload: data }, null, null]);
+          try {
+            // Use the configuration node's parseObservation method
+            data = node.connectionConfig.parseObservation(data);
+            node.send([null, null, null, { payload: data }, null, null]);
+          } catch (error) {
+            easeeClient.logger.error("Error parsing ProductUpdate:", error);
+            // Send raw data if parsing fails
+            node.send([null, null, null, { payload: data }, null, null]);
+          }
         });
 
         node.connection.on("ChargerUpdate", (data) => {
-          data = node.connectionConfig.parseObservation(data);
-          node.send([null, null, null, null, { payload: data }, null]);
+          try {
+            // Use the configuration node's parseObservation method
+            data = node.connectionConfig.parseObservation(data);
+            node.send([null, null, null, null, { payload: data }, null]);
+          } catch (error) {
+            easeeClient.logger.error("Error parsing ChargerUpdate:", error);
+            // Send raw data if parsing fails
+            node.send([null, null, null, null, { payload: data }, null]);
+          }
         });
         node.connection.on("CommandResponse", (data) => {
           node.send([null, null, null, null, null, { payload: data }]);
@@ -149,7 +184,7 @@ module.exports = function (RED) {
        */
       this.on("erro", (event) => {
 
-        node.logError("Error in easee-streaming-client:", event.err);
+        easeeClient.logger.error("Error in easee-streaming-client:", event.err);
         node.warn(event.err);
 
         node.status({
@@ -215,7 +250,7 @@ module.exports = function (RED) {
       });
 
       // Connect to remote endpoint
-      node.startconn = () => {
+      node.startconn = async () => {
         node.closing = false;
         if (node.reconnectTimoutHandle)
           clearTimeout(node.reconnectTimoutHandle);
@@ -227,6 +262,32 @@ module.exports = function (RED) {
           });
           return;
         }
+
+        // Ensure we have a fresh token before connecting
+        try {
+          const isAuthenticated = await node.connectionConfig.ensureAuthentication();
+          if (!isAuthenticated) {
+            node.emit("erro", {
+              err: "Authentication failed, cannot connect to SignalR",
+            });
+            node.reconnectTimoutHandle = setTimeout(
+              () => node.startconn(),
+              node.reconnectInterval
+            );
+            return;
+          }
+        } catch (error) {
+          easeeClient.logger.error("Authentication error before SignalR connection:", error);
+          node.emit("erro", {
+            err: "Authentication error: " + error.message,
+          });
+          node.reconnectTimoutHandle = setTimeout(
+            () => node.startconn(),
+            node.reconnectInterval
+          );
+          return;
+        }
+
         if (!node.connectionConfig.accessToken) {
           node.emit("erro", {
             err: "No accessToken, waiting",
@@ -238,11 +299,51 @@ module.exports = function (RED) {
           return;
         }
 
-        node.options.accessTokenFactory = () =>
-          node.connectionConfig.accessToken;
+        // Debug: log token status and decode it to check permissions
+        const token = node.connectionConfig.accessToken;
+        easeeClient.logger.debug("Access token available, length:", token ? token.length : 0);
+        
+        if (token) {
+          try {
+            // Import the lib directly to access token functions
+            const easeeLib = require('../lib');
+            
+            // Try to decode the token to see what's inside
+            const tokenPayload = easeeLib.auth.decodeToken(token);
+            if (tokenPayload) {
+              easeeClient.logger.debug("Token payload keys:", Object.keys(tokenPayload));
+              easeeClient.logger.debug("Token expires at:", tokenPayload.exp ? new Date(tokenPayload.exp * 1000).toISOString() : 'unknown');
+              if (tokenPayload.scope) {
+                easeeClient.logger.debug("Token scopes:", tokenPayload.scope);
+              }
+              if (tokenPayload.aud) {
+                easeeClient.logger.debug("Token audience:", tokenPayload.aud);
+              }
+            }
+            
+            // Also validate the token
+            const tokenValidation = easeeLib.auth.validateToken(token);
+            easeeClient.logger.debug("Token validation:", tokenValidation);
+          } catch (error) {
+            easeeClient.logger.debug("Could not decode/validate token:", error.message);
+          }
+        }
+        
+        easeeClient.logger.debug("Connecting to SignalR hub:", node.connectionConfig.signalRpath);
+        easeeClient.logger.debug("For charger:", node.charger);
+
+        node.options.accessTokenFactory = () => {
+          const token = node.connectionConfig.accessToken;
+          easeeClient.logger.debug("Providing access token for SignalR, length:", token ? token.length : 0);
+          return token;
+        };
+
+        // Some SignalR hubs require query parameters for authorization context
+        const signalRUrl = node.connectionConfig.signalRpath;
+        easeeClient.logger.debug("Using SignalR URL:", signalRUrl);
 
         var connection = new signalR.HubConnectionBuilder()
-          .withUrl(node.connectionConfig.signalRpath, node.options)
+          .withUrl(signalRUrl, node.options)
           .configureLogging(signalR.LogLevel.Debug)
           .build();
 
@@ -261,10 +362,10 @@ module.exports = function (RED) {
               node.reconnectInterval
             );
           } else {
-            node.logError("Authentication failed during reconnect");
+            easeeClient.logger.error("Authentication failed during reconnect");
           }
         }).catch((error) => {
-          node.logError("Error during reconnect:", error);
+          easeeClient.logger.error("Error during reconnect:", error);
         });
       };
       

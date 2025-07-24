@@ -1,6 +1,9 @@
 /**
- * Mock data fixtures for Easee API responses
+ * Mock data for testing
  */
+
+// Import constants for consistent URLs
+const { API_CONFIG } = require('../../lib/constants');
 
 module.exports = {
   // Successful login response
@@ -75,7 +78,7 @@ module.exports = {
 
   // Mock Easee API endpoints
   apiEndpoints: {
-    baseUrl: "https://api.easee.cloud",
+    baseUrl: API_CONFIG.BASE_URL,
     login: "/accounts/login",
     refresh: "/accounts/refresh_token"
   },

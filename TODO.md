@@ -19,3 +19,4 @@
 - Use actual functions for testing and not mocking. 
 - Add coverage testing and reports
 - ✅ Use https://github.com/node-red/node-red-node-test-helper for testing, reducing the need for mocks
+- Add unittests for checking that observation parsing works as expected

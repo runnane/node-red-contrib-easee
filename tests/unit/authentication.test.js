@@ -26,7 +26,7 @@ describe('Easee Configuration - Authentication', () => {
     // Setup mock Node-RED environment
     mockRED = createMockRED();
     
-    // Initialize the module with mock RED
+    // Initialize the module with mock RED - this registers the node type
     EaseeConfigurationModule(mockRED);
     
     // Create a new instance of the configuration node

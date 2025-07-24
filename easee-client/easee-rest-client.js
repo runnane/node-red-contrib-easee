@@ -28,297 +28,316 @@
 module.exports = function (RED) {
   "use strict";
 
-  class EaseeRestClient {
-    constructor(n) {
-      RED.nodes.createNode(this, n);
-      var node = this;
-      node.charger = n.charger;
-      node.site = n.site;
-      node.circuit = n.circuit;
-      node.configurationNode = n.configuration;
-      node.connection = RED.nodes.getNode(node.configurationNode);
+  // Import REST client utilities
+  const { processMessageForRestApi } = require('../lib/utils/rest-client');
 
-      // Use configuration node's logging if available, fallback to console
-      node.logInfo = node.connection?.logInfo || function(msg, data) { console.log(`[easee] ${msg}`, data || ''); };
-      node.logDebug = node.connection?.logDebug || function(msg, data) { if (node.connection?.debugLogging) console.log(`[easee] DEBUG: ${msg}`, data || ''); };
-      node.logError = node.connection?.logError || function(msg, error) { console.error(`[easee] ERROR: ${msg}`, error || ''); };
-      node.logWarn = node.connection?.logWarn || function(msg, data) { console.warn(`[easee] WARN: ${msg}`, data || ''); };
+  function EaseeRestClient(config) {
+    RED.nodes.createNode(this, config);
 
-      if (!node.connection) {
-        node.error("[easee] Missing easee configuration node");
-        node.status({
+    // Store configuration
+    this.charger = config.charger;
+    this.site = config.site;
+    this.circuit = config.circuit;
+    this.configurationNode = config.configuration;
+    this.connection = RED.nodes.getNode(this.configurationNode);
+
+    if (!this.connection) {
+      this.error("[easee] Missing easee configuration node");
+      this.status({
+        fill: "red",
+        shape: "ring",
+        text: "Missing configuration",
+      });
+      return;
+    }
+
+    // Get the Easee client from the configuration node
+    const easeeClient = this.connection.easeeClient;
+    if (!easeeClient) {
+      this.error("[easee] Configuration node not properly initialized");
+      this.status({
+        fill: "red",
+        shape: "ring",
+        text: "Configuration not initialized",
+      });
+      return;
+    }
+
+    // Check if credentials are valid
+    try {
+      const validation = this.connection.validateCredentials();
+      if (!validation.valid) {
+        this.error(`[easee] Configuration node is invalid: ${validation.message}`);
+        this.status({
           fill: "red",
           shape: "ring",
-          text: "Missing configuration",
+          text: "Invalid configuration",
         });
         return;
       }
+    } catch (error) {
+      this.error(`[easee] Error validating configuration: ${error.message}`);
+      this.status({
+        fill: "red",
+        shape: "ring",
+        text: "Configuration error",
+      });
+      return;
+    }
 
-      // Check if the configuration node has valid credentials
-      if (!node.connection.isConfigurationValid || !node.connection.isConfigurationValid()) {
-        node.error("[easee] Configuration node is invalid - missing username or password");
-        node.status({
-          fill: "red",
-          shape: "ring",
-          text: "Invalid configuration - missing credentials",
-        });
+    /**
+     * Helper function for sending failure response
+     * @param {string} url 
+     * @param {string} method 
+     * @param {*} error 
+     */
+    this.fail = async function (url, method, error) {
+      easeeClient.logger.error(`REST Client Error: ${method} ${url}`, error);
+
+      this.status({
+        fill: "red",
+        shape: "dot",
+        text: `${method}: failed`,
+      });
+
+      this.send({
+        status: "error",
+        topic: `${method}: failed`,
+        payload: null,
+        error: error,
+        url: url
+      });
+    };
+
+    /**
+     * Helper function for sending success response
+     * @param {string} url 
+     * @param {string} method 
+     * @param {*} response 
+     */
+    this.ok = async function (url, method, response) {
+      this.status({
+        fill: "green",
+        shape: "dot",
+        text: `${method}: ok`,
+      });
+
+      this.send({
+        status: "ok",
+        topic: url,
+        payload: response,
+      });
+    };    /**
+     * Generic API request wrapper
+     * @param {string} url - API endpoint URL
+     * @param {string} method - HTTP method
+     * @param {*} body - Request body (for POST/PUT)
+     * @returns {Promise}
+     */
+    this.REQUEST = async function (url, method = "GET", body = null) {
+      this.status({
+        fill: "yellow",
+        shape: "dot",
+        text: `${method}: sending`,
+      });
+
+      try {
+        // Ensure authentication before making request
+        await this.connection.ensureAuthenticated();
+
+        let response;
+        const apiPath = url.startsWith('/') ? url : `/${url}`;
+
+        switch (method.toUpperCase()) {
+          case 'GET':
+            response = await easeeClient.api.get(apiPath);
+            break;
+          case 'POST':
+            response = await easeeClient.api.post(apiPath, body);
+            break;
+          case 'PUT':
+            response = await easeeClient.api.put(apiPath, body);
+            break;
+          case 'DELETE':
+            response = await easeeClient.api.delete(apiPath);
+            break;
+          default:
+            throw new Error(`Unsupported HTTP method: ${method}`);
+        }
+
+        if (response.success) {
+          await this.ok(url, method, response.data);
+        } else {
+          await this.fail(url, method, response.error || `HTTP ${response.statusCode}`);
+        }
+      } catch (error) {
+        await this.fail(url, method, error.message);
+      }
+    };
+
+    /**
+     * REST API GET helper
+     * @param {string} url 
+     * @returns {Promise}
+     */
+    this.GET = async function (url) {
+      return this.REQUEST(url, "GET");
+    };
+
+    /**
+     * REST API POST helper
+     * @param {string} url 
+     * @param {*} body 
+     * @returns {Promise}
+     */
+    this.POST = async function (url, body) {
+      return this.REQUEST(url, "POST", body);
+    };
+
+    /**
+     * REST API PUT helper
+     * @param {string} url 
+     * @param {*} body 
+     * @returns {Promise}
+     */
+    this.PUT = async function (url, body) {
+      return this.REQUEST(url, "PUT", body);
+    };
+
+    /**
+     * REST API DELETE helper
+     * @param {string} url 
+     * @returns {Promise}
+     */
+    this.DELETE = async function (url) {
+      return this.REQUEST(url, "DELETE");
+    };
+
+    // Handle incoming messages
+    this.on("input", async function (msg, send, done) {
+      // Process message using utility functions
+      const request = processMessageForRestApi(msg, {
+        charger: this.charger,
+        site: this.site,
+        circuit: this.circuit
+      });
+
+      easeeClient.logger.debug(`Processing message - Topic: ${msg.topic}`);
+      easeeClient.logger.debug(`Request processing result: ${JSON.stringify(request, null, 2)}`);
+
+      if (!request.success) {
+        await this.fail("error", "GET", request.error);
+        if (done) done();
         return;
       }
 
-      /**
-       * Helper func for sending sailure
-       * @param string url 
-       * @param {string} method 
-       * @param {*} error 
-       */
-      node.fail = async (url, method, error) => {
-        node.logError("Error in easee-rest-client:", error);
-        node.status({
-          fill: "red",
-          shape: "dot",
-          text: method + ": failed",
-        });
-        node.send({
-          status: "error",
-          topic: method + ": failed",
-          payload: null,
-          error: error,
-          url: url
-        });
-        return true;
-      };
+      // Update runtime parameters
+      this.charger = request.params.charger || this.charger;
+      this.site = request.params.site || this.site;
+      this.circuit = request.params.circuit || this.circuit;
 
-      /**
-      * Helper func for sending success
-      * @param {string} url 
-      * @param {string} method 
-      * @param {*} response 
-      */
-      node.ok = async (url, method, response) => {
-        node.status({
-          fill: "green",
-          shape: "dot",
-          text: method + ": ok",
-        });
-        node.send({
-          status: "ok",
-          topic: url,
-          payload: response,
-        });
-        return true;
-      };
+      // Handle special cases
+      if (request.specialHandling === 'parse_observations') {
+        easeeClient.logger.debug(`Taking special handling path: parse_observations`);
+        // Handle charger_state with observation parsing
+        try {
+          await this.connection.ensureAuthenticated();
+          const response = await easeeClient.api.get(request.path);
 
-      /**
-       * Wrapper for easee-configuration.genericCall()
-       * 
-       * @param {*} url 
-       * @param {*} method 
-       * @param {*} body 
-       * @returns 
-       */
-      node.REQUEST = async (url, method = "GET", body = null) => {
-        node.status({
-          fill: "yellow",
-          shape: "dot",
-          text: method + ": sending",
-        });
-        return node.connection
-          .genericCall(url, method, body)
-          .then((response) => {
-            return node.ok(url, method, response);
+          // Extract the actual data from the response
+          const json = response.success ? response.data : response;
+
+          if (typeof json !== "object" || json === null) {
+            this.error("charger_state failed - invalid response format");
+            await this.fail(request.path, request.method, new Error("Invalid response format"));
+            if (done) done();
+            return;
+          } else {
+            // Parse observations using the same approach as the original implementation
+            Object.keys(json).forEach((idx) => {
+              easeeClient.logger.debug(`Parsing index ${idx}`, json[idx]);
+              json[idx] = easeeClient.parser.parseObservation(
+                {
+                  dataName: idx,
+                  value: json[idx],
+                  origValue: json[idx],
+                },
+                "name"
+              );
+            });
+
+            easeeClient.logger.debug(`Charger state data received: ${Object.keys(json).length} properties`);
+            await this.ok(request.path, request.method, json);
+            if (done) done();
+            return;
+          }
+        } catch (error) {
+          await this.fail(request.path, request.method, error);
+          if (done) done();
+          return;
+        }
+
+      } else if (msg.topic === 'login') {
+        easeeClient.logger.debug(`Taking special handling path: login`);
+        // Handle login verification
+        this.connection
+          .ensureAuthentication()
+          .then((isAuthenticated) => {
+            if (isAuthenticated) {
+              this.ok("/accounts/login/", "POST", { success: true, message: "Authentication verified" });
+            } else {
+              this.fail("/accounts/login/", "POST", new Error("Authentication failed"));
+            }
+            if (done) done();
           })
           .catch((error) => {
-            return node.fail(url, method, error);
+            this.fail("/accounts/login/", "POST", error);
+            if (done) done();
           });
-      };
 
-
-      /**
-       * REST API GET helper command
-       * @param {*} url 
-       * @returns 
-       */
-      node.GET = async (url) => {
-        return node.REQUEST(url, "GET");
-      };
-
-      /**
-       * REST API POST COMMAND (wrapper)
-       * 
-       * @param {string} url 
-       * @param {*} body 
-       * @returns 
-       */
-      node.POST = async (url, body = {}) => {
-        return node.REQUEST(url, "POST", body);
-      };
-
-      /**
-       * On incoming nodered message
-       */
-      node.on("input", function (msg, send, done) {
-        node.charger = msg?.charger ?? n.charger;
-        node.site = msg?.site ?? n.site;
-        node.circuit = msg?.circuit ?? n.circuit;
-
-        let method = "GET";
-        let path = "";
-        let body;
-        let url = "";
-
-        if (msg?.payload?.method ?? false) {
-          method = msg.payload.method.toUpperCase();
-        } else if (msg?.payload?.body ?? false) {
-          method = "POST";
-        }
-
-        if (msg?.payload?.path ?? false) {
-          path = msg.payload.path;
-        } else if (msg?.command ?? false) {
-          path = msg.command;
-        }
-
-        if (msg?.payload?.body ?? false) {
-          body = msg.payload.body;
-        }
-
-
-        if (node[method] == undefined) {
-          return node.fail("error", "POST", `Invalid HTTP method: ${method}`);
-        }
-
-        if (path && method) {
-          // Run full path as defined by node-red parameters
-          node[method](path, body);
-
-        } else if (msg?.topic ?? false) {
-          // Run command as defined by topic
-          try {
-            switch (msg.topic) {
-              case "login":
-                node.connection
-                  .ensureAuthentication()
-                  .then((isAuthenticated) => {
-                    if (isAuthenticated) {
-                      return node.ok("/accounts/login/", "POST", { success: true, message: "Authentication verified" });
-                    } else {
-                      return node.fail("/accounts/login/", "POST", new Error("Authentication failed"));
-                    }
-                  })
-                  .catch((error) => {
-                    return node.fail("/accounts/login/", "POST", error);
-                  });
-                break;
-              case "refresh_token":
-                node.connection
-                  .doRefreshToken()
-                  .then((json) => {
-                    return node.ok("/accounts/refresh_token/", "POST", json);
-                  })
-                  .catch((error) => {
-                    return node.fail("/accounts/refresh_token/", "POST", error);
-
-                  });
-
-                break;
-              case "dynamic_current":
-                if (!node.site) {
-                  node.error("dynamic_current failed: site missing");
-                  return;
-                } else if (!node.circuit) {
-                  node.error("dynamic_current failed: circuit missing");
-                  return;
-                } else if (typeof msg.payload == "object") {
-                  // Do POST update of circuit
-                  node.POST(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`, msg.payload);
-                } else {
-                  // GET circuit information
-                  node.GET(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`);
-                }
-                break;
-
-              case "charger":
-                node.GET(`/chargers/${node.charger}?alwaysGetChargerAccessLevel=true`);
-                break;
-
-              case "charger_details":
-                node.GET(`/chargers/${node.charger}/details`);
-                break;
-
-              case "charger_site":
-                node.GET(`/chargers/${node.charger}/site`);
-                break;
-
-              case "charger_config":
-                node.GET(`/chargers/${node.charger}/config`);
-                break;
-
-              case "charger_session_latest":
-                node.GET(`/chargers/${node.charger}/sessions/latest`);
-                break;
-
-              case "charger_session_ongoing":
-                node.GET(`/chargers/${node.charger}/sessions/ongoing`);
-                break;
-
-              case "start_charging":
-              case "stop_charging":
-              case "pause_charging":
-              case "resume_charging":
-              case "toggle_charging":
-              case "reboot":
-                node.POST(`/chargers/${node.charger}/commands/${msg.topic}`);
-                break;
-
-              case "charger_state":
-                url = `/chargers/${node.charger}/state`;
-                node.connection.genericCall(url).then((json) => {
-                  if (typeof json !== "object") {
-                    node.error("charger_state failed");
-                  } else {
-                    // Parse observations
-                    Object.keys(json).forEach((idx) => {
-                      json[idx] = node.connection.parseObservation(
-                        {
-                          dataName: idx,
-                          value: json[idx],
-                          origValue: json[idx],
-                        },
-                        "name"
-                      );
-                    });
-                    return node.ok(url, "GET", json);
-
-                  }
-
-                }).catch((error) => {
-                  return node.fail(url, "GET", error);
-
-                });
-                break;
-
-              default:
-
-                return node.fail("error", "GET", `Unknown topic ${msg.topic}`);
-            }
-
-
-          } catch (error) {
-            return node.fail("REST client command failed", "GET", error);
-
+      } else if (msg.topic === 'refresh_token') {
+        easeeClient.logger.debug(`Taking special handling path: refresh_token`);
+        // Handle token refresh
+        try {
+          const refreshToken = easeeClient.auth.getRefreshToken();
+          if (!refreshToken) {
+            await this.fail("/accounts/refresh_token/", "POST", new Error("No refresh token available"));
+            if (done) done();
+            return;
           }
 
-        } else {
-          // Missing topic
-          return node.fail("error", "GET", `Missing required payload.path or topic`);
+          const { doRefreshToken } = require('../lib/auth/authentication');
+          const result = await doRefreshToken(refreshToken);
 
+          if (result.success) {
+            await this.ok("/accounts/refresh_token/", "POST", result.data);
+          } else {
+            await this.fail("/accounts/refresh_token/", "POST", new Error(result.message));
+          }
+          if (done) done();
+        } catch (error) {
+          await this.fail("/accounts/refresh_token/", "POST", error);
+          if (done) done();
         }
-        if (done) {
-          done();
-        }
-      });
-    }
+
+      } else {
+        easeeClient.logger.debug(`Taking standard API request path`);
+        // Handle standard API requests
+        await this.REQUEST(request.path, request.method, request.body);
+        if (done) done();
+      }
+    });
+
+    // Set initial status
+    this.status({
+      fill: "grey",
+      shape: "ring",
+      text: "ready",
+    });
+
+    easeeClient.logger.info(`REST Client initialized for charger: ${this.charger || 'any'}, site: ${this.site || 'any'}, circuit: ${this.circuit || 'any'}`);
   }
 
+  // Register the node
   RED.nodes.registerType("easee-rest-client", EaseeRestClient);
 };

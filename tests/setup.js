@@ -3,6 +3,9 @@
  * This file is executed before each test file
  */
 
+// Import constants for consistent URLs
+const { API_CONFIG } = require('../lib/constants');
+
 // Mock fetch globally for all tests
 global.fetch = jest.fn();
 
@@ -25,7 +28,7 @@ global.testHelpers = {
         username: 'test@example.com',
         password: 'testpassword'
       },
-      RestApipath: 'https://api.easee.cloud',
+      RestApipath: API_CONFIG.BASE_URL,
       accessToken: null,
       refreshToken: null,
       tokenExpires: new Date(),
