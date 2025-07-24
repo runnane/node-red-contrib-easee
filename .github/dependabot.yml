@@ -1,0 +1,61 @@
+# Dependabot configuration for node-red-contrib-easee
+# This file enables automatic dependency updates via GitHub Dependabot
+
+version: 2
+updates:
+  # Enable updates for npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+    # Automatically merge minor and patch updates
+    open-pull-requests-limit: 10
+    # Group updates by type
+    groups:
+      development-dependencies:
+        dependency-type: "development"
+        patterns:
+          - "@types/*"
+          - "jest*"
+          - "eslint*"
+          - "prettier*"
+          - "typescript*"
+      production-dependencies:
+        dependency-type: "production"
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "@types/*"
+          - "jest*"
+          - "eslint*"
+          - "prettier*"
+          - "typescript*"
+    # Commit message configuration
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    # Reviewers for dependency PRs
+    reviewers:
+      - "runnane"
+    # Labels to add to PRs
+    labels:
+      - "dependencies"
+      - "automated"
+    # Ignore specific packages if needed
+    ignore:
+      # Ignore major version updates for stable dependencies
+      - dependency-name: "node-red"
+        update-types: ["version-update:semver-major"]
+      # Example: ignore specific packages
+      # - dependency-name: "package-name"
+      #   versions: ["1.x", "2.x"]
+    # Target branch for PRs (defaults to default branch)
+    target-branch: "main"
+    # Allow Dependabot to rebase PRs
+    rebase-strategy: "auto"
+    # Vendor dependencies
+    vendor: false
