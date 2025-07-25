@@ -80,7 +80,7 @@ jobs:
       run: npm install node-red@${{ matrix.node-red-version }} --no-save
       
     - name: Run Node-RED compatibility tests
-      run: npm test -- --testPathPattern=integration
+      run: npm run test:integration
       
   security-audit:
     name: Security Audit
