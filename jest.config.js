@@ -4,7 +4,8 @@ module.exports = {
   // Force Jest to look in our directory regardless of node_modules
   testMatch: [
     '**/tests/unit/*.test.js',
-    '**/tests/integration/*.test.js'
+    '**/tests/integration/*.test.js',
+    '**/tests/compatibility/*.test.js'
   ],
   
   // Clear all ignore patterns that might interfere

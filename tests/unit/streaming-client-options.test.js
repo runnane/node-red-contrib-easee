@@ -9,10 +9,6 @@ const configNode = require('../../easee-client/easee-configuration.js');
 helper.init(require.resolve('node-red'));
 
 describe('Streaming Client Options', function () {
-  beforeEach(function (done) {
-    helper.startServer(done);
-  });
-
   afterEach(function (done) {
     helper.unload();
     done();

@@ -40,8 +40,20 @@
     "test:integration": "jest tests/integration",
     "test:verbose": "jest --verbose",
     "test:silent": "jest --silent",
+    "test:node18": "npm test",
+    "test:node20": "npm test",
+    "test:node22": "npm test",
+    "test:node24": "npm test",
+    "test:all-versions": "npm run test:node18 && npm run test:node20 && npm run test:node22 && npm run test:node24",
+    "test:compatibility": "npm run test:integration",
     "dep-update": "npx ncu -u",
+    "dep-check": "npx ncu --errorLevel 1",
     "lint": "jshint easee-client/*.js",
+    "lint:fix": "jshint easee-client/*.js --show-non-errors",
+    "audit": "npm audit --audit-level moderate",
+    "audit:fix": "npm audit fix",
+    "package:check": "npm pack --dry-run && npx publint",
+    "ci:test": "npm ci && npm run lint && npm test && npm run test:coverage",
     "release": "npx np"
   },
   "jshint.options": {
@@ -51,6 +63,8 @@
     "jest": "^30.0.5",
     "jshint": "^2.13.6",
     "node-red": "^4.0.9",
-    "node-red-node-test-helper": "^0.3.4"
+    "node-red-node-test-helper": "^0.3.4",
+    "npm-check-updates": "^17.1.18",
+    "publint": "^0.2.12"
   }
 }
