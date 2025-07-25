@@ -133,7 +133,28 @@ describe('Comprehensive Parser Migration', () => {
                 id: 999,
                 value: 42,
                 dataName: 'unknown_999',
-                observationId: undefined,
+                observationId: 999, // Now set to id for numeric unknown observations
+                valueText: '',
+                valueUnit: ''
+            });
+        });
+
+        test('should set observationId to id for unknown streaming observations', () => {
+            // Simulate streaming observation with unknown ID
+            const streamingData = {
+                id: 555, // Unknown observation ID from streaming
+                value: 'test_value',
+                timestamp: '2023-12-31T12:00:00Z'
+            };
+
+            const result = parseObservation(streamingData);
+
+            expect(result).toMatchObject({
+                id: 555,
+                observationId: 555, // Should be set to the id value for unknown numeric observations
+                dataName: 'unknown_555',
+                value: 'test_value',
+                dataTypeName: 'Unknown',
                 valueText: '',
                 valueUnit: ''
             });
