@@ -278,6 +278,8 @@ module.exports = function (RED) {
                 // Keep unknown observations as-is without parsing to avoid debug noise
                 json[idx] = {
                   dataName: idx,
+                  id: "unknown",
+                  observationId: "unknown",
                   value: json[idx],
                   unknown: true
                 };
