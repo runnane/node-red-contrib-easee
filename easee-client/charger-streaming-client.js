@@ -36,6 +36,7 @@ module.exports = function (RED) {
       node.charger = n.charger;
       node.configurationNode = n.configuration;
       node.responses = n.responses;
+      node.skipNegotiation = n.skipNegotiation || false;
       node.connectionConfig = RED.nodes.getNode(node.configurationNode);
       node.responses = n.responses;
 
@@ -238,13 +239,49 @@ module.exports = function (RED) {
           return;
         }
 
-        node.options.accessTokenFactory = () =>
-          node.connectionConfig.accessToken;
+        node.logDebug("Establishing easee SignalR connection...");
+        node.logDebug("For hub:", node.connectionConfig.signalRpath);
+        node.logDebug("For charger:", node.charger);
 
-        var connection = new signalR.HubConnectionBuilder()
-          .withUrl(node.connectionConfig.signalRpath, node.options)
-          .configureLogging(signalR.LogLevel.Debug)
-          .build();
+        // Configure SignalR options properly for v8+
+        const signalROptions = {
+          accessTokenFactory: () => {
+            const token = node.connectionConfig.accessToken;
+            node.logDebug("Providing access token for SignalR, length:", token ? token.length : 0);
+            return token;
+          }
+        };
+
+        // Add skipNegotiation option if enabled - requires WebSocket transport
+        if (node.skipNegotiation) {
+          signalROptions.skipNegotiation = true;
+          signalROptions.transport = signalR.HttpTransportType.WebSockets;
+          node.logDebug("SignalR negotiation disabled - forcing direct WebSocket connection");
+        }
+
+        // Some SignalR hubs require query parameters for authorization context
+        const signalRUrl = node.connectionConfig.signalRpath;
+        node.logDebug("Using SignalR URL:", signalRUrl);
+        node.logDebug("Skip negotiation:", node.skipNegotiation);
+
+        var connection;
+        try {
+          connection = new signalR.HubConnectionBuilder()
+            .withUrl(signalRUrl, signalROptions)
+            .configureLogging(signalR.LogLevel.Debug)
+            .build();
+        } catch (error) {
+          node.logError("Error creating SignalR connection:", error);
+          node.emit("erro", {
+            err: `[easee] Error creating SignalR connection: ${error.message}`
+          });
+          node.status({
+            fill: "red",
+            shape: "ring",
+            text: "SignalR connection error",
+          });
+          return;
+        }
 
         node.connection = connection; // keep for closing
         node.handleConnection(connection);
