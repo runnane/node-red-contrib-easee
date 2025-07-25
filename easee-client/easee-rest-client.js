@@ -254,9 +254,11 @@ module.exports = function (RED) {
             return;
           } else {
             // Parse observations using the same approach as the original implementation
+            const parsedCount = Object.keys(json).length;
+            easeeClient.logger.debug(`Processing ${parsedCount} charger state properties`);
+            
             Object.keys(json).forEach((idx) => {
-              easeeClient.logger.debug(`Parsing index ${idx}`, json[idx]);
-              json[idx] = easeeClient.parser.parseObservation(
+              const parsed = easeeClient.parser.parseObservation(
                 {
                   dataName: idx,
                   value: json[idx],
@@ -264,9 +266,28 @@ module.exports = function (RED) {
                 },
                 "name"
               );
+              
+              // Only include observations that were successfully parsed (found in our definitions)
+              if (parsed && parsed.observationId !== undefined) {
+                // Fix the id field if it's unknown but we have observationId
+                if (parsed.id === 'unknown' && parsed.observationId) {
+                  parsed.id = parsed.observationId;
+                }
+                json[idx] = parsed;
+              } else {
+                // Keep unknown observations as-is without parsing to avoid debug noise
+                json[idx] = {
+                  dataName: idx,
+                  value: json[idx],
+                  unknown: true
+                };
+              }
             });
 
-            easeeClient.logger.debug(`Charger state data received: ${Object.keys(json).length} properties`);
+            const knownObservations = Object.values(json).filter(obs => !obs.unknown).length;
+            const unknownObservations = parsedCount - knownObservations;
+            
+            easeeClient.logger.debug(`Charger state processed: ${knownObservations} known, ${unknownObservations} unknown observations`);
             await this.ok(request.path, request.method, json);
             if (done) done();
             return;
