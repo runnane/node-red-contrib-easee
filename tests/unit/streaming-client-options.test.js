@@ -14,7 +14,7 @@ describe('Streaming Client Options', function () {
     done();
   });
 
-  it('should have skipNegotiation property as false by default', function (done) {
+  it('should have skipNegotiation property as true by default', function (done) {
     const flow = [
       {
         id: 'config1',
@@ -36,7 +36,7 @@ describe('Streaming Client Options', function () {
     helper.load([configNode, streamingClientNode], flow, function () {
       try {
         const streamingNode = helper.getNode('streaming1');
-        expect(streamingNode.skipNegotiation).toBe(false);
+        expect(streamingNode.skipNegotiation).toBe(true);
         done();
       } catch (err) {
         done(err);
@@ -75,6 +75,37 @@ describe('Streaming Client Options', function () {
     });
   });
 
+  it('should accept skipNegotiation as false when explicitly configured', function (done) {
+    const flow = [
+      {
+        id: 'config1',
+        type: 'easee-configuration',
+        name: 'Test Config',
+        username: 'test@example.com',
+        password: 'testpass'
+      },
+      {
+        id: 'streaming1',
+        type: 'charger-streaming-client',
+        name: 'Test Streaming',
+        charger: 'EH000000',
+        configuration: 'config1',
+        skipNegotiation: false,
+        wires: [[], [], [], [], [], []]
+      }
+    ];
+
+    helper.load([configNode, streamingClientNode], flow, function () {
+      try {
+        const streamingNode = helper.getNode('streaming1');
+        expect(streamingNode.skipNegotiation).toBe(false);
+        done();
+      } catch (err) {
+        done(err);
+      }
+    });
+  });
+
   it('should handle skipNegotiation property correctly when undefined', function (done) {
     const flow = [
       {
@@ -98,8 +129,8 @@ describe('Streaming Client Options', function () {
     helper.load([configNode, streamingClientNode], flow, function () {
       try {
         const streamingNode = helper.getNode('streaming1');
-        // Should default to false when undefined
-        expect(streamingNode.skipNegotiation).toBe(false);
+        // Should default to true when undefined
+        expect(streamingNode.skipNegotiation).toBe(true);
         done();
       } catch (err) {
         done(err);

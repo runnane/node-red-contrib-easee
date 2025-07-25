@@ -36,7 +36,7 @@ module.exports = function (RED) {
       node.charger = n.charger;
       node.configurationNode = n.configuration;
       node.responses = n.responses;
-      node.skipNegotiation = n.skipNegotiation || false;
+      node.skipNegotiation = n.skipNegotiation !== undefined ? n.skipNegotiation : true;
       node.connectionConfig = RED.nodes.getNode(node.configurationNode);
       node.responses = n.responses;
 
