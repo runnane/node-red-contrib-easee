@@ -19,6 +19,16 @@ test_node_version() {
     echo "-----------------------------------"
     
     # Use nvm to switch Node.js version
+    if [ ! -d "${HOME}/.nvm/.git" ]; then 
+        echo >&2 "nvm is required in .git, but it's not installed.  Aborting."; 
+        exit 1;
+    fi
+
+    export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+
+    command -v nvm >/dev/null 2>&1 || { echo >&2 "nvm is required, but it's not installed.  Aborting."; exit 1; }
+
     if command -v nvm >/dev/null 2>&1; then
         echo "Using nvm to switch to Node.js $version"
         export NVM_DIR="$HOME/.nvm"
@@ -30,7 +40,7 @@ test_node_version() {
             nvm use $version
         }
     else
-        echo "⚠️  nvm not found. Please ensure Node.js $version is active."
+        echo >&2 "⚠️  nvm is required, but it's not installed.  Aborting."; exit 1;
     fi
     
     # Display current Node.js version
