@@ -25,9 +25,7 @@ test_node_version() {
     fi
 
     export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
-
-    command -v nvm >/dev/null 2>&1 || { echo >&2 "nvm is required, but it's not installed.  Aborting."; exit 1; }
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
     if command -v nvm >/dev/null 2>&1; then
         echo "Using nvm to switch to Node.js $version"
@@ -40,7 +38,8 @@ test_node_version() {
             nvm use $version
         }
     else
-        echo >&2 "⚠️  nvm is required, but it's not installed.  Aborting."; exit 1;
+        echo >&2 "⚠️  nvm is required, but it's not installed.  Aborting."; 
+        exit 1;
     fi
     
     # Display current Node.js version
