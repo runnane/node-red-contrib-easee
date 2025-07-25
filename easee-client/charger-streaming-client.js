@@ -36,6 +36,7 @@ module.exports = function (RED) {
       node.charger = n.charger;
       node.configurationNode = n.configuration;
       node.responses = n.responses;
+      node.skipNegotiation = n.skipNegotiation || false;
       node.connectionConfig = RED.nodes.getNode(node.configurationNode);
       node.responses = n.responses;
       node.options = {};
@@ -332,23 +333,47 @@ module.exports = function (RED) {
         easeeClient.logger.debug("Connecting to SignalR hub:", node.connectionConfig.signalRpath);
         easeeClient.logger.debug("For charger:", node.charger);
 
-        node.options.accessTokenFactory = () => {
-          const token = node.connectionConfig.accessToken;
-          easeeClient.logger.debug("Providing access token for SignalR, length:", token ? token.length : 0);
-          return token;
+        // Configure SignalR options properly for v8+
+        const signalROptions = {
+          accessTokenFactory: () => {
+            const token = node.connectionConfig.accessToken;
+            easeeClient.logger.debug("Providing access token for SignalR, length:", token ? token.length : 0);
+            return token;
+          }
         };
+
+        // Add skipNegotiation option if enabled - requires WebSocket transport
+        if (node.skipNegotiation) {
+          signalROptions.skipNegotiation = true;
+          signalROptions.transport = signalR.HttpTransportType.WebSockets;
+          easeeClient.logger.debug("SignalR negotiation disabled - forcing direct WebSocket connection");
+        }
 
         // Some SignalR hubs require query parameters for authorization context
         const signalRUrl = node.connectionConfig.signalRpath;
         easeeClient.logger.debug("Using SignalR URL:", signalRUrl);
+        easeeClient.logger.debug("Skip negotiation:", node.skipNegotiation);
 
-        var connection = new signalR.HubConnectionBuilder()
-          .withUrl(signalRUrl, node.options)
-          .configureLogging(signalR.LogLevel.Debug)
-          .build();
+        try {
+          var connection = new signalR.HubConnectionBuilder()
+            .withUrl(signalRUrl, signalROptions)
+            .configureLogging(signalR.LogLevel.Debug)
+            .build();
 
-        node.connection = connection; // keep for closing
-        node.handleConnection(connection);
+          node.connection = connection; // keep for closing
+          node.handleConnection(connection);
+        } catch (error) {
+          easeeClient.logger.error("Error creating SignalR connection:", error);
+          node.emit("erro", {
+            err: `[easee] Error creating SignalR connection: ${error.message}`,
+          });
+          node.status({
+            fill: "red",
+            shape: "ring",
+            text: "SignalR connection error",
+          });
+          return;
+        }
       };
 
       node.reconnect = () => {

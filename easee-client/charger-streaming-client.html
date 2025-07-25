@@ -39,6 +39,11 @@
     <label for="node-input-configuration"><i class="fa fa-bookmark"></i> Account</label>
     <input type="text" id="node-input-configuration" />
   </div>
+  <div class="form-row">
+    <label for="node-input-skipNegotiation"><i class="fa fa-flash"></i> Skip Negotiation</label>
+    <input type="checkbox" id="node-input-skipNegotiation" style="max-width:30px; width:auto; margin-left:20px; margin-right:5px;">
+    <span>Force direct WebSocket connection (skip SignalR negotiation)</span>
+  </div>
 </script>
 
 <script type="text/javascript">
@@ -49,6 +54,7 @@
         name: { value: "" },
         charger: { required: true },
         configuration: { type: "easee-configuration", required: true },
+        skipNegotiation: { value: false },
         inputs: { value: 1 },
         outputs: { value: 6 },
       },
@@ -75,6 +81,12 @@
 
 <script type="text/markdown" data-help-name="charger-streaming-client">
   Connects and streams signalR updates from the easee public api
+
+  ### Configuration
+
+  - **Account**: The Easee configuration node containing your credentials
+  - **Charger**: The charger ID (e.g., "EH000000") to monitor
+  - **Skip Negotiation**: When enabled, forces a direct WebSocket connection bypassing SignalR negotiation. This automatically sets the transport to WebSocket only and can help with connection issues in some network environments.
 
   ### Inputs
 
@@ -106,4 +118,9 @@
   Configure the node with username/password and a Charger ID ("EH000000").
   Streaming telemetry from the signalR enpoint will be available in the fourth output,
   the `ProductUpdate` one.
+
+  The "Skip Negotiation" option can be useful if you're experiencing connection issues
+  or timeouts during the SignalR negotiation phase. When enabled, it forces a direct
+  WebSocket connection (using WebSocket transport only) which can be more reliable in 
+  some network environments, especially those with restrictive firewalls or proxies.
 </script>
