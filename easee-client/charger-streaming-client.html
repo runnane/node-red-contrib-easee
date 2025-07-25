@@ -24,11 +24,20 @@
     <label for="node-input-configuration"><i class="fa fa-bookmark"></i> Account</label>
     <input type="text" id="node-input-configuration" />
   </div>
+
   <div class="form-row">
-    <label for="node-input-skipNegotiation"><i class="fa fa-flash"></i> Skip Negotiation</label>
-    <input type="checkbox" id="node-input-skipNegotiation" style="max-width:30px; width:auto; margin-left:20px; margin-right:5px;">
-    <span>Force direct WebSocket connection (skip SignalR negotiation)</span>
+     <label style="width: auto; margin-right: 10px;">
+      <input type="checkbox" id="node-input-skipNegotiation" style="width: auto; margin-right: 5px;" />
+      <i class="fa fa-exclamation-triangle"></i> Skip SignalR negotiation
+    </label>
+    <div class="form-tips" style="margin-left: 20px;">
+      <strong>Force direct WebSocket connection</strong>: Skip the negotiation phase of the SignalR connection and jump straight to WS transport. If you are running node 18 and have connection issues, this must be checked.
+    </div>
+
+
   </div>
+
+
 </script>
 
 <script type="text/javascript">
