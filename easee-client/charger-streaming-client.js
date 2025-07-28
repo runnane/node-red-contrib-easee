@@ -128,16 +128,38 @@ module.exports = function (RED) {
           null,
         ]);
 
-        node.connection.send("SubscribeWithCurrentState", node.charger, true);
+        try {
+          node.connection.send("SubscribeWithCurrentState", node.charger, true);
+        } catch (error) {
+          easeeClient.logger.error("Error sending SubscribeWithCurrentState:", error);
+          node.emit("erro", {
+            err: `Failed to subscribe to charger updates: ${error.message}`,
+            id: event.id
+          });
+        }
 
         node.connection.on("ProductUpdate", (data) => {
-          data = node.connectionConfig.parseObservation(data);
-          node.send([null, null, null, { payload: data }, null, null]);
+          try {
+            // Use the configuration node's parseObservation method
+            data = node.connectionConfig.parseObservation(data);
+            node.send([null, null, null, { payload: data }, null, null]);
+          } catch (error) {
+            easeeClient.logger.error("Error parsing ProductUpdate:", error);
+            // Send raw data if parsing fails
+            node.send([null, null, null, { payload: data }, null, null]);
+          }
         });
 
         node.connection.on("ChargerUpdate", (data) => {
-          data = node.connectionConfig.parseObservation(data);
-          node.send([null, null, null, null, { payload: data }, null]);
+          try {
+            // Use the configuration node's parseObservation method
+            data = node.connectionConfig.parseObservation(data);
+            node.send([null, null, null, null, { payload: data }, null]);
+          } catch (error) {
+            easeeClient.logger.error("Error parsing ChargerUpdate:", error);
+            // Send raw data if parsing fails
+            node.send([null, null, null, null, { payload: data }, null]);
+          }
         });
         node.connection.on("CommandResponse", (data) => {
           node.send([null, null, null, null, null, { payload: data }]);
