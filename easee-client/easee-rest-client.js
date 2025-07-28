@@ -117,14 +117,31 @@ module.exports = function (RED) {
        * @returns 
        */
       node.REQUEST = async (url, method = "GET", body = null) => {
+        // Status: Sending the request
         node.status({
           fill: "yellow",
-          shape: "dot",
-          text: method + ": sending",
+          shape: "ring",
+          text: `${method}: Sending...`,
         });
+        
+        // Status: Waiting for reply
+        setTimeout(() => {
+          node.status({
+            fill: "yellow",
+            shape: "dot",
+            text: `${method}: Waiting for reply...`,
+          });
+        }, 100);
+
         return node.connection
           .genericCall(url, method, body)
           .then((response) => {
+            // Status: Processing the response
+            node.status({
+              fill: "blue",
+              shape: "dot",
+              text: `${method}: Processing...`,
+            });
             return node.ok(url, method, response);
           })
           .catch((error) => {
@@ -157,9 +174,16 @@ module.exports = function (RED) {
        * On incoming nodered message
        */
       node.on("input", function (msg, send, done) {
+        // Status: Preparing the query
+        node.status({
+          fill: "blue",
+          shape: "ring",
+          text: "Preparing query...",
+        });
+
         node.charger = msg?.charger ?? n.charger;
-        node.site = msg?.site ?? n.site;
-        node.circuit = msg?.circuit ?? n.circuit;
+        node.site = msg?.site ?? msg?.payload?.site_id ?? n.site;
+        node.circuit = msg?.circuit ?? msg?.payload?.circuit_id ?? n.circuit;
 
         let method = "GET";
         let path = "";
@@ -196,9 +220,22 @@ module.exports = function (RED) {
           try {
             switch (msg.topic) {
               case "login":
+                // Status: Sending authentication request
+                node.status({
+                  fill: "yellow",
+                  shape: "ring",
+                  text: "POST: Sending...",
+                });
+                
                 node.connection
                   .ensureAuthentication()
                   .then((isAuthenticated) => {
+                    // Status: Processing authentication result
+                    node.status({
+                      fill: "blue",
+                      shape: "dot",
+                      text: "POST: Processing...",
+                    });
                     if (isAuthenticated) {
                       return node.ok("/accounts/login/", "POST", { success: true, message: "Authentication verified" });
                     } else {
@@ -210,9 +247,22 @@ module.exports = function (RED) {
                   });
                 break;
               case "refresh_token":
+                // Status: Sending token refresh request
+                node.status({
+                  fill: "yellow",
+                  shape: "ring",
+                  text: "POST: Sending...",
+                });
+                
                 node.connection
                   .doRefreshToken()
                   .then((json) => {
+                    // Status: Processing token refresh result
+                    node.status({
+                      fill: "blue",
+                      shape: "dot",
+                      text: "POST: Processing...",
+                    });
                     return node.ok("/accounts/refresh_token/", "POST", json);
                   })
                   .catch((error) => {
@@ -223,14 +273,17 @@ module.exports = function (RED) {
                 break;
               case "dynamic_current":
                 if (!node.site) {
-                  node.error("dynamic_current failed: site missing");
+                  node.error(`dynamic_current failed: site missing. Provide site in msg.site, msg.payload.site_id, or node configuration. Current values: msg.site=${msg?.site}, msg.payload.site_id=${msg?.payload?.site_id}, node.site=${n.site}`);
                   return;
                 } else if (!node.circuit) {
-                  node.error("dynamic_current failed: circuit missing");
+                  node.error(`dynamic_current failed: circuit missing. Provide circuit in msg.circuit, msg.payload.circuit_id, or node configuration. Current values: msg.circuit=${msg?.circuit}, msg.payload.circuit_id=${msg?.payload?.circuit_id}, node.circuit=${n.circuit}`);
                   return;
-                } else if (typeof msg.payload == "object") {
-                  // Do POST update of circuit
-                  node.POST(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`, msg.payload);
+                } else if (typeof msg.payload == "object" && (msg.payload.dynamicChargerCurrent !== undefined || msg.payload.maxCircuitCurrentP1 !== undefined || msg.payload.maxCircuitCurrentP2 !== undefined || msg.payload.maxCircuitCurrentP3 !== undefined)) {
+                  // Do POST update of circuit - filter out site_id and circuit_id from payload for the API call
+                  const apiPayload = { ...msg.payload };
+                  delete apiPayload.site_id;
+                  delete apiPayload.circuit_id;
+                  node.POST(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`, apiPayload);
                 } else {
                   // GET circuit information
                   node.GET(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`);
@@ -272,7 +325,31 @@ module.exports = function (RED) {
 
               case "charger_state":
                 url = `/chargers/${node.charger}/state`;
+                
+                // Status: Sending charger state request
+                node.status({
+                  fill: "yellow",
+                  shape: "ring",
+                  text: "GET: Sending...",
+                });
+                
+                // Status: Waiting for reply
+                setTimeout(() => {
+                  node.status({
+                    fill: "yellow",
+                    shape: "dot",
+                    text: "GET: Waiting for reply...",
+                  });
+                }, 100);
+                
                 node.connection.genericCall(url).then((json) => {
+                  // Status: Processing charger state response
+                  node.status({
+                    fill: "blue",
+                    shape: "dot",
+                    text: "GET: Processing...",
+                  });
+                  
                   if (typeof json !== "object") {
                     node.error("charger_state failed");
                   } else {
