@@ -124,14 +124,15 @@ module.exports = function (RED) {
           text: `${method}: Sending...`,
         });
         
+        // Small delay to ensure "Sending..." status is visible
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
         // Status: Waiting for reply
-        setTimeout(() => {
-          node.status({
-            fill: "yellow",
-            shape: "dot",
-            text: `${method}: Waiting for reply...`,
-          });
-        }, 100);
+        node.status({
+          fill: "yellow",
+          shape: "dot",
+          text: `${method}: Waiting for reply...`,
+        });
 
         return node.connection
           .genericCall(url, method, body)
@@ -173,7 +174,7 @@ module.exports = function (RED) {
       /**
        * On incoming nodered message
        */
-      node.on("input", function (msg, send, done) {
+      node.on("input", async function (msg, send, done) {
         // Status: Preparing the query
         node.status({
           fill: "blue",
@@ -213,7 +214,7 @@ module.exports = function (RED) {
 
         if (path && method) {
           // Run full path as defined by node-red parameters
-          node[method](path, body);
+          await node[method](path, body);
 
         } else if (msg?.topic ?? false) {
           // Run command as defined by topic
@@ -227,7 +228,7 @@ module.exports = function (RED) {
                   text: "POST: Sending...",
                 });
                 
-                node.connection
+                await node.connection
                   .ensureAuthentication()
                   .then((isAuthenticated) => {
                     // Status: Processing authentication result
@@ -254,7 +255,7 @@ module.exports = function (RED) {
                   text: "POST: Sending...",
                 });
                 
-                node.connection
+                await node.connection
                   .doRefreshToken()
                   .then((json) => {
                     // Status: Processing token refresh result
@@ -283,35 +284,35 @@ module.exports = function (RED) {
                   const apiPayload = { ...msg.payload };
                   delete apiPayload.site_id;
                   delete apiPayload.circuit_id;
-                  node.POST(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`, apiPayload);
+                  await node.POST(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`, apiPayload);
                 } else {
                   // GET circuit information
-                  node.GET(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`);
+                  await node.GET(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`);
                 }
                 break;
 
               case "charger":
-                node.GET(`/chargers/${node.charger}?alwaysGetChargerAccessLevel=true`);
+                await node.GET(`/chargers/${node.charger}?alwaysGetChargerAccessLevel=true`);
                 break;
 
               case "charger_details":
-                node.GET(`/chargers/${node.charger}/details`);
+                await node.GET(`/chargers/${node.charger}/details`);
                 break;
 
               case "charger_site":
-                node.GET(`/chargers/${node.charger}/site`);
+                await node.GET(`/chargers/${node.charger}/site`);
                 break;
 
               case "charger_config":
-                node.GET(`/chargers/${node.charger}/config`);
+                await node.GET(`/chargers/${node.charger}/config`);
                 break;
 
               case "charger_session_latest":
-                node.GET(`/chargers/${node.charger}/sessions/latest`);
+                await node.GET(`/chargers/${node.charger}/sessions/latest`);
                 break;
 
               case "charger_session_ongoing":
-                node.GET(`/chargers/${node.charger}/sessions/ongoing`);
+                await node.GET(`/chargers/${node.charger}/sessions/ongoing`);
                 break;
 
               case "start_charging":
@@ -320,7 +321,7 @@ module.exports = function (RED) {
               case "resume_charging":
               case "toggle_charging":
               case "reboot":
-                node.POST(`/chargers/${node.charger}/commands/${msg.topic}`);
+                await node.POST(`/chargers/${node.charger}/commands/${msg.topic}`);
                 break;
 
               case "charger_state":
@@ -333,16 +334,19 @@ module.exports = function (RED) {
                   text: "GET: Sending...",
                 });
                 
-                // Status: Waiting for reply
-                setTimeout(() => {
+                // Small delay to ensure "Sending..." status is visible
+                await new Promise(resolve => setTimeout(resolve, 50));
+                
+                try {
+                  // Status: Waiting for reply
                   node.status({
                     fill: "yellow",
                     shape: "dot",
                     text: "GET: Waiting for reply...",
                   });
-                }, 100);
-                
-                node.connection.genericCall(url).then((json) => {
+                  
+                  const json = await node.connection.genericCall(url);
+                  
                   // Status: Processing charger state response
                   node.status({
                     fill: "blue",
@@ -365,13 +369,10 @@ module.exports = function (RED) {
                       );
                     });
                     return node.ok(url, "GET", json);
-
                   }
-
-                }).catch((error) => {
+                } catch (error) {
                   return node.fail(url, "GET", error);
-
-                });
+                }
                 break;
 
               default:
