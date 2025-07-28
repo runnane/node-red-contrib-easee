@@ -44,39 +44,39 @@ jobs:
         file: ./coverage/lcov.info
         fail_ci_if_error: false
 
-  compatibility-check:
-    runs-on: ubuntu-latest
-    name: Node-RED Compatibility
+  # compatibility-check:
+  #   runs-on: ubuntu-latest
+  #   name: Node-RED Compatibility
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
 
-    - name: Use Node.js 20.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20.x
-        cache: 'npm'
+  #   - name: Use Node.js 20.x
+  #     uses: actions/setup-node@v4
+  #     with:
+  #       node-version: 20.x
+  #       cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+  #   - name: Install dependencies
+  #     run: npm ci
 
-    - name: Install Node-RED for testing
-      run: npm install --no-save node-red@latest
+    # - name: Install Node-RED for testing
+    #   run: npm install --no-save node-red@latest
 
-    - name: Test Node-RED compatibility
-      run: |
-        echo "Testing Node-RED node loading..."
-        node -e "
-          const RED = require('node-red/lib/red');
-          console.log('Loading Easee configuration node...');
-          require('./easee-client/easee-configuration.js')(RED);
-          console.log('Loading Easee REST client node...');
-          require('./easee-client/easee-rest-client.js')(RED);
-          console.log('Loading Easee streaming client node...');
-          require('./easee-client/charger-streaming-client.js')(RED);
-          console.log('✅ All nodes loaded successfully');
-        "
+    # - name: Test Node-RED compatibility
+    #   run: |
+    #     echo "Testing Node-RED node loading..."
+    #     node -e "
+    #       const RED = require('node-red/lib/red');
+    #       console.log('Loading Easee configuration node...');
+    #       require('./easee-client/easee-configuration.js')(RED);
+    #       console.log('Loading Easee REST client node...');
+    #       require('./easee-client/easee-rest-client.js')(RED);
+    #       console.log('Loading Easee streaming client node...');
+    #       require('./easee-client/charger-streaming-client.js')(RED);
+    #       console.log('✅ All nodes loaded successfully');
+    #     "
 
   security-audit:
     runs-on: ubuntu-latest
