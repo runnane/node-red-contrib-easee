@@ -97,6 +97,35 @@ node.send({
 });
 ```
 
+## Development
+
+### Code Quality
+
+This project uses ESLint for code quality and formatting:
+
+```bash
+# Check for linting issues
+npm run lint
+
+# Auto-fix formatting issues  
+npm run lint:fix
+```
+
+See [ESLINT.md](ESLINT.md) for detailed ESLint configuration and usage.
+
+### Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run with coverage
+npm run test:coverage
+```
+
 ## Example
 
 See [example flows](https://github.com/runnane/node-red-contrib-easee/blob/main/example.json)

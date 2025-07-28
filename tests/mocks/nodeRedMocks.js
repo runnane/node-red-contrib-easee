@@ -2,7 +2,7 @@
  * Mock utilities for Node-RED and Easee API testing
  */
 
-const mockData = require('../fixtures/mockData');
+const mockData = require("../fixtures/mockData");
 
 /**
  * Create a mock Node-RED runtime environment
@@ -18,8 +18,8 @@ function createMockRED() {
       error: jest.fn()
     },
     settings: {
-      httpNodeRoot: '/red',
-      userDir: '/tmp'
+      httpNodeRoot: "/red",
+      userDir: "/tmp"
     },
     events: {
       on: jest.fn(),
@@ -34,31 +34,31 @@ function createMockRED() {
 function createMockEaseeNode(overrides = {}) {
   const defaultNode = {
     // Node-RED standard properties
-    id: 'test-node-id',
-    type: 'easee-configuration',
-    name: 'Test Easee Config',
-    
+    id: "test-node-id",
+    type: "easee-configuration",
+    name: "Test Easee Config",
+
     // Easee-specific properties
     credentials: {
       username: mockData.validCredentials.username,
       password: mockData.validCredentials.password
     },
     RestApipath: mockData.apiEndpoints.baseUrl,
-    
+
     // Authentication state
     accessToken: null,
     refreshToken: null,
     tokenExpires: new Date(),
-    
+
     // Retry counters
     refreshRetryCount: 0,
     loginRetryCount: 0,
     maxRefreshRetries: 3,
     maxLoginRetries: 3,
-    
+
     // Timer handlers
     checkTokenHandler: null,
-    
+
     // Node-RED methods
     status: jest.fn(),
     emit: jest.fn(),
@@ -66,17 +66,17 @@ function createMockEaseeNode(overrides = {}) {
     warn: jest.fn(),
     log: jest.fn(),
     send: jest.fn(),
-    
+
     // Mock implementations of key methods (will be overridden by real implementation)
     doLogin: jest.fn(),
     doRefreshToken: jest.fn(),
     checkToken: jest.fn(),
     resetAuthenticationState: jest.fn(),
     parseObservation: jest.fn(),
-    
+
     ...overrides
   };
-  
+
   return defaultNode;
 }
 
@@ -96,7 +96,7 @@ const mockFetchResponses = {
   /**
    * Mock login failure
    */
-  loginFailure: (errorType = 'invalidCredentials') => {
+  loginFailure: (errorType = "invalidCredentials") => {
     const errorData = mockData.loginErrors[errorType];
     global.fetch.mockResolvedValueOnce(
       global.testHelpers.createFetchResponse(errorData, errorData.status)
@@ -115,7 +115,7 @@ const mockFetchResponses = {
   /**
    * Mock refresh token failure
    */
-  refreshFailure: (errorType = 'invalidRefreshToken') => {
+  refreshFailure: (errorType = "invalidRefreshToken") => {
     const errorData = mockData.refreshErrors[errorType];
     global.fetch.mockResolvedValueOnce(
       global.testHelpers.createFetchResponse(errorData, errorData.status)
@@ -125,7 +125,7 @@ const mockFetchResponses = {
   /**
    * Mock network error
    */
-  networkError: (errorType = 'timeout') => {
+  networkError: (errorType = "timeout") => {
     global.fetch.mockRejectedValueOnce(mockData.networkErrors[errorType]);
   },
 
@@ -137,9 +137,9 @@ const mockFetchResponses = {
       ok: false,
       status: 500,
       headers: {
-        get: () => 'text/html'
+        get: () => "text/html"
       },
-      text: () => Promise.resolve('<html>Internal Server Error</html>')
+      text: () => Promise.resolve("<html>Internal Server Error</html>")
     });
   }
 };

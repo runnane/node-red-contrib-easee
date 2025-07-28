@@ -1,18 +1,18 @@
 /**
  * MIT License
- * 
+ *
  * Copyright (c) 2025 Jon Tungland
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -20,18 +20,18 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
+ *
  * This project was initially forked from node-red-contrib-signalrcore
  * by Scott Page (Apache License 2.0).
  **/
 
-module.exports = function (RED) {
+module.exports = function(RED) {
   "use strict";
 
   class EaseeRestClient {
     constructor(n) {
       RED.nodes.createNode(this, n);
-      var node = this;
+      const node = this;
       node.charger = n.charger;
       node.site = n.site;
       node.circuit = n.circuit;
@@ -39,17 +39,27 @@ module.exports = function (RED) {
       node.connection = RED.nodes.getNode(node.configurationNode);
 
       // Use configuration node's logging if available, fallback to console
-      node.logInfo = node.connection?.logInfo || function(msg, data) { console.log(`[easee] ${msg}`, data || ''); };
-      node.logDebug = node.connection?.logDebug || function(msg, data) { if (node.connection?.debugLogging) console.log(`[easee] DEBUG: ${msg}`, data || ''); };
-      node.logError = node.connection?.logError || function(msg, error) { console.error(`[easee] ERROR: ${msg}`, error || ''); };
-      node.logWarn = node.connection?.logWarn || function(msg, data) { console.warn(`[easee] WARN: ${msg}`, data || ''); };
+      node.logInfo = node.connection?.logInfo || function(msg, data) {
+        console.log(`[easee] ${msg}`, data || "");
+      };
+      node.logDebug = node.connection?.logDebug || function(msg, data) {
+        if (node.connection?.debugLogging) {
+          console.log(`[easee] DEBUG: ${msg}`, data || "");
+        }
+      };
+      node.logError = node.connection?.logError || function(msg, error) {
+        console.error(`[easee] ERROR: ${msg}`, error || "");
+      };
+      node.logWarn = node.connection?.logWarn || function(msg, data) {
+        console.warn(`[easee] WARN: ${msg}`, data || "");
+      };
 
       if (!node.connection) {
         node.error("[easee] Missing easee configuration node");
         node.status({
           fill: "red",
           shape: "ring",
-          text: "Missing configuration",
+          text: "Missing configuration"
         });
         return;
       }
@@ -60,23 +70,23 @@ module.exports = function (RED) {
         node.status({
           fill: "red",
           shape: "ring",
-          text: "Invalid configuration - missing credentials",
+          text: "Invalid configuration - missing credentials"
         });
         return;
       }
 
       /**
        * Helper func for sending sailure
-       * @param string url 
-       * @param {string} method 
-       * @param {*} error 
+       * @param string url
+       * @param {string} method
+       * @param {*} error
        */
-      node.fail = async (url, method, error) => {
+      node.fail = (url, method, error) => {
         node.logError("Error in easee-rest-client:", error);
         node.status({
           fill: "red",
           shape: "dot",
-          text: method + ": failed",
+          text: method + ": failed"
         });
         node.send({
           status: "error",
@@ -90,48 +100,48 @@ module.exports = function (RED) {
 
       /**
       * Helper func for sending success
-      * @param {string} url 
-      * @param {string} method 
-      * @param {*} response 
+      * @param {string} url
+      * @param {string} method
+      * @param {*} response
       */
-      node.ok = async (url, method, response) => {
+      node.ok = (url, method, response) => {
         node.status({
           fill: "green",
           shape: "dot",
-          text: method + ": ok",
+          text: method + ": ok"
         });
         node.send({
           status: "ok",
           topic: url,
-          payload: response,
+          payload: response
         });
         return true;
       };
 
       /**
        * Wrapper for easee-configuration.genericCall()
-       * 
-       * @param {*} url 
-       * @param {*} method 
-       * @param {*} body 
-       * @returns 
+       *
+       * @param {*} url
+       * @param {*} method
+       * @param {*} body
+       * @returns
        */
-      node.REQUEST = async (url, method = "GET", body = null) => {
+      node.REQUEST = async(url, method = "GET", body = null) => {
         // Status: Sending the request
         node.status({
           fill: "yellow",
           shape: "ring",
-          text: `${method}: Sending...`,
+          text: `${method}: Sending...`
         });
-        
+
         // Small delay to ensure "Sending..." status is visible
         await new Promise(resolve => setTimeout(resolve, 50));
-        
+
         // Status: Waiting for reply
         node.status({
           fill: "yellow",
           shape: "dot",
-          text: `${method}: Waiting for reply...`,
+          text: `${method}: Waiting for reply...`
         });
 
         return node.connection
@@ -141,7 +151,7 @@ module.exports = function (RED) {
             node.status({
               fill: "blue",
               shape: "dot",
-              text: `${method}: Processing...`,
+              text: `${method}: Processing...`
             });
             return node.ok(url, method, response);
           })
@@ -153,33 +163,33 @@ module.exports = function (RED) {
 
       /**
        * REST API GET helper command
-       * @param {*} url 
-       * @returns 
+       * @param {*} url
+       * @returns
        */
-      node.GET = async (url) => {
+      node.GET = (url) => {
         return node.REQUEST(url, "GET");
       };
 
       /**
        * REST API POST COMMAND (wrapper)
-       * 
-       * @param {string} url 
-       * @param {*} body 
-       * @returns 
+       *
+       * @param {string} url
+       * @param {*} body
+       * @returns
        */
-      node.POST = async (url, body = {}) => {
+      node.POST = (url, body = {}) => {
         return node.REQUEST(url, "POST", body);
       };
 
       /**
        * On incoming nodered message
        */
-      node.on("input", async function (msg, send, done) {
+      node.on("input", async function(msg, send, done) {
         // Status: Preparing the query
         node.status({
           fill: "blue",
           shape: "ring",
-          text: "Preparing query...",
+          text: "Preparing query..."
         });
 
         node.charger = msg?.charger ?? n.charger;
@@ -208,7 +218,7 @@ module.exports = function (RED) {
         }
 
 
-        if (node[method] == undefined) {
+        if (node[method] === undefined) {
           return node.fail("error", "POST", `Invalid HTTP method: ${method}`);
         }
 
@@ -225,9 +235,9 @@ module.exports = function (RED) {
                 node.status({
                   fill: "yellow",
                   shape: "ring",
-                  text: "POST: Sending...",
+                  text: "POST: Sending..."
                 });
-                
+
                 await node.connection
                   .ensureAuthentication()
                   .then((isAuthenticated) => {
@@ -235,7 +245,7 @@ module.exports = function (RED) {
                     node.status({
                       fill: "blue",
                       shape: "dot",
-                      text: "POST: Processing...",
+                      text: "POST: Processing..."
                     });
                     if (isAuthenticated) {
                       return node.ok("/accounts/login/", "POST", { success: true, message: "Authentication verified" });
@@ -252,9 +262,9 @@ module.exports = function (RED) {
                 node.status({
                   fill: "yellow",
                   shape: "ring",
-                  text: "POST: Sending...",
+                  text: "POST: Sending..."
                 });
-                
+
                 await node.connection
                   .doRefreshToken()
                   .then((json) => {
@@ -262,7 +272,7 @@ module.exports = function (RED) {
                     node.status({
                       fill: "blue",
                       shape: "dot",
-                      text: "POST: Processing...",
+                      text: "POST: Processing..."
                     });
                     return node.ok("/accounts/refresh_token/", "POST", json);
                   })
@@ -279,7 +289,7 @@ module.exports = function (RED) {
                 } else if (!node.circuit) {
                   node.error(`dynamic_current failed: circuit missing. Provide circuit in msg.circuit, msg.payload.circuit_id, or node configuration. Current values: msg.circuit=${msg?.circuit}, msg.payload.circuit_id=${msg?.payload?.circuit_id}, node.circuit=${n.circuit}`);
                   return;
-                } else if (typeof msg.payload == "object" && (msg.payload.dynamicChargerCurrent !== undefined || msg.payload.maxCircuitCurrentP1 !== undefined || msg.payload.maxCircuitCurrentP2 !== undefined || msg.payload.maxCircuitCurrentP3 !== undefined)) {
+                } else if (typeof msg.payload === "object" && (msg.payload.dynamicChargerCurrent !== undefined || msg.payload.maxCircuitCurrentP1 !== undefined || msg.payload.maxCircuitCurrentP2 !== undefined || msg.payload.maxCircuitCurrentP3 !== undefined)) {
                   // Do POST update of circuit - filter out site_id and circuit_id from payload for the API call
                   const apiPayload = { ...msg.payload };
                   delete apiPayload.site_id;
@@ -326,34 +336,34 @@ module.exports = function (RED) {
 
               case "charger_state":
                 url = `/chargers/${node.charger}/state`;
-                
+
                 // Status: Sending charger state request
                 node.status({
                   fill: "yellow",
                   shape: "ring",
-                  text: "GET: Sending...",
+                  text: "GET: Sending..."
                 });
-                
+
                 // Small delay to ensure "Sending..." status is visible
                 await new Promise(resolve => setTimeout(resolve, 50));
-                
+
                 try {
                   // Status: Waiting for reply
                   node.status({
                     fill: "yellow",
                     shape: "dot",
-                    text: "GET: Waiting for reply...",
+                    text: "GET: Waiting for reply..."
                   });
-                  
+
                   const json = await node.connection.genericCall(url);
-                  
+
                   // Status: Processing charger state response
                   node.status({
                     fill: "blue",
                     shape: "dot",
-                    text: "GET: Processing...",
+                    text: "GET: Processing..."
                   });
-                  
+
                   if (typeof json !== "object") {
                     node.error("charger_state failed");
                   } else {
@@ -363,7 +373,7 @@ module.exports = function (RED) {
                         {
                           dataName: idx,
                           value: json[idx],
-                          origValue: json[idx],
+                          origValue: json[idx]
                         },
                         "name"
                       );

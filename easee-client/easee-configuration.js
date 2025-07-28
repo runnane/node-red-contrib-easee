@@ -1,18 +1,18 @@
 /**
  * MIT License
- * 
+ *
  * Copyright (c) 2025 Jon Tungland
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -20,17 +20,17 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
+ *
  * This project was initially forked from node-red-contrib-signalrcore
  * by Scott Page (Apache License 2.0).
  **/
-module.exports = function (RED) {
+module.exports = function(RED) {
   "use strict";
 
   class EaseeConfiguration {
     constructor(n) {
       RED.nodes.createNode(this, n);
-      var node = this;
+      const node = this;
 
       // Debug logging configuration - set early for use in validation
       node.debugLogging = n.debugLogging || false;
@@ -40,20 +40,20 @@ module.exports = function (RED) {
        * Centralized logging helper functions following Node-RED standards
        * Define these early so they can be used in validation and throughout the node
        */
-      
+
       // Log info level messages (equivalent to console.log)
       node.logInfo = function(message, data = null) {
         const formattedMessage = `[easee] ${message}`;
-        
+
         // Always log to console
-        if (data !== null && typeof data === 'object') {
+        if (data !== null && typeof data === "object") {
           console.log(formattedMessage, data);
         } else if (data !== null) {
           console.log(`${formattedMessage} ${data}`);
         } else {
           console.log(formattedMessage);
         }
-        
+
         // Also log to node warn if configured
         if (node.debugToNodeWarn) {
           node.warn(data !== null ? `${formattedMessage} ${JSON.stringify(data)}` : formattedMessage);
@@ -62,19 +62,21 @@ module.exports = function (RED) {
 
       // Log debug level messages (only when debug logging is enabled)
       node.logDebug = function(message, data = null) {
-        if (!node.debugLogging) return;
-        
+        if (!node.debugLogging) {
+          return;
+        }
+
         const formattedMessage = `[easee] DEBUG: ${message}`;
-        
+
         // Log to console when debug is enabled
-        if (data !== null && typeof data === 'object') {
+        if (data !== null && typeof data === "object") {
           console.log(formattedMessage, data);
         } else if (data !== null) {
           console.log(`${formattedMessage} ${data}`);
         } else {
           console.log(formattedMessage);
         }
-        
+
         // Also log to node warn if configured
         if (node.debugToNodeWarn) {
           node.warn(data !== null ? `${formattedMessage} ${JSON.stringify(data)}` : formattedMessage);
@@ -84,14 +86,14 @@ module.exports = function (RED) {
       // Log error level messages (equivalent to console.error)
       node.logError = function(message, error = null) {
         const formattedMessage = `[easee] ERROR: ${message}`;
-        
+
         // Always log errors to console
         if (error !== null) {
           console.error(formattedMessage, error);
         } else {
           console.error(formattedMessage);
         }
-        
+
         // Also log to node error for Node-RED error handling
         if (error !== null) {
           node.error(`${formattedMessage} ${error.message || error}`);
@@ -103,16 +105,16 @@ module.exports = function (RED) {
       // Log warning level messages
       node.logWarn = function(message, data = null) {
         const formattedMessage = `[easee] WARN: ${message}`;
-        
+
         // Log to console
-        if (data !== null && typeof data === 'object') {
+        if (data !== null && typeof data === "object") {
           console.warn(formattedMessage, data);
         } else if (data !== null) {
           console.warn(`${formattedMessage} ${data}`);
         } else {
           console.warn(formattedMessage);
         }
-        
+
         // Always log warnings to node warn
         node.warn(data !== null ? `${formattedMessage} ${JSON.stringify(data)}` : formattedMessage);
       };
@@ -122,15 +124,15 @@ module.exports = function (RED) {
         if (!node.credentials) {
           return { valid: false, message: "No credentials object found" };
         }
-        
-        if (!node.credentials.username || node.credentials.username.trim() === '') {
+
+        if (!node.credentials.username || node.credentials.username.trim() === "") {
           return { valid: false, message: "Username is required" };
         }
-        
-        if (!node.credentials.password || node.credentials.password.trim() === '') {
+
+        if (!node.credentials.password || node.credentials.password.trim() === "") {
           return { valid: false, message: "Password is required" };
         }
-        
+
         return { valid: true, message: "Credentials are valid" };
       };
 
@@ -146,7 +148,7 @@ module.exports = function (RED) {
         node.status({
           fill: "red",
           shape: "ring",
-          text: "Invalid configuration - missing credentials",
+          text: "Invalid configuration - missing credentials"
         });
         node.error(`[easee] Configuration node is invalid: ${validation.message}. Please edit the configuration and provide both username and password.`);
         node.warn(`[easee] This node will not function until valid credentials are provided.`);
@@ -177,7 +179,7 @@ module.exports = function (RED) {
       /**
        * Stop running token refresh on closed
        */
-      node.on('close', function () {
+      node.on("close", function() {
         if (node.checkTokenHandler) {
           clearTimeout(node.checkTokenHandler);
           node.checkTokenHandler = null;
@@ -187,39 +189,40 @@ module.exports = function (RED) {
       /**
        * Start running token refresh on start (event is emitted at end of constructor)
        */
+      // eslint-disable-next-line no-unused-vars
       this.on("start", (event) => {
         node.checkToken().catch((error) => {
           node.logError("Error in checkToken during start:", error);
           node.status({
             fill: "red",
             shape: "ring",
-            text: "Authentication error",
+            text: "Authentication error"
           });
         });
       });
 
       /**
-       * 
-       * @param {string} url 
-       * @param {string} method 
-       * @param {*} body 
-       * @returns 
+       *
+       * @param {string} url
+       * @param {string} method
+       * @param {*} body
+       * @returns
        */
-      node.genericCall = async (url, method = "GET", body = null) => {
+      node.genericCall = (url, method = "GET", body = null) => {
         return node.doAuthRestCall(url, method, null, body).then((response) => {
           return response;
         });
       };
 
       /**
-       * 
-       * @param {*} url 
-       * @param {*} method 
-       * @param {*} headers 
-       * @param {*} body 
-       * @returns 
+       *
+       * @param {*} url
+       * @param {*} method
+       * @param {*} headers
+       * @param {*} body
+       * @returns
        */
-      node.doAuthRestCall = async (
+      node.doAuthRestCall = async(
         url,
         method = "GET",
         headers = null,
@@ -234,7 +237,7 @@ module.exports = function (RED) {
           node.status({
             fill: "red",
             shape: "ring",
-            text: "Authentication failed",
+            text: "Authentication failed"
           });
           throw error;
         }
@@ -243,14 +246,14 @@ module.exports = function (RED) {
           ...headers,
           Accept: "application/json",
           "Content-Type": "application/json",
-          Authorization: "Bearer " + node.accessToken,
+          Authorization: "Bearer " + node.accessToken
         };
         const bodyPayload = body ? JSON.stringify(body) : null;
 
         const response = await fetch(node.RestApipath + url, {
           method: method,
           headers: headers,
-          body: bodyPayload,
+          body: bodyPayload
         }).catch((error) => {
           node.logError("Critical error in doAuthRestCall() fetch, failing", error);
           node.error(error);
@@ -261,8 +264,9 @@ module.exports = function (RED) {
         let http_json = null;
         try {
           http_json = JSON.parse(http_text);
+          // eslint-disable-next-line no-unused-vars
         } catch (err) {
-
+          // Ignore JSON parse errors - http_json will remain null
         }
 
         const http_status = response.status;
@@ -288,14 +292,14 @@ module.exports = function (RED) {
           node.status({
             fill: "green",
             shape: "dot",
-            text: url,
+            text: url
           });
           return http_json;
         } else {
           node.status({
             fill: "green",
             shape: "dot",
-            text: url,
+            text: url
           });
           return {
             result: http_status,
@@ -305,107 +309,107 @@ module.exports = function (RED) {
       }; // node.doAuthRestCall()
 
       /**
-       * 
+       *
        * https://developer.easee.com/reference/get_api-resources-observation-properties
-       * 
-       * @param {*} data 
-       * @param {*} mode 
-       * @returns 
+       *
+       * @param {*} data
+       * @param {*} mode
+       * @returns
        */
       node.parseObservation = (data, mode = "id") => {
         const observations = [
           {
             observationId: 15,
             name: "LocalPreAuthorizeEnabled",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 16,
             name: "LocalAuthorizeOfflineEnabled",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 17,
             name: "AllowOfflineTxForUnknownId",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 20,
             name: "SiteStructure",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 21,
             name: "DetectedPowerGridType",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 22,
             name: "CircuitMaxCurrentP1",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 23,
             name: "CircuitMaxCurrentP2",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 24,
             name: "CircuitMaxCurrentP3",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 25,
             name: "Location",
-            dataType: 5,
+            dataType: 5
           },
           {
             observationId: 26,
             name: "SiteIDString",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 27,
             name: "SiteIDNumeric",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 30,
             name: "LockCablePermanently",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 31,
             name: "IsEnabled",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 33,
             name: "CircuitSequenceNumber",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 34,
             name: "SinglePhaseNumber",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 35,
             name: "Enable3Phases_DEPRECATED",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 36,
             name: "WiFiSSID",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 37,
             name: "EnableIdleCurrent",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 38,
@@ -417,35 +421,35 @@ module.exports = function (RED) {
                 0: "Ignore,no phase mode reported",
                 1: "Locked to 1-phase",
                 2: "Auto phase mode",
-                3: "Locked to 3-phase",
+                3: "Locked to 3-phase"
               };
               return modes[val];
-            },
+            }
           },
           {
             observationId: 40,
             name: "LedStripBrightness",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 41,
             name: "LocalAuthorizationRequired",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 42,
             name: "AuthorizationRequired",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 43,
             name: "RemoteStartRequired",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 44,
             name: "SmartButtonEnabled",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 45,
@@ -456,10 +460,10 @@ module.exports = function (RED) {
               const modes = {
                 0: "Always allow charging if offline",
                 1: "Only allow charging if token is whitelisted in the local token cache",
-                2: "Never allow charging if offline",
+                2: "Never allow charging if offline"
               };
               return modes[val];
-            },
+            }
           },
           {
             observationId: 46,
@@ -502,107 +506,107 @@ module.exports = function (RED) {
                 27: "Check configuration (Backplate chip defect)",
                 29: "Pairing RFID Keys",
                 43: "Self test mode",
-                44: "Self test mode",
+                44: "Self test mode"
               };
               return modes[val];
-            },
+            }
           },
           {
             observationId: 47,
             name: "MaxChargerCurrent",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 48,
             name: "DynamicChargerCurrent",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 50,
             name: "MaxCurrentOfflineFallback_P1",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 51,
             name: "MaxCurrentOfflineFallback_P2",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 52,
             name: "MaxCurrentOfflineFallback_P3",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 62,
             name: "ChargingSchedule",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 68,
             name: "WiFiAPEnabled",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 69,
             name: "PairedUserIDToken",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 70,
             name: "CircuitTotalAllocatedPhaseConductorCurrent_L1",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 71,
             name: "CircuitTotalAllocatedPhaseConductorCurrent_L2",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 72,
             name: "CircuitTotalAllocatedPhaseConductorCurrent_L3",
-            dataType: 3,
+            dataType: 3
           },
           {
             observationId: 73,
             name: "CircuitTotalPhaseConductorCurrent_L1",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 74,
             name: "CircuitTotalPhaseConductorCurrent_L2",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 75,
             name: "CircuitTotalPhaseConductorCurrent_L3",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 80,
             name: "SoftwareRelease",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 81,
             name: "ICCID",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 82,
             name: "ModemFwId",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 83,
             name: "OTAErrorCode",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 89,
@@ -621,21 +625,21 @@ module.exports = function (RED) {
                 7: "LowPowerReset",
 
                 12: "Brownout",
-                20: "Reboot",
+                20: "Reboot"
 
               };
               return modes[val];
-            },
+            }
           },
           {
             observationId: 90,
             name: "PowerPCBVersion",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 91,
             name: "ComPCBVersion",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 96,
@@ -685,25 +689,25 @@ module.exports = function (RED) {
                 80: "??? - Current limited by local adjustment",
                 81: "Car Limit - Current limited by car",
 
-                100: "UndefinedError",
+                100: "UndefinedError"
               };
               return modes[val];
-            },
+            }
           },
           {
             observationId: 97,
             name: "LoadBalancingNumberOfConnectedChargers",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 98,
             name: "UDPNumOfConnectedNodes",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 99,
             name: "LocalConnection",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 100,
@@ -716,50 +720,50 @@ module.exports = function (RED) {
                 B: "Car connected",
                 C: "Car charging",
                 D: "Car needs ventilation",
-                F: "Fault detected (LED goes Red and charging stops)",
+                F: "Fault detected (LED goes Red and charging stops)"
               };
               return modes[val];
-            },
+            }
           },
           {
             observationId: 101,
             name: "CarConnected_DEPRECATED",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 102,
             name: "SmartCharging",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 103,
             name: "CableLocked",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 104,
             name: "CableRating",
-            dataType: 3,
+            dataType: 3
           },
           {
             observationId: 105,
             name: "PilotHigh",
-            dataType: 3,
+            dataType: 3
           },
           {
             observationId: 106,
             name: "PilotLow",
-            dataType: 3,
+            dataType: 3
           },
           {
             observationId: 107,
             name: "BackPlateID",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 108,
             name: "UserIDTokenReversed",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 109,
@@ -776,10 +780,10 @@ module.exports = function (RED) {
                 5: "Error - Error in charger.",
                 6: "ReadyToCharge - Charger is waiting for car to take energy. SuspendedEV.",
                 7: "Awaiting Authentication - Charger is waiting for authentication.",
-                8: "De-authenticating - Charger is de-authenticating.",
+                8: "De-authenticating - Charger is de-authenticating."
               };
               return modes[val];
-            },
+            }
           },
           {
             observationId: 110,
@@ -801,42 +805,42 @@ module.exports = function (RED) {
                 21: "2-phases on TN (N+L2, N+L3)",
                 22: "2-phases on IT (L1+L2, L2+L3)",
 
-                30: "3-phases (N+L1, N+L2, N+L3)",
+                30: "3-phases (N+L1, N+L2, N+L3)"
               };
               return modes[val];
-            },
+            }
             /*
             public enum OutputPhaseType {
               UNASSIGNED = 0,
               // Unassigned
-  
+
               P1_T2_T3_TN = 10,
               // 1-phase (N+L1)
-  
+
               P1_T2_T3_IT = 11,
               // 1-phase (L1+L2)
-  
+
               P1_T2_T4_TN = 12,
               // 1-phase (N+L2)
-  
+
               P1_T2_T4_IT = 13,
               // 1-phase (L1+L3)
-  
+
               P1_T2_T5_TN = 14,
               // 1-phase (N+L3)
-  
+
               P1_T3_T4_IT = 15,
               // 1-phase (L2+L3)
-  
+
               P2_T2_T3_T4_TN = 20,
               // 2-phases on TN (N+L1, N+L2)
-  
+
               P2_T2_T4_T5_TN = 21,
               // 2-phases on TN (N+L2, N+L3)
-  
+
               P2_T2_T3_T4_IT = 22,
               // 2-phases on IT (L1+L2, L2+L3)
-  
+
               P3_T2_T3_T4_T5_TN = 30
               // 3-phases (N+L1, N+L2, N+L3)
             }
@@ -846,474 +850,474 @@ module.exports = function (RED) {
             observationId: 111,
             name: "DynamicCircuitCurrentP1",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 112,
             name: "DynamicCircuitCurrentP2",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 113,
             name: "DynamicCircuitCurrentP3",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 114,
             name: "OutputCurrent",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 115,
             name: "DeratedCurrent",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 116,
             name: "DeratingActive",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 117,
             name: "DebugString",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 118,
             name: "ErrorString",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 119,
             name: "ErrorCode",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 120,
             name: "TotalPower",
             dataType: 3,
-            valueUnit: "W",
+            valueUnit: "W"
           },
           {
             observationId: 121,
             name: "SessionEnergy",
             dataType: 3,
-            valueUnit: "kWh",
+            valueUnit: "kWh"
           },
           {
             observationId: 122,
             name: "EnergyPerHour",
             dataType: 3,
-            valueUnit: "kWh",
+            valueUnit: "kWh"
           },
           {
             observationId: 123,
             name: "LegacyEvStatus",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 124,
             name: "LifetimeEnergy",
             dataType: 3,
-            valueUnit: "kWh",
+            valueUnit: "kWh"
           },
           {
             observationId: 125,
             name: "LifetimeRelaySwitches",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 126,
             name: "LifetimeHours",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 127,
             name: "DynamicCurrentOfflineFallback_DEPRICATED",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 128,
             name: "UserIDToken",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 129,
             name: "ChargingSession",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 130,
             name: "CellRSSI",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 131,
             name: "CellRAT",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 132,
             name: "WiFiRSSI",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 133,
             name: "CellAddress",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 134,
             name: "WiFiAddress",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 135,
             name: "WiFiType",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 136,
             name: "LocalRSSI",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 137,
             name: "MasterBackPlateID",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 138,
             name: "LocalTxPower",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 139,
             name: "LocalState",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 140,
             name: "FoundWiFi",
-            dataType: 6,
+            dataType: 6
           },
           {
             observationId: 141,
             name: "ChargerRAT",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 142,
             name: "CellularInterfaceErrorCount",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 143,
             name: "CellularInterfaceResetCount",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 144,
             name: "WifiInterfaceErrorCount",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 145,
             name: "WifiInterfaceResetCount",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 146,
             name: "LocalNodeType",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 147,
             name: "LocalRadioChannel",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 148,
             name: "LocalShortAddress",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 149,
             name: "LocalParentAddrOrNumOfNodes",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 150,
             name: "TempMax",
             dataType: 3,
-            valueUnit: "°C",
+            valueUnit: "°C"
           },
           {
             observationId: 151,
             name: "TempAmbientPowerBoard",
             dataType: 3,
-            valueUnit: "°C",
+            valueUnit: "°C"
           },
           {
             observationId: 152,
             name: "TempInputT2",
             dataType: 3,
-            valueUnit: "°C",
+            valueUnit: "°C"
           },
           {
             observationId: 153,
             name: "TempInputT3",
             dataType: 3,
-            valueUnit: "°C",
+            valueUnit: "°C"
           },
           {
             observationId: 154,
             name: "TempInputT4",
             dataType: 3,
-            valueUnit: "°C",
+            valueUnit: "°C"
           },
           {
             observationId: 155,
             name: "TempInputT5",
             dataType: 3,
-            valueUnit: "°C",
+            valueUnit: "°C"
           },
           {
             observationId: 160,
             name: "TempOutputN",
             dataType: 3,
-            valueUnit: "°C",
+            valueUnit: "°C"
           },
           {
             observationId: 161,
             name: "TempOutputL1",
             dataType: 3,
-            valueUnit: "°C",
+            valueUnit: "°C"
           },
           {
             observationId: 162,
             name: "TempOutputL2",
             dataType: 3,
-            valueUnit: "°C",
+            valueUnit: "°C"
           },
           {
             observationId: 163,
             name: "TempOutputL3",
             dataType: 3,
-            valueUnit: "°C",
+            valueUnit: "°C"
           },
           {
             observationId: 170,
             name: "TempAmbient",
             dataType: 3,
-            valueUnit: "°C",
+            valueUnit: "°C"
           },
           {
             observationId: 171,
             name: "LightAmbient",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 172,
             name: "IntRelHumidity",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 173,
             name: "BackPlateLocked",
-            dataType: 2,
+            dataType: 2
           },
           {
             observationId: 174,
             name: "CurrentMotor",
-            dataType: 3,
+            dataType: 3
           },
           {
             observationId: 175,
             name: "BackPlateHallSensor",
-            dataType: 4,
+            dataType: 4
           },
           {
             observationId: 182,
             name: "InCurrent_T2",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 183,
             name: "InCurrent_T3",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 184,
             name: "InCurrent_T4",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 185,
             name: "InCurrent_T5",
             dataType: 3,
-            valueUnit: "V",
+            valueUnit: "V"
           },
           {
             observationId: 190,
             name: "InVolt_T1_T2",
             dataType: 3,
             valueUnit: "V",
-            altName: "inVoltageT1T2",
+            altName: "inVoltageT1T2"
           },
           {
             observationId: 191,
             name: "InVolt_T1_T3",
             dataType: 3,
             valueUnit: "V",
-            altName: "inVoltageT1T3",
+            altName: "inVoltageT1T3"
           },
           {
             observationId: 192,
             name: "InVolt_T1_T4",
             dataType: 3,
             valueUnit: "V",
-            altName: "inVoltageT1T4",
+            altName: "inVoltageT1T4"
           },
           {
             observationId: 193,
             name: "InVolt_T1_T5",
             dataType: 3,
             valueUnit: "V",
-            altName: "inVoltageT1T5",
+            altName: "inVoltageT1T5"
           },
           {
             observationId: 194,
             name: "InVolt_T2_T3",
             dataType: 3,
             valueUnit: "V",
-            altName: "inVoltageT2T3",
+            altName: "inVoltageT2T3"
           },
           {
             observationId: 195,
             name: "InVolt_T2_T4",
             dataType: 3,
             valueUnit: "V",
-            altName: "inVoltageT2T4",
+            altName: "inVoltageT2T4"
           },
           {
             observationId: 196,
             name: "InVolt_T2_T5",
             dataType: 3,
             valueUnit: "V",
-            altName: "inVoltageT2T5",
+            altName: "inVoltageT2T5"
           },
           {
             observationId: 197,
             name: "InVolt_T3_T4",
             dataType: 3,
             valueUnit: "V",
-            altName: "inVoltageT3T4",
+            altName: "inVoltageT3T4"
           },
           {
             observationId: 198,
             name: "InVolt_T3_T5",
             dataType: 3,
             valueUnit: "V",
-            altName: "inVoltageT3T5",
+            altName: "inVoltageT3T5"
           },
           {
             observationId: 199,
             name: "InVolt_T4_T5",
             dataType: 3,
             valueUnit: "V",
-            altName: "inVoltageT4T5",
+            altName: "inVoltageT4T5"
           },
           {
             observationId: 202,
             name: "OutVoltPin1_2",
             dataType: 3,
-            valueUnit: "V",
+            valueUnit: "V"
           },
           {
             observationId: 203,
             name: "OutVoltPin1_3",
             dataType: 3,
-            valueUnit: "V",
+            valueUnit: "V"
           },
           {
             observationId: 204,
             name: "OutVoltPin1_4",
             dataType: 3,
-            valueUnit: "V",
+            valueUnit: "V"
           },
           {
             observationId: 205,
             name: "OutVoltPin1_5",
             dataType: 3,
-            valueUnit: "V",
+            valueUnit: "V"
           },
           {
             observationId: 210,
             name: "VoltLevel33",
             dataType: 3,
-            valueUnit: "V",
+            valueUnit: "V"
           },
           {
             observationId: 211,
             name: "VoltLevel5",
             dataType: 3,
-            valueUnit: "V",
+            valueUnit: "V"
           },
           {
             observationId: 212,
             name: "VoltLevel12",
             dataType: 3,
-            valueUnit: "V",
+            valueUnit: "V"
           },
           {
             observationId: 230,
             name: "EqAvailableCurrentP1",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 231,
             name: "EqAvailableCurrentP2",
             dataType: 3,
-            valueUnit: "A",
+            valueUnit: "A"
           },
           {
             observationId: 232,
             name: "EqAvailableCurrentP3",
             dataType: 3,
-            valueUnit: "A",
-          },
+            valueUnit: "A"
+          }
         ];
 
         data.valueText = "";
         data.valueUnit = "";
 
         for (const idx in observations) {
-          if (mode == "id" && observations[idx].observationId == data.id) {
+          if (mode === "id" && observations[idx].observationId === data.id) {
             // Id match
           } else if (
-            mode == "name" &&
-            observations[idx].name.toLowerCase() == data.dataName.toLowerCase()
+            mode === "name" &&
+            observations[idx].name.toLowerCase() === data.dataName.toLowerCase()
           ) {
             // Name match
           } else if (
-            mode == "name" &&
+            mode === "name" &&
             "altName" in observations[idx] &&
-            observations[idx].altName.toLowerCase() ==
+            observations[idx].altName.toLowerCase() ===
             data.dataName.toLowerCase()
           ) {
             // Altname match
           } else if (
-            mode == "name" &&
-            observations[idx].name.replace(/\_/g, "").toLowerCase() ==
+            mode === "name" &&
+            observations[idx].name.replace(/_/g, "").toLowerCase() ===
             data.dataName.toLowerCase()
           ) {
             // Altname match
@@ -1326,7 +1330,7 @@ module.exports = function (RED) {
 
           if (
             "valueUnit" in observations[idx] &&
-            observations[idx].valueUnit != undefined
+            observations[idx].valueUnit !== undefined
           ) {
             data.valueUnit = observations[idx].valueUnit;
           }
@@ -1337,7 +1341,7 @@ module.exports = function (RED) {
             4: "Integer",
             5: "Position",
             6: "String",
-            7: "Statistics",
+            7: "Statistics"
           };
 
           data.dataType = observations[idx].dataType;
@@ -1355,7 +1359,7 @@ module.exports = function (RED) {
 
           if (
             "valueMapping" in observations[idx] &&
-            observations[idx].valueMapping != undefined
+            observations[idx].valueMapping !== undefined
           ) {
             data.valueText = observations[idx].valueMapping(data.value);
           }
@@ -1373,14 +1377,14 @@ module.exports = function (RED) {
       /**
        * Ensures authentication is available, using existing token or triggering refresh if needed
        * This is the preferred method for consumer nodes to ensure authentication.
-       * 
+       *
        * IMPORTANT: This method prevents double login issues by checking token validity
        * before triggering authentication, unlike doLogin() which always performs a fresh login.
        * Consumer nodes (REST client, streaming client) should use this instead of doLogin().
-       * 
+       *
        * @returns {Promise<boolean>} true if authentication is available, false otherwise
        */
-      node.ensureAuthentication = async () => {
+      node.ensureAuthentication = async() => {
         // Validate credentials first
         const credentialsCheck = node.validateCredentials();
         if (!credentialsCheck.valid) {
@@ -1405,7 +1409,7 @@ module.exports = function (RED) {
         if (node.accessToken) {
           const now = new Date();
           const timeToExpire = Math.floor((node.tokenExpires - now) / 1000);
-          
+
           // If token is still valid (more than 1 minute remaining), use it
           if (timeToExpire > 60) {
             return true;
@@ -1425,7 +1429,7 @@ module.exports = function (RED) {
       /**
        * Check token expiration and refresh if needed using best practices
        */
-      node.checkToken = async () => {
+      node.checkToken = async() => {
         // Validate credentials before attempting any authentication
         const credentialsCheck = node.validateCredentials();
         if (!credentialsCheck.valid) {
@@ -1433,7 +1437,7 @@ module.exports = function (RED) {
           node.status({
             fill: "red",
             shape: "ring",
-            text: "Invalid configuration - edit to add credentials",
+            text: "Invalid configuration - edit to add credentials"
           });
           // Don't schedule another check if credentials are invalid
           return;
@@ -1484,7 +1488,7 @@ module.exports = function (RED) {
             node.status({
               fill: "yellow",
               shape: "ring",
-              text: "Refreshing token...",
+              text: "Refreshing token..."
             });
 
             const refreshResult = await node.doRefreshToken();
@@ -1494,7 +1498,7 @@ module.exports = function (RED) {
               node.status({
                 fill: "yellow",
                 shape: "ring",
-                text: "Token expired, re-authenticating...",
+                text: "Token expired, re-authenticating..."
               });
 
               try {
@@ -1510,7 +1514,7 @@ module.exports = function (RED) {
                   node.status({
                     fill: "red",
                     shape: "ring",
-                    text: "Authentication failed - check credentials",
+                    text: "Authentication failed - check credentials"
                   });
                   node.error("[easee] Authentication failed after maximum retries. Please check credentials and reconfigure the node.");
 
@@ -1533,7 +1537,7 @@ module.exports = function (RED) {
                   node.status({
                     fill: "yellow",
                     shape: "ring",
-                    text: `Login retry ${node.loginRetryCount}/${node.maxLoginRetries}`,
+                    text: `Login retry ${node.loginRetryCount}/${node.maxLoginRetries}`
                   });
                 }
               }
@@ -1581,7 +1585,7 @@ module.exports = function (RED) {
               node.status({
                 fill: "red",
                 shape: "ring",
-                text: "Authentication error",
+                text: "Authentication error"
               });
             });
           }, checkInterval);
@@ -1595,7 +1599,7 @@ module.exports = function (RED) {
        * Refresh the access token using the refresh token
        * @returns {Promise<Object|null>} The refresh response or null if refresh failed
        */
-      node.doRefreshToken = async () => {
+      node.doRefreshToken = async() => {
         if (!node.accessToken || !node.refreshToken) {
           // Not logged in, will not refresh - attempt login instead
           node.logInfo("No tokens available for refresh, attempting fresh login");
@@ -1607,7 +1611,7 @@ module.exports = function (RED) {
             node.status({
               fill: "red",
               shape: "ring",
-              text: "Authentication failed",
+              text: "Authentication failed"
             });
             return null;
           }
@@ -1619,24 +1623,24 @@ module.exports = function (RED) {
             method: "POST",
             headers: {
               Accept: "application/json",
-              "Content-Type": "application/*+json",
+              "Content-Type": "application/*+json"
             },
             body: JSON.stringify({
               accessToken: node.accessToken,
-              refreshToken: node.refreshToken,
-            }),
+              refreshToken: node.refreshToken
+            })
           }
         )
-          .then(async (response) => {
+          .then(async(response) => {
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
               const json = await response.json();
 
               // Check if the response indicates an error (like invalid refresh token)
               if (!response.ok) {
-                const errorMsg = json.title || json.errorCodeName || 'Unknown error';
-                const errorDetail = json.detail || '';
-                throw new Error(`Token refresh failed (${response.status}): ${errorMsg}${errorDetail ? ' - ' + errorDetail : ''}`);
+                const errorMsg = json.title || json.errorCodeName || "Unknown error";
+                const errorDetail = json.detail || "";
+                throw new Error(`Token refresh failed (${response.status}): ${errorMsg}${errorDetail ? " - " + errorDetail : ""}`);
               }
 
               return json;
@@ -1666,26 +1670,26 @@ module.exports = function (RED) {
             node.tokenIssuedAt = now;
             node.tokenLifetime = json.expiresIn || 0;
 
-            var t = new Date();
+            const t = new Date();
             t.setSeconds(t.getSeconds() + json.expiresIn);
             node.tokenExpires = t;
 
             node.logInfo(`Token refreshed successfully. Lifetime: ${node.tokenLifetime}s, expires at: ${t.toISOString()}`);
 
             node.emit("update", {
-              update: "Token refreshed successfully",
+              update: "Token refreshed successfully"
             });
 
             return json;
           }).catch((error) => {
             // Determine if this is a token validity issue or network/other issue
-            const isTokenInvalid = error.message.includes('Invalid refresh token') ||
-              error.message.includes('Token refresh failed') ||
-              error.message.includes('401');
+            const isTokenInvalid = error.message.includes("Invalid refresh token") ||
+              error.message.includes("Token refresh failed") ||
+              error.message.includes("401");
 
-            const isNetworkError = error.message.includes('fetch') ||
-              error.message.includes('network') ||
-              error.message.includes('timeout');
+            const isNetworkError = error.message.includes("fetch") ||
+              error.message.includes("network") ||
+              error.message.includes("timeout");
 
             if (isTokenInvalid) {
               // Token is invalid - clear tokens and request fresh login
@@ -1698,7 +1702,7 @@ module.exports = function (RED) {
               node.refreshRetryCount = 0; // Reset refresh retry counter
 
               node.emit("update", {
-                update: "Token refresh failed, will attempt fresh login",
+                update: "Token refresh failed, will attempt fresh login"
               });
 
               return null; // Return null to indicate we should try fresh login
@@ -1706,17 +1710,18 @@ module.exports = function (RED) {
               // Network error - retry refresh
               node.refreshRetryCount++;
               node.logInfo(`Network error during token refresh, retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`);
-              
+
               node.emit("update", {
-                update: `Token refresh retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`,
+                update: `Token refresh retry ${node.refreshRetryCount}/${node.maxRefreshRetries}`
               });
-              
+
               // Wait a bit before retrying and return a promise
               return new Promise((resolve) => {
-                setTimeout(async () => {
+                setTimeout(async() => {
                   try {
                     const retryResult = await node.doRefreshToken();
                     resolve(retryResult);
+                  // eslint-disable-next-line no-unused-vars
                   } catch (retryError) {
                     resolve(null);
                   }
@@ -1736,7 +1741,7 @@ module.exports = function (RED) {
                 node.refreshRetryCount = 0;
 
                 node.emit("update", {
-                  update: "Token refresh failed after retries, attempting fresh login",
+                  update: "Token refresh failed after retries, attempting fresh login"
                 });
 
                 return null; // Return null to indicate we should try fresh login
@@ -1769,11 +1774,11 @@ module.exports = function (RED) {
         node.status({
           fill: "red",
           shape: "ring",
-          text: "Authentication reset - reconfiguration required",
+          text: "Authentication reset - reconfiguration required"
         });
 
         node.emit("update", {
-          update: "Authentication failed - node requires reconfiguration",
+          update: "Authentication failed - node requires reconfiguration"
         });
       };
 
@@ -1783,9 +1788,9 @@ module.exports = function (RED) {
        * @param {string} _password - Password (optional, uses stored credentials if not provided)
        * @returns {Promise<Object>} The login response
        */
-      node.doLogin = async (_username, _password) => {
+      node.doLogin = async(_username, _password) => {
         const url = "/accounts/login";
-        
+
         // If no parameters provided, validate stored credentials
         if (!_username && !_password) {
           const credentialsCheck = node.validateCredentials();
@@ -1795,7 +1800,7 @@ module.exports = function (RED) {
             node.status({
               fill: "red",
               shape: "ring",
-              text: "Invalid configuration - missing credentials",
+              text: "Invalid configuration - missing credentials"
             });
             throw error;
           }
@@ -1807,41 +1812,41 @@ module.exports = function (RED) {
           node.status({
             fill: "red",
             shape: "ring",
-            text: "No username configured",
+            text: "No username configured"
           });
           throw error;
         }
-        
+
         if (!_password && !node.credentials?.password) {
           const error = new Error("No password provided for login");
           node.logError("Login failed: No password configured");
           node.status({
             fill: "red",
             shape: "ring",
-            text: "No password configured",
+            text: "No password configured"
           });
           throw error;
-        }        const response = await fetch(node.RestApipath + url, {
+        } const response = await fetch(node.RestApipath + url, {
           method: "post",
           body: JSON.stringify({
             userName: _username ?? node.credentials.username,
-            password: _password ?? node.credentials.password,
+            password: _password ?? node.credentials.password
           }),
           headers: {
             Accept: "application/json",
-            "Content-Type": "application/json",
-          },
+            "Content-Type": "application/json"
+          }
         })
-          .then(async (response) => {
+          .then(async(response) => {
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
               const json = await response.json();
 
               // Check if login failed
               if (!response.ok) {
-                const errorMsg = json.title || json.errorCodeName || 'Login failed';
-                const errorDetail = json.detail || '';
-                throw new Error(`Login failed (${response.status}): ${errorMsg}${errorDetail ? ' - ' + errorDetail : ''}`);
+                const errorMsg = json.title || json.errorCodeName || "Login failed";
+                const errorDetail = json.detail || "";
+                throw new Error(`Login failed (${response.status}): ${errorMsg}${errorDetail ? " - " + errorDetail : ""}`);
               }
 
               return json;
@@ -1860,7 +1865,7 @@ module.exports = function (RED) {
               node.tokenIssuedAt = now;
               node.tokenLifetime = json.expiresIn || 0;
 
-              var t = new Date();
+              const t = new Date();
               t.setSeconds(t.getSeconds() + json.expiresIn);
               node.tokenExpires = t;
 
@@ -1873,11 +1878,11 @@ module.exports = function (RED) {
               node.status({
                 fill: "green",
                 shape: "dot",
-                text: "Authenticated successfully",
+                text: "Authenticated successfully"
               });
 
               node.emit("update", {
-                update: "Login successful, token retrieved",
+                update: "Login successful, token retrieved"
               });
 
               return json;
@@ -1886,23 +1891,23 @@ module.exports = function (RED) {
             }
           }).catch((error) => {
             // Check if this is a credential error
-            const isCredentialError = error.message.includes('401') ||
-              error.message.includes('Unauthorized') ||
-              error.message.includes('Invalid credentials') ||
-              error.message.includes('Login failed');
+            const isCredentialError = error.message.includes("401") ||
+              error.message.includes("Unauthorized") ||
+              error.message.includes("Invalid credentials") ||
+              error.message.includes("Login failed");
 
             if (isCredentialError) {
               node.status({
                 fill: "red",
                 shape: "ring",
-                text: "Invalid credentials",
+                text: "Invalid credentials"
               });
               console.error("[easee] Login failed due to invalid credentials:", error.message);
             } else {
               node.status({
                 fill: "red",
                 shape: "ring",
-                text: "Login error",
+                text: "Login error"
               });
               console.error("[easee] Login failed due to other error:", error.message);
             }
@@ -1922,8 +1927,8 @@ module.exports = function (RED) {
   RED.nodes.registerType("easee-configuration", EaseeConfiguration, {
     credentials: {
       username: { type: "text" },
-      password: { type: "password" },
-    },
+      password: { type: "password" }
+    }
   });
 
 };

@@ -1,18 +1,18 @@
 /**
  * MIT License
- * 
+ *
  * Copyright (c) 2025 Jon Tungland
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -20,19 +20,19 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
+ *
  * This project was initially forked from node-red-contrib-signalrcore
  * by Scott Page (Apache License 2.0).
  **/
 
-module.exports = function (RED) {
+module.exports = function(RED) {
   "use strict";
   const signalR = require("@microsoft/signalr");
 
   class ChargerStreamingClientNode {
     constructor(n) {
       RED.nodes.createNode(this, n);
-      var node = this;
+      const node = this;
       node.charger = n.charger;
       node.configurationNode = n.configuration;
       node.responses = n.responses;
@@ -41,22 +41,32 @@ module.exports = function (RED) {
       node.responses = n.responses;
 
       // Use configuration node's logging if available, fallback to console
-      node.logInfo = node.connectionConfig?.logInfo || function(msg, data) { console.log(`[easee] ${msg}`, data || ''); };
-      node.logDebug = node.connectionConfig?.logDebug || function(msg, data) { if (node.connectionConfig?.debugLogging) console.log(`[easee] DEBUG: ${msg}`, data || ''); };
-      node.logError = node.connectionConfig?.logError || function(msg, error) { console.error(`[easee] ERROR: ${msg}`, error || ''); };
-      node.logWarn = node.connectionConfig?.logWarn || function(msg, data) { console.warn(`[easee] WARN: ${msg}`, data || ''); };
+      node.logInfo = node.connectionConfig?.logInfo || function(msg, data) {
+        console.log(`[easee] ${msg}`, data || "");
+      };
+      node.logDebug = node.connectionConfig?.logDebug || function(msg, data) {
+        if (node.connectionConfig?.debugLogging) {
+          console.log(`[easee] DEBUG: ${msg}`, data || "");
+        }
+      };
+      node.logError = node.connectionConfig?.logError || function(msg, error) {
+        console.error(`[easee] ERROR: ${msg}`, error || "");
+      };
+      node.logWarn = node.connectionConfig?.logWarn || function(msg, data) {
+        console.warn(`[easee] WARN: ${msg}`, data || "");
+      };
       node.options = {};
       node.reconnectInterval = 3000;
       node.closing = false;
 
       if (!this.connectionConfig) {
         node.emit("erro", {
-          err: "[easee] Missing easee account configuration node",
+          err: "[easee] Missing easee account configuration node"
         });
         node.status({
           fill: "red",
           shape: "ring",
-          text: "Missing configuration",
+          text: "Missing configuration"
         });
         return;
       }
@@ -64,12 +74,12 @@ module.exports = function (RED) {
       // Check if the configuration node has valid credentials
       if (!node.connectionConfig.isConfigurationValid || !node.connectionConfig.isConfigurationValid()) {
         node.emit("erro", {
-          err: "[easee] Configuration node is invalid - missing username or password",
+          err: "[easee] Configuration node is invalid - missing username or password"
         });
         node.status({
           fill: "red",
           shape: "ring",
-          text: "Invalid configuration - missing credentials",
+          text: "Invalid configuration - missing credentials"
         });
         return;
       }
@@ -82,13 +92,13 @@ module.exports = function (RED) {
               node.startconn();
             } else {
               node.emit("erro", {
-                err: "Authentication failed during fullReconnect()",
+                err: "Authentication failed during fullReconnect()"
               });
             }
           })
           .catch((e) => {
             node.emit("erro", {
-              err: "Error during fullReconnect(): " + e.message,
+              err: "Error during fullReconnect(): " + e.message
             });
           });
       };
@@ -97,7 +107,7 @@ module.exports = function (RED) {
         node.status({
           fill: "green",
           shape: "dot",
-          text: msg.update,
+          text: msg.update
         });
         //console.log(msg);
       });
@@ -117,15 +127,15 @@ module.exports = function (RED) {
           event: "connect",
           _session: {
             type: "signalr",
-            id: event.id,
-          },
+            id: event.id
+          }
         });
 
         // send the connected msg
         node.send([
           { _connectionId: event.id, payload: "Connected" },
           null,
-          null,
+          null
         ]);
 
         try {
@@ -182,39 +192,41 @@ module.exports = function (RED) {
           event: "error",
           _session: {
             type: "signalr",
-            id: event.id,
-          },
+            id: event.id
+          }
         });
-        var errMsg = { payload: event.err };
-        if (event.id) errMsg._connectionId = event.id;
+        const errMsg = { payload: event.err };
+        if (event.id) {
+          errMsg._connectionId = event.id;
+        }
         node.send([null, errMsg, null]);
       });
 
       this.on("closed", (event) => {
-        var status;
+        let status;
         if (event.count > 0) {
           status = {
             fill: "green",
             shape: "dot",
-            text: RED._("node-red:common.status.connected"),
+            text: RED._("node-red:common.status.connected")
           };
         } else {
           status = {
             fill: "red",
             shape: "ring",
-            text: RED._("node-red:common.status.disconnected"),
+            text: RED._("node-red:common.status.disconnected")
           };
         }
         status.event = "disconnect";
         status._session = {
           type: "signalr",
-          id: event.id,
+          id: event.id
         };
         node.status(status);
         node.send([
           null,
           null,
-          { _connectionId: event.id, payload: "Disconnected" },
+          { _connectionId: event.id, payload: "Disconnected" }
         ]);
       });
 
@@ -232,27 +244,30 @@ module.exports = function (RED) {
           // This node is being restarted
         }
         node.emit("erro", {
-          err: "Disconnected",
+          err: "Disconnected"
         });
-        if (done) done();
+        if (done) {
+          done();
+        }
       });
 
       // Connect to remote endpoint
       node.startconn = () => {
         node.closing = false;
-        if (node.reconnectTimoutHandle)
+        if (node.reconnectTimoutHandle) {
           clearTimeout(node.reconnectTimoutHandle);
+        }
         node.reconnectTimoutHandle = null;
 
         if (!node.charger) {
           node.emit("erro", {
-            err: "No charger, exiting",
+            err: "No charger, exiting"
           });
           return;
         }
         if (!node.connectionConfig.accessToken) {
           node.emit("erro", {
-            err: "No accessToken, waiting",
+            err: "No accessToken, waiting"
           });
           node.reconnectTimoutHandle = setTimeout(
             () => node.startconn(),
@@ -286,7 +301,7 @@ module.exports = function (RED) {
         node.logDebug("Using SignalR URL:", signalRUrl);
         node.logDebug("Skip negotiation:", node.skipNegotiation);
 
-        var connection;
+        let connection;
         try {
           connection = new signalR.HubConnectionBuilder()
             .withUrl(signalRUrl, signalROptions)
@@ -300,7 +315,7 @@ module.exports = function (RED) {
           node.status({
             fill: "red",
             shape: "ring",
-            text: "SignalR connection error",
+            text: "SignalR connection error"
           });
           return;
         }
@@ -310,9 +325,12 @@ module.exports = function (RED) {
       };
 
       node.reconnect = () => {
-        if (node.reconnectTimoutHandle)
+        if (node.reconnectTimoutHandle) {
           clearTimeout(node.reconnectTimoutHandle);
-        if (node.closing) return;
+        }
+        if (node.closing) {
+          return;
+        }
         node.connectionConfig.ensureAuthentication().then((isAuthenticated) => {
           if (isAuthenticated) {
             node.reconnectTimoutHandle = setTimeout(
@@ -326,16 +344,18 @@ module.exports = function (RED) {
           node.logError("Error during reconnect:", error);
         });
       };
-      
+
       node.notifyOnError = (err, id) => {
-        if (!err) return;
+        if (!err) {
+          return;
+        }
         node.emit("erro", {
           err: err,
-          id: id,
+          id: id
         });
       };
 
-      node.handleConnection = async (connection) => {
+      node.handleConnection = async(connection) => {
         let id = "";
         try {
           await connection.start();
@@ -343,13 +363,13 @@ module.exports = function (RED) {
           id = connection.connectionId;
           node.emit("opened", {
             count: "",
-            id: id,
+            id: id
           });
 
           connection.onclose((err) => {
             node.emit("closed", {
               count: "",
-              id: id,
+              id: id
             });
             node.notifyOnError(err, id);
             node.reconnect();

@@ -28,7 +28,7 @@ module.exports = {
       errorCodeName: "INVALID_CREDENTIALS"
     },
     serverError: {
-      title: "Internal Server Error", 
+      title: "Internal Server Error",
       status: 500,
       detail: "An unexpected error occurred"
     },
@@ -48,7 +48,7 @@ module.exports = {
       errorCodeName: "INVALID_REFRESH_TOKEN"
     },
     expiredRefreshToken: {
-      title: "Unauthorized", 
+      title: "Unauthorized",
       status: 401,
       detail: "Refresh token has expired",
       errorCodeName: "EXPIRED_REFRESH_TOKEN"
@@ -58,7 +58,7 @@ module.exports = {
   // Network error simulations
   networkErrors: {
     timeout: new Error("fetch failed - timeout"),
-    connectionRefused: new Error("fetch failed - connection refused"), 
+    connectionRefused: new Error("fetch failed - connection refused"),
     networkDown: new Error("fetch failed - network error")
   },
 
@@ -69,7 +69,7 @@ module.exports = {
   },
 
   invalidCredentials: {
-    username: "invalid@easee.com", 
+    username: "invalid@easee.com",
     password: "wrongpassword"
   },
 
@@ -93,7 +93,7 @@ module.exports = {
       observationId: 120,
       value: 7200,
       valueText: "7.2",
-      valueUnit: "kW", 
+      valueUnit: "kW",
       timestamp: "2025-01-15T10:30:00Z"
     }
   }

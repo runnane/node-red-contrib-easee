@@ -41,13 +41,17 @@
     "test:verbose": "jest --verbose",
     "test:silent": "jest --silent",
     "dep-update": "npx ncu -u",
-    "lint": "jshint easee-client/*.js",
+    "lint": "eslint easee-client/*.js tests/**/*.js",
+    "lint:fix": "eslint easee-client/*.js tests/**/*.js --fix",
+    "lint:jshint": "jshint easee-client/*.js",
     "release": "npx np"
   },
   "jshint.options": {
     "esversion": 11
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
     "jest": "^30.0.5",
     "jshint": "^2.13.6",
     "node-red": "^4.0.9",
