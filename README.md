@@ -101,7 +101,7 @@ node.send({
 
 ### Code Quality
 
-This project uses ESLint for code quality and formatting:
+This project uses ESLint for comprehensive code quality and formatting:
 
 ```bash
 # Check for linting issues
@@ -111,7 +111,9 @@ npm run lint
 npm run lint:fix
 ```
 
-See [ESLINT.md](ESLINT.md) for detailed ESLint configuration and usage.
+**CI Integration**: ESLint runs automatically on all pull requests and blocks merging if issues are found.
+
+See [ESLINT.md](ESLINT.md) for detailed ESLint configuration and [MIGRATION.md](MIGRATION.md) for completed JSHint migration details.
 
 ### Testing
 
@@ -124,7 +126,22 @@ npm run test:watch
 
 # Run with coverage
 npm run test:coverage
+
+# Run specific test types
+npm run test:unit
+npm run test:integration
 ```
+
+### Continuous Integration
+
+The project uses GitHub Actions for CI/CD:
+
+- **Code Quality**: ESLint checks (blocking)
+- **Testing**: Jest test suite across Node.js 18, 20, 22, 24
+- **Compatibility**: Node-RED compatibility verification
+- **Security**: npm audit for vulnerabilities
+
+All checks must pass before code can be merged to main branch.
 
 ## Example
 
@@ -150,4 +167,3 @@ This project was migrated from Apache License 2.0 to MIT License in 2025. The or
 
 All dependencies are compatible with the MIT License:
 - `@microsoft/signalr`: MIT License
-- `node-fetch`: MIT License

@@ -40,20 +40,16 @@
     "test:integration": "jest tests/integration",
     "test:verbose": "jest --verbose",
     "test:silent": "jest --silent",
-    "dep-update": "npx ncu -u",
+    "dep-update": "npx npm-check-updates -u",
     "lint": "eslint easee-client/*.js tests/**/*.js",
     "lint:fix": "eslint easee-client/*.js tests/**/*.js --fix",
-    "lint:jshint": "jshint easee-client/*.js",
+    "ci:lint": "npm run lint",
     "release": "npx np"
   },
-  "jshint.options": {
-    "esversion": 11
-  },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "eslint": "^9.0.0",
+    "@eslint/js": "^9.32.0",
+    "eslint": "^9.32.0",
     "jest": "^30.0.5",
-    "jshint": "^2.13.6",
     "node-red": "^4.0.9",
     "node-red-node-test-helper": "^0.3.4"
   }

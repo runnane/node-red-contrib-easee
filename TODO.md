@@ -3,7 +3,6 @@
 ## BUGS
 
 - Improve error messages as a general in console log and node.status. 
-- ✅ Fixed SignalR v8+ compatibility issue with 'secure' property error in streaming client 
 
 ## Features
 

@@ -10,7 +10,6 @@ spec/
 coverage/
 .nyc_output/
 jest.config.js
-.jshintrc
 
 # Documentation and Examples (keep README.md)
 TODO.md

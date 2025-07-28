@@ -97,6 +97,7 @@ module.exports = [
       "prefer-const": "error",
       "prefer-arrow-callback": "off", // Allow regular functions for Node-RED context
       "arrow-spacing": "error",
+      "no-loop-func": "error", // Catch functions declared within loops (like JSHint caught)
 
       // Node.js specific
       "no-process-exit": "error",

@@ -1395,11 +1395,17 @@ module.exports = function(RED) {
         // If authentication is already in progress, wait for it to complete
         if (node.authenticationInProgress) {
           node.logDebug("Authentication already in progress, waiting...");
+
+          // Helper function to avoid function-in-loop issue
+          const waitDelay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
           // Wait for current authentication to complete (max 30 seconds)
-          let waitCount = 0;
-          while (node.authenticationInProgress && waitCount < 300) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            waitCount++;
+          const maxWaitTime = 30000; // 30 seconds
+          const pollInterval = 100; // 100ms
+          const startTime = Date.now();
+
+          while (node.authenticationInProgress && (Date.now() - startTime) < maxWaitTime) {
+            await waitDelay(pollInterval);
           }
           // Return current authentication status
           return !!node.accessToken;
