@@ -58,7 +58,25 @@
       icon: "feed.svg",
 
       label: function () {
-        return this.name ? this.name : this.charger;
+        if (this.name) {
+          return this.name;
+        } else if (this.charger) {
+          return this.charger;
+        } else {
+          // Use the configuration node's label if available
+          var configNode = RED.nodes.node(this.configuration);
+          if (configNode && typeof configNode.label === "string") {
+            return configNode.label;
+          }
+          // Fallback to the configuration node's name if available
+          if (configNode && configNode.name) {
+            return configNode.name;
+          }
+          return "easee Charger Streaming";
+        }
+      },
+      labelStyle: function() {
+        return this.name || this.charger ? "node_label_italic" : "node_label";
       },
       outputLabels: function (index) {
         if (index == 0) return "Connected";

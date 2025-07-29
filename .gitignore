@@ -104,3 +104,5 @@ docs/build/
 
 # custom
 /backup/
+/coverage
+/docs
