@@ -35,7 +35,7 @@ describe("Easee Configuration - Integration Tests", () => {
     // Add all authentication methods
     node.doLogin = async function(_username, _password) {
       // Credential validation (same as the real implementation)
-      if (!_username && !this.credentials.username) {
+      if (!_username && !this.username) {
         const error = new Error("No username provided for login");
         console.error("Login failed: No username configured");
         this.status({
@@ -61,7 +61,7 @@ describe("Easee Configuration - Integration Tests", () => {
       const response = await fetch(this.RestApipath + "/accounts/login", {
         method: "post",
         body: JSON.stringify({
-          userName: _username ?? this.credentials.username,
+          userName: _username ?? this.username,
           password: _password ?? this.credentials.password
         }),
         headers: {

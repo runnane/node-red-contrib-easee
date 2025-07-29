@@ -37,10 +37,9 @@ function createMockEaseeNode(overrides = {}) {
     id: "test-node-id",
     type: "easee-configuration",
     name: "Test Easee Config",
-
+    username: mockData.validCredentials.username,
     // Easee-specific properties
     credentials: {
-      username: mockData.validCredentials.username,
       password: mockData.validCredentials.password
     },
     RestApipath: mockData.apiEndpoints.baseUrl,

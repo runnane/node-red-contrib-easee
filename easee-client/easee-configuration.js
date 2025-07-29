@@ -32,6 +32,9 @@ module.exports = function(RED) {
       RED.nodes.createNode(this, n);
       const node = this;
 
+      // Extract node properties
+      node.username = n.username || "";
+
       // Debug logging configuration - set early for use in validation
       node.debugLogging = n.debugLogging || false;
       node.debugToNodeWarn = n.debugToNodeWarn || false;
@@ -121,12 +124,12 @@ module.exports = function(RED) {
 
       // Validate credentials are provided during node creation
       node.validateCredentials = () => {
-        if (!node.credentials) {
-          return { valid: false, message: "No credentials object found" };
+        if (!node.username || node.username.trim() === "") {
+          return { valid: false, message: "Username is required" };
         }
 
-        if (!node.credentials.username || node.credentials.username.trim() === "") {
-          return { valid: false, message: "Username is required" };
+        if (!node.credentials) {
+          return { valid: false, message: "No credentials object found" };
         }
 
         if (!node.credentials.password || node.credentials.password.trim() === "") {
@@ -1812,7 +1815,7 @@ module.exports = function(RED) {
           }
         }
 
-        if (!_username && !node.credentials?.username) {
+        if (!_username && !node.username) {
           const error = new Error("No username provided for login");
           node.logError("Login failed: No username configured");
           node.status({
@@ -1835,7 +1838,7 @@ module.exports = function(RED) {
         } const response = await fetch(node.RestApipath + url, {
           method: "post",
           body: JSON.stringify({
-            userName: _username ?? node.credentials.username,
+            userName: _username ?? node.username,
             password: _password ?? node.credentials.password
           }),
           headers: {

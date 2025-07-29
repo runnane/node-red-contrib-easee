@@ -34,15 +34,16 @@ describe("Configuration Node Validation", () => {
 
       // Create a mock configuration with valid credentials
       const mockConfig = {
+        username: "test@example.com", // Username is now a regular property
         credentials: {
-          username: "test@example.com",
-          password: "testpassword"
+          password: "testpassword"     // Only password remains as credential
         }
       };
 
       // Mock RED.nodes.createNode to set up the node properly
       RED.nodes.createNode = jest.fn((node, _config) => {
         node.credentials = mockConfig.credentials;
+        node.username = mockConfig.username; // Set username as regular property
         node.status = jest.fn();
         node.error = jest.fn();
         node.warn = jest.fn();
@@ -69,14 +70,15 @@ describe("Configuration Node Validation", () => {
 
       // Create a mock configuration with missing username
       const mockConfig = {
+        username: "", // Empty username as regular property
         credentials: {
-          username: "",
           password: "testpassword"
         }
       };
 
       RED.nodes.createNode = jest.fn((node, _config) => {
         node.credentials = mockConfig.credentials;
+        node.username = mockConfig.username; // Set username as regular property
         node.status = jest.fn();
         node.error = jest.fn();
         node.warn = jest.fn();
@@ -99,14 +101,15 @@ describe("Configuration Node Validation", () => {
 
       // Create a mock configuration with missing password
       const mockConfig = {
+        username: "test@example.com", // Username as regular property
         credentials: {
-          username: "test@example.com",
-          password: ""
+          password: ""                // Empty password as credential
         }
       };
 
       RED.nodes.createNode = jest.fn((node, _config) => {
         node.credentials = mockConfig.credentials;
+        node.username = mockConfig.username; // Set username as regular property
         node.status = jest.fn();
         node.error = jest.fn();
         node.warn = jest.fn();
@@ -128,10 +131,13 @@ describe("Configuration Node Validation", () => {
       const _moduleExports = EaseeConfiguration(RED);
 
       // Create a mock configuration with no credentials
-      const mockConfig = {};
+      const mockConfig = {
+        username: "" // Even with empty username, should fail on username first
+      };
 
       RED.nodes.createNode = jest.fn((node, _config) => {
         node.credentials = null;
+        node.username = mockConfig.username; // Set username as regular property
         node.status = jest.fn();
         node.error = jest.fn();
         node.warn = jest.fn();
@@ -145,7 +151,7 @@ describe("Configuration Node Validation", () => {
 
       const result = node.validateCredentials();
       expect(result.valid).toBe(false);
-      expect(result.message).toBe("No credentials object found");
+      expect(result.message).toBe("Username is required");
     });
   });
 
@@ -155,14 +161,15 @@ describe("Configuration Node Validation", () => {
       const _moduleExports = EaseeConfiguration(RED);
 
       const mockConfig = {
+        username: "test@example.com", // Username as regular property
         credentials: {
-          username: "test@example.com",
-          password: "testpassword"
+          password: "testpassword"     // Only password as credential
         }
       };
 
       RED.nodes.createNode = jest.fn((node, _config) => {
         node.credentials = mockConfig.credentials;
+        node.username = mockConfig.username; // Set username as regular property
         node.status = jest.fn();
         node.error = jest.fn();
         node.warn = jest.fn();
@@ -182,14 +189,15 @@ describe("Configuration Node Validation", () => {
       const _moduleExports = EaseeConfiguration(RED);
 
       const mockConfig = {
+        username: "", // Empty username as regular property
         credentials: {
-          username: "",
           password: "testpassword"
         }
       };
 
       RED.nodes.createNode = jest.fn((node, _config) => {
         node.credentials = mockConfig.credentials;
+        node.username = mockConfig.username; // Set username as regular property
         node.status = jest.fn();
         node.error = jest.fn();
         node.warn = jest.fn();

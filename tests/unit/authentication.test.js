@@ -63,7 +63,7 @@ describe("Easee Configuration - Authentication", () => {
       node.doLogin = async function(_username, _password) {
         const url = "/accounts/login";
 
-        if (!_username && !this.credentials.username) {
+        if (!_username && !this.username) {
           const error = new Error("No username provided for login");
           console.error("Login failed: No username configured");
           this.status({
@@ -88,7 +88,7 @@ describe("Easee Configuration - Authentication", () => {
         const response = await fetch(this.RestApipath + url, {
           method: "post",
           body: JSON.stringify({
-            userName: _username ?? this.credentials.username,
+            userName: _username ?? this.username,
             password: _password ?? this.credentials.password
           }),
           headers: {
@@ -257,7 +257,7 @@ describe("Easee Configuration - Authentication", () => {
 
     test("should throw error when no username provided", async() => {
       // Arrange
-      node.credentials.username = "";
+      node.username = "";
 
       // Act & Assert
       await expect(node.doLogin()).rejects.toThrow("No username provided for login");
@@ -271,7 +271,7 @@ describe("Easee Configuration - Authentication", () => {
 
     test("should throw error when no password provided", async() => {
       // Arrange
-      node.credentials.username = "test@example.com"; // Ensure username is set
+      node.username = "test@example.com"; // Ensure username is set
       node.credentials.password = ""; // But password is empty
 
       // Act & Assert
@@ -303,7 +303,7 @@ describe("Easee Configuration - Authentication", () => {
 
     test("should handle login response without access token", async() => {
       // Arrange
-      node.credentials.username = "test@example.com";
+      node.username = "test@example.com";
       node.credentials.password = "password";
 
       global.fetch.mockResolvedValueOnce(
@@ -318,7 +318,7 @@ describe("Easee Configuration - Authentication", () => {
   describe("Token expiration calculation", () => {
     test("should correctly calculate token expiration time", async() => {
       // Arrange
-      node.credentials.username = "test@example.com";
+      node.username = "test@example.com";
       node.credentials.password = "password";
       mockFetchResponses.loginSuccess();
 

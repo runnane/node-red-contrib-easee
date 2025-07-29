@@ -19,14 +19,14 @@ describe("Easee Configuration - Test Helper Integration", function() {
       {
         id: "n1",
         type: "easee-configuration",
-        name: "test config"
+        name: "test config",
+        username: "test@example.com" // Username as regular property
       }
     ];
 
     const credentials = {
       n1: {
-        username: "test@example.com",
-        password: "testpass"
+        password: "testpass" // Only password as credential
       }
     };
 
@@ -57,14 +57,14 @@ describe("Easee Configuration - Test Helper Integration", function() {
       {
         id: "n2",
         type: "easee-configuration",
-        name: "test config 2"
+        name: "test config 2",
+        username: "test@example.com" // Username as regular property
       }
     ];
 
     const credentials = {
       n2: {
-        username: "test@example.com",
-        password: "testpass"
+        password: "testpass" // Only password as credential
       }
     };
 
@@ -89,14 +89,14 @@ describe("Easee Configuration - Test Helper Integration", function() {
       {
         id: "n3",
         type: "easee-configuration",
-        name: "test config 3"
+        name: "test config 3",
+        username: "" // Empty username as regular property
       }
     ];
 
     const credentials = {
       n3: {
-        username: "",
-        password: ""
+        password: "" // Empty password as credential
       }
     };
 

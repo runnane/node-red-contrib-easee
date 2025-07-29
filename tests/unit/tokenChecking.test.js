@@ -30,7 +30,7 @@ describe("Easee Configuration - Token Checking", () => {
       }
 
       // Check if credentials are configured before attempting any authentication
-      if (!this.credentials || (!this.credentials.username || !this.credentials.password)) {
+      if (!this.username || !this.credentials || !this.credentials.password) {
         console.log("No credentials configured, skipping token check");
         this.status({
           fill: "yellow",
@@ -62,7 +62,7 @@ describe("Easee Configuration - Token Checking", () => {
       }
 
       // Schedule next token check
-      const hasCredentials = this.credentials && this.credentials.username && this.credentials.password;
+      const hasCredentials = this.username && this.credentials && this.credentials.password;
       const checkInterval = hasCredentials ? 60 * 1000 : 300 * 1000; // 1 min vs 5 min
 
       this.checkTokenHandler = setTimeout(() => {
