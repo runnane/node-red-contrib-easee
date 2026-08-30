@@ -106,3 +106,5 @@ docs/build/
 /backup/
 /coverage
 /docs
+.claude/worktrees/
+.claude/settings.local.json
