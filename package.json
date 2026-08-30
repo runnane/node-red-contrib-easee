@@ -47,8 +47,9 @@
     "test:verbose": "jest --verbose",
     "test:silent": "jest --silent",
     "dep-update": "npx npm-check-updates -u",
-    "lint": "eslint easee-client/*.js tests/**/*.js",
-    "lint:fix": "eslint easee-client/*.js tests/**/*.js --fix",
+    "test:compat": "node scripts/check-node-loads.js",
+    "lint": "eslint easee-client/*.js tests/**/*.js scripts/*.js",
+    "lint:fix": "eslint easee-client/*.js tests/**/*.js scripts/*.js --fix",
     "ci:lint": "npm run lint",
     "release": "npx np"
   },

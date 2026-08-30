@@ -20,6 +20,7 @@ docs/
 doc/
 
 # Build and Development Tools
+scripts/
 .github/
 .vscode/
 .idea/
