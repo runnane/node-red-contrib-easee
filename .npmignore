@@ -11,6 +11,20 @@ coverage/
 .nyc_output/
 jest.config.js
 
+# Agent instructions (EASEE-3)
+#
+# This file is a DENYLIST — there is no "files" block in package.json, so
+# anything new in the tree ships to npm unless it is excluded here. Measured:
+# without these five lines, AGENTS.md and .agents/** land in the published
+# tarball and are installed by every user of this package.
+#
+# tests/unit/published-package.test.js fails if any of them starts shipping.
+AGENTS.md
+CLAUDE.md
+.agents/
+.claude/
+.mcp.json
+
 # Documentation and Examples (keep README.md)
 TODO.md
 CHANGELOG.md

@@ -1,0 +1,17 @@
+{
+  "repo": "runnane/node-red-contrib-easee",
+  "trackerKey": "EASEE",
+  "trackerSlug": "node-red-contrib-easee",
+  "visibility": "public",
+  "gates": {
+    "all": "npm run gates",
+    "fix": "npm run lint:fix"
+  },
+  "release": "release-it",
+  "ci": "github-hosted",
+  "liveBoundary": "none",
+  "worktreeSafe": true,
+  "deepDives": ".agents/",
+  "gatesDoc": ".agents/gates.md",
+  "userspaceBundle": "github:runnane/agent-userspace"
+}

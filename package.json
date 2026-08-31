@@ -33,6 +33,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
+    "gates": "npm run lint && npm run test:coverage && npm run test:compat",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
