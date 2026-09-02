@@ -28,6 +28,76 @@
 module.exports = function(RED) {
   "use strict";
 
+  /**
+   * The fields the deprecated `GET /api/chargers/{id}/state` used to return,
+   * mapped to the observation ids that carry the same value on
+   * `GET /state/{serial}/observations?ids=...`, which replaced it when Easee
+   * sunset `/state` on 2026-09-01.
+   *
+   * The keys are the *old* response's field names, deliberately: a user's flow
+   * reads `msg.payload.smartCharging.value`, so the output stays keyed this way
+   * even though the new endpoint is keyed by numeric id.
+   *
+   * Six of the old endpoint's 58 fields are absent and cannot be reproduced —
+   * `connectedToCloud`, `fatalErrorCode`, `isOnline`, `voltage`, `latestPulse`
+   * and `errors` were derived cloud-side rather than being device observations.
+   * See README.md.
+   */
+  const CHARGER_STATE_OBSERVATIONS = {
+    lockCablePermanently: 30,
+    ledMode: 46,
+    dynamicChargerCurrent: 48,
+    offlineMaxCircuitCurrentP1: 50,
+    offlineMaxCircuitCurrentP2: 51,
+    offlineMaxCircuitCurrentP3: 52,
+    wiFiAPEnabled: 68,
+    circuitTotalAllocatedPhaseConductorCurrentL1: 70,
+    circuitTotalAllocatedPhaseConductorCurrentL2: 71,
+    circuitTotalAllocatedPhaseConductorCurrentL3: 72,
+    circuitTotalPhaseConductorCurrentL1: 73,
+    circuitTotalPhaseConductorCurrentL2: 74,
+    circuitTotalPhaseConductorCurrentL3: 75,
+    chargerFirmware: 80,
+    reasonForNoCurrent: 96,
+    smartCharging: 102,
+    cableLocked: 103,
+    cableRating: 104,
+    chargerOpMode: 109,
+    outputPhase: 110,
+    dynamicCircuitCurrentP1: 111,
+    dynamicCircuitCurrentP2: 112,
+    dynamicCircuitCurrentP3: 113,
+    outputCurrent: 114,
+    deratedCurrent: 115,
+    deratingActive: 116,
+    errorCode: 119,
+    totalPower: 120,
+    sessionEnergy: 121,
+    energyPerHour: 122,
+    lifetimeEnergy: 124,
+    cellRSSI: 130,
+    wiFiRSSI: 132,
+    localRSSI: 136,
+    chargerRAT: 141,
+    inCurrentT2: 182,
+    inCurrentT3: 183,
+    inCurrentT4: 184,
+    inCurrentT5: 185,
+    inVoltageT1T2: 190,
+    inVoltageT1T3: 191,
+    inVoltageT1T4: 192,
+    inVoltageT1T5: 193,
+    inVoltageT2T3: 194,
+    inVoltageT2T4: 195,
+    inVoltageT2T5: 196,
+    inVoltageT3T4: 197,
+    inVoltageT3T5: 198,
+    inVoltageT4T5: 199,
+    eqAvailableCurrentP1: 230,
+    eqAvailableCurrentP2: 231,
+    eqAvailableCurrentP3: 232
+  };
+
   class EaseeRestClient {
     constructor(n) {
       RED.nodes.createNode(this, n);
@@ -334,8 +404,13 @@ module.exports = function(RED) {
                 await node.POST(`/chargers/${node.charger}/commands/${msg.topic}`);
                 break;
 
-              case "charger_state":
-                url = `/chargers/${node.charger}/state`;
+              case "charger_state": {
+                // Easee sunset GET /api/chargers/{charger}/state on 2026-09-01;
+                // it now 404s. The observations endpoint replaces it and lives
+                // outside /api, so this is an absolute URL — doAuthRestCall()
+                // uses one verbatim.
+                const observationIds = Object.values(CHARGER_STATE_OBSERVATIONS);
+                url = `${node.connection.StateApipath}/${node.charger}/observations?ids=${observationIds.join(",")}`;
 
                 // Status: Sending charger state request
                 node.status({
@@ -364,26 +439,45 @@ module.exports = function(RED) {
                     text: "GET: Processing..."
                   });
 
-                  if (typeof json !== "object") {
+                  if (typeof json !== "object" || json === null || !Array.isArray(json.observations)) {
                     node.error("charger_state failed");
                   } else {
-                    // Parse observations
-                    Object.keys(json).forEach((idx) => {
-                      json[idx] = node.connection.parseObservation(
+                    // The endpoint returns a flat array keyed by observation id.
+                    // Re-key it by the field names the old /state endpoint used,
+                    // so existing flows keep reading msg.payload.<fieldName>.
+                    const byId = new Map(
+                      json.observations.map((observation) => [observation.id, observation])
+                    );
+                    const state = {};
+                    Object.keys(CHARGER_STATE_OBSERVATIONS).forEach((fieldName) => {
+                      const observation = byId.get(CHARGER_STATE_OBSERVATIONS[fieldName]);
+                      if (observation === undefined) {
+                        // The charger did not report this one; omit it rather
+                        // than inventing a null the old endpoint never sent.
+                        return;
+                      }
+                      state[fieldName] = node.connection.parseObservation(
                         {
-                          dataName: idx,
-                          value: json[idx],
-                          origValue: json[idx]
+                          // parseObservation overwrites dataName with the
+                          // observation table's own name on a match, as it did
+                          // before; this is the fallback for an id the table
+                          // does not carry.
+                          dataName: fieldName,
+                          id: observation.id,
+                          value: observation.value,
+                          origValue: observation.value,
+                          timestamp: observation.timestamp
                         },
-                        "name"
+                        "id"
                       );
                     });
-                    return node.ok(url, "GET", json);
+                    return node.ok(url, "GET", state);
                   }
                 } catch (error) {
                   return node.fail(url, "GET", error);
                 }
                 break;
+              }
 
               default:
 

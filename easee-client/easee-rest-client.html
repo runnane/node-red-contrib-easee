@@ -88,7 +88,11 @@
   - `refresh_token`
   - `charger`
   - `charger_details`
-  - `charger_state`
+  - `charger_state` (reads the observations endpoint since Easee retired
+    `/api/chargers/{id}/state` on 2026-09-01. Same payload keys as before, but
+    `connectedToCloud`, `fatalErrorCode`, `isOnline`, `voltage`, `latestPulse` and
+    `errors` are no longer available, and the endpoint allows 100 requests per
+    5 minutes — see the README)
   - `charger_site`
   - `charger_session_latest`
   - `charger_session_ongoing`
