@@ -47,7 +47,7 @@ Implemented commands that may be sent as topic, are:
 - `refresh_token`
 - `charger`
 - `charger_details`
-- `charger_state`
+- `charger_state` (see the note below — Easee changed the underlying endpoint)
 - `charger_site`
 - `charger_config`
 - `charger_session_latest`
@@ -68,6 +68,29 @@ node.send({
   charger: "EH000000",
 });
 ```
+
+#### Note on `charger_state`
+
+Easee retired `GET /api/chargers/{id}/state` on **1 September 2026**; it now returns
+404. Since then `charger_state` reads the same values from the replacement
+[observations endpoint](https://developer.easee.com/reference/getobservations) instead.
+
+**Your flows do not need to change.** The payload is still an object keyed by the same
+field names as before (`msg.payload.totalPower.value`, `msg.payload.chargerOpMode.value`
+and so on), and each value is still a parsed observation. Each one now also carries a
+`timestamp`.
+
+Two differences worth knowing about:
+
+- **Six fields are gone.** `connectedToCloud`, `fatalErrorCode`, `isOnline`, `voltage`,
+  `latestPulse` and `errors` were derived cloud-side by the old endpoint rather than
+  being device observations, and the replacement cannot return them. A field the charger
+  has not reported is omitted from the payload rather than sent as `null`, so check with
+  `"fieldName" in msg.payload` if you need to distinguish the two.
+- **The endpoint is rate limited** to 100 requests per 5 minutes. If you drive
+  `charger_state` from an inject node, keep the interval at 3 seconds or slower. For
+  continuous updates prefer the streaming client node, which pushes changes instead of
+  polling.
 
 ### Sending custom commands
 

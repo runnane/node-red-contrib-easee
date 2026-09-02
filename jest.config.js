@@ -42,8 +42,10 @@ module.exports = {
   // under the new number in the same change; never lower it to make a build
   // pass.
   //
-  // Measured 2026-08-30: statements 11.91% (84/705), branches 7.98% (31/388),
-  // functions 8.69% (8/92), lines 12.01% (84/699).
+  // Measured 2026-09-02 (EASEE-13): statements 28.95% (207/715), branches
+  // 29.11% (115/395), functions 22.58% (21/93), lines 29.05% (206/709).
+  // The jump from ~12% is the charger_state migration's tests, which drive the
+  // rest client through a real Node-RED runtime for the first time.
   //
   // Do NOT reintroduce a path-based group such as "./easee-client/" here.
   // Jest removes every file matched by a path group from the global group, and
@@ -53,10 +55,10 @@ module.exports = {
   // passed.
   coverageThreshold: {
     global: {
-      branches: 7.9,
-      functions: 8.6,
-      lines: 11.9,
-      statements: 11.8
+      branches: 29.0,
+      functions: 22.5,
+      lines: 29.0,
+      statements: 28.9
     }
   },
 

@@ -160,6 +160,10 @@ module.exports = function(RED) {
 
       node.signalRpath = "https://streams.easee.com/hubs/chargers";
       node.RestApipath = "https://api.easee.com/api";
+      // The observations endpoint is NOT under /api — it is its own service at
+      // https://api.easee.com/state/{serial}/observations. Callers reach it by
+      // passing an absolute URL, which doAuthRestCall() uses verbatim.
+      node.StateApipath = "https://api.easee.com/state";
 
       node.accessToken = false;
       node.refreshToken = false;
@@ -253,7 +257,11 @@ module.exports = function(RED) {
         };
         const bodyPayload = body ? JSON.stringify(body) : null;
 
-        const response = await fetch(node.RestApipath + url, {
+        // An absolute URL is used verbatim; a path is resolved against the /api
+        // base. Needed because the observations endpoint lives outside /api.
+        const requestUrl = /^https?:\/\//i.test(url) ? url : node.RestApipath + url;
+
+        const response = await fetch(requestUrl, {
           method: method,
           headers: headers,
           body: bodyPayload
