@@ -87,6 +87,14 @@ would be reintroduced into.
 | `Node-RED Compatibility` | `npm pack`, install the tarball elsewhere, load all three nodes from **there** | gate 3, but see below |
 | `Security Audit` | `npm run audit:prod` (blocking) + `npm outdated \|\| true` (informational) | **none — needs the network** |
 
+`.github/workflows/release.yml` (EASEE-16) is **not a gate** — it runs only when a
+maintainer dispatches it, never on push or PR. It reruns gates + audit + the
+packed-tarball load on one Node version and **refuses to release a commit whose
+`ci.yml` push run is not green**, so a red `main` blocks releases as well as merges.
+Its invariants that no workflow run can see before it publishes are pinned by
+`tests/unit/release-workflow.test.js`; the traps are in the Release section of
+[`AGENTS.md`](../AGENTS.md).
+
 Two consequences worth internalising:
 
 - **A locally-green gate can be followed by a red CI tick that is not your change.** The

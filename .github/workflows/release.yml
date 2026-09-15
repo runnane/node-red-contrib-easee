@@ -1,0 +1,239 @@
+# Cut a release: bump the version, tag it, publish to npm, create the GitHub release (EASEE-16).
+#
+# Triggered by hand from the Actions tab ("Release" → "Run workflow"). Nothing
+# here runs on push, so merging to main never releases anything by itself.
+#
+# ⚠️ THE FILENAME IS LOAD-BEARING. npm's trusted publisher for
+# @runnane/node-red-contrib-easee is bound to `release.yml` in this repository.
+# Renaming this file makes every publish fail with an auth error, and nothing in
+# the repo can tell you why. tests/unit/release-workflow.test.js pins it.
+#
+# Three jobs, each doing one thing, so a failure part-way through is recoverable
+# with "Re-run failed jobs" rather than a second version bump:
+#
+#   prepare         gates + audit on the exact commit, `npm version`, check the
+#                   packed tarball loads in Node-RED, push commit + tag to main
+#   publish         check out the TAG, `npm publish` over OIDC — skipped if that
+#                   version is already on npm
+#   github-release  `gh release create` with generated notes — skipped if it exists
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version to bump
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      dry_run:
+        description: Dry run — gate, bump and pack, but do not push, publish or create a release
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# One release at a time, and never cancel one half-way: a cancelled run can
+# leave a pushed tag with nothing published.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Gate, bump and tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
+
+    steps:
+    - name: Refuse a real release from anywhere but main
+      if: ${{ !inputs.dry_run && github.ref != 'refs/heads/main' }}
+      run: |
+        echo "::error::A release can only be cut from main; this run is on ${GITHUB_REF}. Dry runs work from any branch."
+        exit 1
+
+    # The release job gates on one Node version; the 18/20/22/24 matrix, the
+    # packed-tarball compat job and the audit already ran on this commit when it
+    # was pushed to main. Refuse to release a commit where they did not pass.
+    - name: Refuse a commit whose CI is not green
+      if: ${{ !inputs.dry_run }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        read -r status conclusion < <(gh api \
+          "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${GITHUB_SHA}&event=push&per_page=1" \
+          --jq '.workflow_runs[0] | "\(.status // "none") \(.conclusion // "none")"')
+        echo "CI on ${GITHUB_SHA}: status=${status} conclusion=${conclusion}"
+        if [ "$conclusion" != "success" ]; then
+          echo "::error::CI on ${GITHUB_SHA} is not green (status=${status}, conclusion=${conclusion}). Wait for it, or fix main first. A commit made by a previous release has no CI run of its own; merge something first or release from the commit before it."
+          exit 1
+        fi
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        # Full history and every tag, so `npm version` refuses a tag that already exists.
+        fetch-depth: 0
+        # No token left in .git/config while dependency install scripts and tests
+        # run. The push step supplies it for that one command.
+        persist-credentials: false
+
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run the gates
+      run: npm run gates
+
+    - name: Audit production dependencies
+      run: npm run audit:prod
+
+    - name: Bump the version
+      id: bump
+      env:
+        BUMP: ${{ inputs.bump }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        # Same shape as every release before this workflow: a commit titled
+        # "0.7.5" and an annotated tag "v0.7.5".
+        npm version "$BUMP" --message "%s"
+        version=$(node -p "require('./package.json').version")
+        echo "version=${version}" >> "$GITHUB_OUTPUT"
+        echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+        git log --oneline -1
+        git tag --points-at HEAD
+
+    # The same check as the Node-RED Compatibility job in ci.yml, on the tarball
+    # with the bumped version in it: pack, install it somewhere else, load every
+    # node from there.
+    - name: Pack the package
+      run: npm pack --pack-destination "$RUNNER_TEMP"
+
+    - name: Install the packed tarball
+      run: npm install --prefix "$RUNNER_TEMP/compat" --no-package-lock "$RUNNER_TEMP"/runnane-node-red-contrib-easee-*.tgz
+
+    - name: Test Node-RED compatibility of the packed package
+      run: npm run test:compat -- --package-dir "$RUNNER_TEMP/compat/node_modules/@runnane/node-red-contrib-easee"
+
+    # --atomic: the commit and the tag land together or not at all. If main moved
+    # while this ran, the push is rejected as non-fast-forward and nothing is
+    # released — re-run the workflow so the gates see the new main.
+    - name: Push the version commit and tag
+      if: ${{ !inputs.dry_run }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ steps.bump.outputs.tag }}
+      run: |
+        git push --atomic \
+          "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+          "HEAD:refs/heads/main" "refs/tags/${TAG}"
+
+    - name: Summary
+      env:
+        TAG: ${{ steps.bump.outputs.tag }}
+        DRY_RUN: ${{ inputs.dry_run }}
+      run: |
+        if [ "$DRY_RUN" = "true" ]; then
+          echo "### Dry run: would release \`${TAG}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Gates, audit and the packed-tarball load check passed. Nothing was pushed or published." >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "### Tagged \`${TAG}\` on main" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+  publish:
+    name: Publish to npm
+    needs: prepare
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    # Optional protection point: add required reviewers to this environment in
+    # Settings → Environments to make every publish wait for an approval.
+    environment: npm
+    permissions:
+      contents: read
+      # Trusted publishing: npm exchanges this job's OIDC token for a short-lived
+      # publish credential. There is deliberately no NPM_TOKEN secret, and
+      # provenance is attached to the published version automatically.
+      id-token: write
+
+    steps:
+    - name: Checkout the tag
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.prepare.outputs.tag }}
+        persist-credentials: false
+
+    # Trusted publishing needs npm 11.5.1 or newer; Node 24 bundles npm 11.
+    - name: Use Node.js 24.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24.x
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Check the tag and the npm version
+      env:
+        VERSION: ${{ needs.prepare.outputs.version }}
+      run: |
+        actual=$(node -p "require('./package.json').version")
+        if [ "$actual" != "$VERSION" ]; then
+          echo "::error::The tag holds version ${actual}, but prepare bumped to ${VERSION}."
+          exit 1
+        fi
+        npm_version=$(npm --version)
+        echo "npm ${npm_version}"
+        # sort -C succeeds only if the lines are already in order, i.e. 11.5.1 <= npm_version.
+        if ! printf '%s\n' 11.5.1 "$npm_version" | sort -V -C; then
+          echo "::error::npm ${npm_version} cannot publish with OIDC; 11.5.1 or newer is required."
+          exit 1
+        fi
+
+    # No `npm ci`: the package has no build step and no prepublish script, so
+    # publishing needs only the checked-out tree — and nothing third-party runs
+    # in the one job that holds a publish credential.
+    - name: Publish
+      env:
+        VERSION: ${{ needs.prepare.outputs.version }}
+      run: |
+        name=$(node -p "require('./package.json').name")
+        if npm view "${name}@${VERSION}" version > /dev/null 2>&1; then
+          echo "::notice::${name}@${VERSION} is already on npm; nothing to publish."
+          exit 0
+        fi
+        npm publish --access public
+        echo "### Published \`${name}@${VERSION}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  github-release:
+    name: GitHub release
+    needs: [prepare, publish]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Create the release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ needs.prepare.outputs.tag }}
+      run: |
+        if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+          echo "::notice::Release ${TAG} already exists; nothing to create."
+          exit 0
+        fi
+        gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "$TAG"
+        echo "### Created GitHub release \`${TAG}\`" >> "$GITHUB_STEP_SUMMARY"

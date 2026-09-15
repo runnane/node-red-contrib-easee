@@ -166,6 +166,14 @@ The project uses GitHub Actions for CI/CD:
 
 All checks must pass before code can be merged to main branch.
 
+### Releasing
+
+Releases are cut from GitHub Actions: **Actions → Release → Run workflow**, choose
+`patch`, `minor` or `major`, and untick *Dry run*. The workflow runs the checks, bumps
+the version, pushes the `vX.Y.Z` tag, publishes to npm with
+[trusted publishing](https://docs.npmjs.com/trusted-publishers) (so every version
+carries provenance), and creates the GitHub release.
+
 ## Example
 
 See [example flows](https://github.com/runnane/node-red-contrib-easee/blob/main/example.json)
