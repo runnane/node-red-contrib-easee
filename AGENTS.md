@@ -148,9 +148,36 @@ drops is caught as a load failure rather than as a bug report.
 
 ## Release
 
-`npm run release` shells out to `npx np`. There are **no changesets** here and no
-conventional-commit automation, so **no changeset is owed** for a user-visible change —
-update `README.md` instead where the change is one a user would notice.
+Releases are cut **from CI, by hand**: Actions → **Release** → *Run workflow*, pick
+`patch` / `minor` / `major`, and untick *Dry run* (it defaults to on).
+[`.github/workflows/release.yml`](.github/workflows/release.yml) (EASEE-16) then:
+
+1. refuses anything but `main`, and refuses a commit whose `ci.yml` push run is not green;
+2. runs `npm run gates` + `npm run audit:prod`, then `npm version <bump>` — a commit
+   titled `0.7.6` and an annotated tag `v0.7.6`, the same shape as every earlier release;
+3. loads the packed tarball in Node-RED, then pushes the commit and tag to `main` atomically;
+4. publishes from the **tag** with npm **trusted publishing** (OIDC — no `NPM_TOKEN`
+   secret exists, and provenance is attached);
+5. creates the GitHub release with generated notes.
+
+There is no local release path: `npm run release` (`npx np`) was removed with EASEE-16.
+There are **no changesets** here and no conventional-commit automation, so **no
+changeset is owed** for a user-visible change — update `README.md` instead where the
+change is one a user would notice.
+
+Traps, each of which fails only on the run that publishes:
+
+- **The workflow filename is bound to npm's trusted publisher.** Renaming `release.yml`
+  makes publishing fail with an auth error. `tests/unit/release-workflow.test.js` pins it.
+- **`repository.url` in `package.json` must stay this GitHub repo** — npm checks it
+  against the provenance statement.
+- **The version commit is pushed with `GITHUB_TOKEN`, so it gets no CI run.** Releasing
+  again straight away is refused by the CI-green check; merge something first.
+- **If `main` protection ever requires PRs or status checks,** the bot's push is rejected
+  and the workflow needs a bypass or a different design.
+- **Recovery after a partial run:** if `publish` or `github-release` fails after the tag
+  was pushed, use *Re-run failed jobs* — both skip work already done. **Do not dispatch
+  a new run**; that bumps the version a second time.
 
 The manifest records `release: "release-it"`, which is the closest of the three values
 the shared schema allows (`changesets` / `release-it` / `none`) — there is no `np`
