@@ -1,0 +1,18 @@
+{
+  // The emit config. dist/easee-client/ is what ships (package.json "files" and
+  // the "node-red" block both point there); dist/scripts/ does not ship, it is
+  // compiled so the Node-RED load check runs as plain JavaScript on every Node
+  // version CI checks, including the ones Vitest and type stripping do not support.
+  //
+  // The .html editor halves and locales/ are not TypeScript and are copied next to
+  // the emitted .js by `pnpm build` — Node-RED resolves both relative to the .js.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "removeComments": false
+  },
+  "include": ["easee-client/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["node_modules", "dist", "coverage", "tests"]
+}

@@ -122,49 +122,43 @@ node.send({
 
 ## Development
 
-### Code Quality
-
-This project uses ESLint for comprehensive code quality and formatting:
+The nodes are written in TypeScript and compiled to `dist/`, which is what the npm
+package ships. Development uses [pnpm](https://pnpm.io), [Biome](https://biomejs.dev),
+[Vitest](https://vitest.dev) and TypeScript 7, and needs Node.js 22.12 or newer; the
+published package itself still runs on Node.js 18 and later.
 
 ```bash
-# Check for linting issues
-npm run lint
-
-# Auto-fix formatting issues  
-npm run lint:fix
+pnpm install
+pnpm gates        # lint + format, typecheck, build, tests with coverage, Node-RED load check
 ```
 
-**CI Integration**: ESLint runs automatically on all pull requests and blocks merging if issues are found.
+### Code Quality
 
-See [ESLINT.md](ESLINT.md) for detailed ESLint configuration and [MIGRATION.md](MIGRATION.md) for completed JSHint migration details.
+```bash
+pnpm check        # Biome lint + format check
+pnpm check:fix    # apply Biome's fixes
+pnpm typecheck    # TypeScript
+```
 
 ### Testing
 
 ```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run with coverage
-npm run test:coverage
-
-# Run specific test types
-npm run test:unit
-npm run test:integration
+pnpm build              # the package tests inspect the built dist/
+pnpm test               # all tests
+pnpm test:watch         # watch mode
+pnpm test:coverage      # with the coverage floor enforced
+pnpm test:unit
+pnpm test:integration
+pnpm test:compat        # load every node from dist/ into a real Node-RED runtime
 ```
 
 ### Continuous Integration
 
-The project uses GitHub Actions for CI/CD:
+GitHub Actions runs on every pull request:
 
-- **Code Quality**: ESLint checks (blocking)
-- **Testing**: Jest test suite across Node.js 18, 20, 22, 24
-- **Compatibility**: Node-RED compatibility verification
-- **Security**: npm audit for vulnerabilities
-
-All checks must pass before code can be merged to main branch.
+- **Gates**: `pnpm gates` on Node.js 22, 24 and 26
+- **Compatibility**: the packed package is installed with npm and every node is loaded into Node-RED on Node.js 18, 20, 22 and 24
+- **Security**: `pnpm audit` of the dependencies that ship, with known advisories accepted explicitly
 
 ### Releasing
 

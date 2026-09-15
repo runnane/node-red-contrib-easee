@@ -19,9 +19,9 @@ updates:
         dependency-type: "development"
         patterns:
           - "@types/*"
-          - "jest*"
-          - "eslint*"
-          - "prettier*"
+          - "vitest"
+          - "@vitest/*"
+          - "@biomejs/*"
           - "typescript*"
       production-dependencies:
         dependency-type: "production"
@@ -29,9 +29,9 @@ updates:
           - "*"
         exclude-patterns:
           - "@types/*"
-          - "jest*"
-          - "eslint*"
-          - "prettier*"
+          - "vitest"
+          - "@vitest/*"
+          - "@biomejs/*"
           - "typescript*"
     # Commit message configuration
     commit-message:

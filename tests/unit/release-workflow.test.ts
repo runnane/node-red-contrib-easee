@@ -13,19 +13,22 @@
  * 3. `repository.url` in package.json, which npm checks against the repository
  *    the provenance statement says the package was built from.
  *
- * And one thing the design depends on: no token secret. A workflow that grows
- * an NPM_TOKEN "to make it work" has quietly replaced trusted publishing with
- * a long-lived credential.
+ * And two things the design depends on: no token secret — a workflow that grows
+ * an NPM_TOKEN "to make it work" has quietly replaced trusted publishing with a
+ * long-lived credential — and, since EASEE-19 made the package its build, that
+ * the publish job ships the dist/ prepare gated rather than building its own.
  */
 
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, test } from "vitest";
 
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const WORKFLOW_PATH = path.join(REPO_ROOT, ".github", "workflows", "release.yml");
 
 /** The workflow with comment lines removed, so prose about tokens cannot match. */
-function workflowCode() {
+function workflowCode(): string {
   return fs
     .readFileSync(WORKFLOW_PATH, "utf8")
     .split("\n")
@@ -38,7 +41,7 @@ function workflowCode() {
  * exactly two spaces. Textual on purpose — the repo has no YAML parser as a
  * direct dependency, and the jobs block is flat.
  */
-function jobBlock(code, name) {
+function jobBlock(code: string, name: string): string {
   const lines = code.split("\n");
   const start = lines.indexOf(`  ${name}:`);
   if (start === -1) {
@@ -72,7 +75,7 @@ describe("release workflow", () => {
 
   test("the gates run before anything is pushed", () => {
     const prepare = jobBlock(workflowCode(), "prepare");
-    const gates = prepare.indexOf("npm run gates");
+    const gates = prepare.indexOf("pnpm gates");
     const push = prepare.indexOf("git push");
 
     expect(gates).toBeGreaterThan(-1);
@@ -82,11 +85,31 @@ describe("release workflow", () => {
   test("reads no secrets — publishing is OIDC, not a token", () => {
     expect(workflowCode()).not.toMatch(/\bsecrets\./);
   });
+
+  test("publishes the dist/ prepare gated, without installing, building or running package scripts", () => {
+    const code = workflowCode();
+    const prepare = jobBlock(code, "prepare");
+    const publish = jobBlock(code, "publish");
+
+    // prepare hands over its build only after the load check has passed on it.
+    const loadCheck = prepare.indexOf("check-node-loads.js");
+    const upload = prepare.indexOf("actions/upload-artifact");
+    expect(loadCheck).toBeGreaterThan(-1);
+    expect(upload).toBeGreaterThan(loadCheck);
+
+    // publish takes that build, checks it is complete, and publishes it as-is.
+    expect(publish).toMatch(/actions\/download-artifact/);
+    expect(publish).toMatch(/Check the built package is complete/);
+    expect(publish).toMatch(/\bnpm publish\b[^\n]*--ignore-scripts/);
+    expect(publish).not.toMatch(/\bpnpm install\b|\bnpm ci\b|\bnpm install\b|\bpnpm build\b/);
+  });
 });
 
 describe("package.json for provenance", () => {
   test("repository.url is this GitHub repository", () => {
-    const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "package.json"), "utf8"));
+    const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")) as {
+      repository: { url: string };
+    };
     const url = pkg.repository.url.replace(/^git\+/, "").replace(/\.git$/, "");
 
     // Pinned rather than derived: npm compares it with the repository the

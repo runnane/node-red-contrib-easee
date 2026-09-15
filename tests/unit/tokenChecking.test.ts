@@ -3,26 +3,23 @@
  * Tests the automatic token checking and renewal logic
  */
 
-const {
-  createMockEaseeNode,
-  _simulateTimePassage,
-  mockData
-} = require("../mocks/nodeRedMocks");
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { createMockEaseeNode, mockData } from "../mocks/nodeRedMocks.js";
 
 describe("Easee Configuration - Token Checking", () => {
-  let node;
+  let node: any;
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     node = createMockEaseeNode({
       accessToken: "valid-access-token",
       refreshToken: "valid-refresh-token",
-      tokenExpires: new Date(Date.now() + 3600000) // 1 hour from now
+      tokenExpires: new Date(Date.now() + 3600000), // 1 hour from now
     });
 
     // Add the checkToken implementation
-    node.checkToken = async function() {
+    node.checkToken = async function (this: any) {
       // Clear any existing timeout first
       if (this.checkTokenHandler) {
         clearTimeout(this.checkTokenHandler);
@@ -30,18 +27,18 @@ describe("Easee Configuration - Token Checking", () => {
       }
 
       // Check if credentials are configured before attempting any authentication
-      if (!this.username || !this.credentials || !this.credentials.password) {
+      if (!this.username || !this.credentials?.password) {
         console.log("No credentials configured, skipping token check");
         this.status({
           fill: "yellow",
           shape: "ring",
-          text: "No credentials configured"
+          text: "No credentials configured",
         });
 
         // Schedule next check with longer interval
         const checkInterval = 300 * 1000; // 5 minutes
         this.checkTokenHandler = setTimeout(() => {
-          this.checkToken().catch((error) => {
+          this.checkToken().catch((error: unknown) => {
             console.error("Token check failed:", error);
           });
         }, checkInterval);
@@ -49,35 +46,33 @@ describe("Easee Configuration - Token Checking", () => {
         return;
       }
 
-      const expiresIn = Math.floor(((this?.tokenExpires ?? 0) - new Date()) / 1000);
-      if (expiresIn < 43200) { // Less than 12 hours
-        let _refreshResult = null;
-
+      const expiresIn = Math.floor(((this?.tokenExpires ?? 0) - Date.now()) / 1000);
+      if (expiresIn < 43200) {
+        // Less than 12 hours
         try {
-          _refreshResult = await this.doRefreshToken();
+          await this.doRefreshToken();
         } catch (error) {
           console.error("Token refresh failed during check:", error);
-          _refreshResult = null;
         }
       }
 
       // Schedule next token check
-      const hasCredentials = this.username && this.credentials && this.credentials.password;
+      const hasCredentials = this.username && this.credentials?.password;
       const checkInterval = hasCredentials ? 60 * 1000 : 300 * 1000; // 1 min vs 5 min
 
       this.checkTokenHandler = setTimeout(() => {
-        this.checkToken().catch((error) => {
+        this.checkToken().catch((error: unknown) => {
           console.error("Scheduled token check failed:", error);
         });
       }, checkInterval);
     };
 
     // Mock doRefreshToken
-    node.doRefreshToken = jest.fn().mockResolvedValue(mockData.refreshSuccess);
+    node.doRefreshToken = vi.fn().mockResolvedValue(mockData.refreshSuccess);
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
     // Clean up any timeouts without using clearTimeout since it might not be mocked consistently
     if (node.checkTokenHandler) {
       node.checkTokenHandler = null;
@@ -85,9 +80,9 @@ describe("Easee Configuration - Token Checking", () => {
   });
 
   describe("checkToken method", () => {
-    test("should not refresh token when it has more than 12 hours left", async() => {
+    test("should not refresh token when it has more than 12 hours left", async () => {
       // Arrange - token expires in 24 hours
-      node.tokenExpires = new Date(Date.now() + (24 * 60 * 60 * 1000));
+      node.tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
       // Act
       await node.checkToken();
@@ -96,9 +91,9 @@ describe("Easee Configuration - Token Checking", () => {
       expect(node.doRefreshToken).not.toHaveBeenCalled();
     });
 
-    test("should refresh token when it has less than 12 hours left", async() => {
+    test("should refresh token when it has less than 12 hours left", async () => {
       // Arrange - token expires in 6 hours
-      node.tokenExpires = new Date(Date.now() + (6 * 60 * 60 * 1000));
+      node.tokenExpires = new Date(Date.now() + 6 * 60 * 60 * 1000);
 
       // Act
       await node.checkToken();
@@ -107,9 +102,9 @@ describe("Easee Configuration - Token Checking", () => {
       expect(node.doRefreshToken).toHaveBeenCalled();
     });
 
-    test("should refresh token when it has already expired", async() => {
+    test("should refresh token when it has already expired", async () => {
       // Arrange - token expired 1 hour ago
-      node.tokenExpires = new Date(Date.now() - (60 * 60 * 1000));
+      node.tokenExpires = new Date(Date.now() - 60 * 60 * 1000);
 
       // Act
       await node.checkToken();
@@ -118,10 +113,10 @@ describe("Easee Configuration - Token Checking", () => {
       expect(node.doRefreshToken).toHaveBeenCalled();
     });
 
-    test("should handle refresh failure gracefully", async() => {
+    test("should handle refresh failure gracefully", async () => {
       // Arrange
-      node.tokenExpires = new Date(Date.now() + (6 * 60 * 60 * 1000));
-      node.doRefreshToken = jest.fn().mockRejectedValue(new Error("Refresh failed"));
+      node.tokenExpires = new Date(Date.now() + 6 * 60 * 60 * 1000);
+      node.doRefreshToken = vi.fn().mockRejectedValue(new Error("Refresh failed"));
 
       // Act
       await node.checkToken();
@@ -131,12 +126,12 @@ describe("Easee Configuration - Token Checking", () => {
       // Should not throw error, just log it
     });
 
-    test("should schedule next check with 1 minute interval when credentials available", async() => {
+    test("should schedule next check with 1 minute interval when credentials available", async () => {
       // Arrange
       node.credentials = { username: "test@example.com", password: "password" };
 
       // Spy on setTimeout to verify it's called
-      const setTimeoutSpy = jest.spyOn(global, "setTimeout").mockImplementation(() => "mock-timeout-id");
+      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout").mockImplementation((() => "mock-timeout-id") as any);
 
       // Act
       await node.checkToken();
@@ -144,19 +139,19 @@ describe("Easee Configuration - Token Checking", () => {
       // Assert
       expect(setTimeoutSpy).toHaveBeenCalledWith(
         expect.any(Function),
-        60 * 1000 // 1 minute
+        60 * 1000, // 1 minute
       );
 
       // Cleanup
       setTimeoutSpy.mockRestore();
     });
 
-    test("should schedule next check with 5 minute interval when no credentials", async() => {
+    test("should schedule next check with 5 minute interval when no credentials", async () => {
       // Arrange
       node.credentials = { username: "", password: "" };
 
       // Spy on setTimeout to verify it's called
-      const setTimeoutSpy = jest.spyOn(global, "setTimeout").mockImplementation(() => "mock-timeout-id");
+      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout").mockImplementation((() => "mock-timeout-id") as any);
 
       // Act
       await node.checkToken();
@@ -164,14 +159,14 @@ describe("Easee Configuration - Token Checking", () => {
       // Assert
       expect(setTimeoutSpy).toHaveBeenCalledWith(
         expect.any(Function),
-        300 * 1000 // 5 minutes
+        300 * 1000, // 5 minutes
       );
 
       // Cleanup
       setTimeoutSpy.mockRestore();
     });
 
-    test("should skip token check when no credentials configured", async() => {
+    test("should skip token check when no credentials configured", async () => {
       // Arrange
       node.credentials = null;
 
@@ -183,11 +178,11 @@ describe("Easee Configuration - Token Checking", () => {
       expect(node.status).toHaveBeenCalledWith({
         fill: "yellow",
         shape: "ring",
-        text: "No credentials configured"
+        text: "No credentials configured",
       });
     });
 
-    test("should handle missing tokenExpires gracefully", async() => {
+    test("should handle missing tokenExpires gracefully", async () => {
       // Arrange
       node.tokenExpires = null;
 
@@ -198,7 +193,7 @@ describe("Easee Configuration - Token Checking", () => {
       expect(node.doRefreshToken).toHaveBeenCalled(); // Should try to refresh immediately
     });
 
-    test("should handle undefined tokenExpires gracefully", async() => {
+    test("should handle undefined tokenExpires gracefully", async () => {
       // Arrange
       delete node.tokenExpires;
 
@@ -211,23 +206,22 @@ describe("Easee Configuration - Token Checking", () => {
   });
 
   describe("Token checking timing", () => {
-    test("should calculate correct time until expiration", async() => {
+    test("should calculate correct time until expiration", async () => {
       // Arrange - token expires in exactly 10 hours
       const hoursFromNow = 10;
-      node.tokenExpires = new Date(Date.now() + (hoursFromNow * 60 * 60 * 1000));
+      node.tokenExpires = new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
 
       // Act
       await node.checkToken();
 
       // Assert
-      const _expectedExpiresIn = hoursFromNow * 60 * 60; // 10 hours in seconds
       // Should not refresh because 10 hours > 12 hours threshold is false, so it should refresh
       expect(node.doRefreshToken).toHaveBeenCalled();
     });
 
-    test("should handle token that expires exactly at threshold", async() => {
+    test("should handle token that expires exactly at threshold", async () => {
       // Arrange - token expires in exactly 12 hours minus 1 second (to trigger refresh)
-      node.tokenExpires = new Date(Date.now() + (12 * 60 * 60 * 1000) - 1000);
+      node.tokenExpires = new Date(Date.now() + 12 * 60 * 60 * 1000 - 1000);
 
       // Act
       await node.checkToken();
@@ -237,9 +231,9 @@ describe("Easee Configuration - Token Checking", () => {
       expect(node.doRefreshToken).toHaveBeenCalled();
     });
 
-    test("should handle token that expires just over threshold", async() => {
+    test("should handle token that expires just over threshold", async () => {
       // Arrange - token expires in 12 hours and 1 second
-      node.tokenExpires = new Date(Date.now() + (12 * 60 * 60 * 1000) + 1000);
+      node.tokenExpires = new Date(Date.now() + 12 * 60 * 60 * 1000 + 1000);
 
       // Act
       await node.checkToken();
@@ -251,12 +245,12 @@ describe("Easee Configuration - Token Checking", () => {
   });
 
   describe("Scheduled token checking", () => {
-    test("should schedule recurring token checks", async() => {
+    test("should schedule recurring token checks", async () => {
       // Arrange
       node.credentials = { username: "test@example.com", password: "password" };
 
       // Spy on setTimeout
-      const setTimeoutSpy = jest.spyOn(global, "setTimeout").mockImplementation(() => "mock-timeout-id");
+      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout").mockImplementation((() => "mock-timeout-id") as any);
 
       // Act
       await node.checkToken();
@@ -269,24 +263,24 @@ describe("Easee Configuration - Token Checking", () => {
       setTimeoutSpy.mockRestore();
     });
 
-    test("should handle errors in scheduled token checks", async() => {
+    test("should handle errors in scheduled token checks", async () => {
       // Arrange
       node.credentials = { username: "test@example.com", password: "password" };
 
       // Make doRefreshToken fail
-      node.doRefreshToken = jest.fn().mockRejectedValue(new Error("Scheduled refresh failed"));
+      node.doRefreshToken = vi.fn().mockRejectedValue(new Error("Scheduled refresh failed"));
 
       // Act & Assert - should not throw when checkToken executes
       await expect(node.checkToken()).resolves.not.toThrow();
     });
 
-    test("should clear existing timeout before setting new one", async() => {
+    test("should clear existing timeout before setting new one", async () => {
       // Arrange
       const mockTimeoutId = "existing-timeout";
       node.checkTokenHandler = mockTimeoutId;
 
-      const clearTimeoutSpy = jest.spyOn(global, "clearTimeout").mockImplementation(() => {});
-      const setTimeoutSpy = jest.spyOn(global, "setTimeout").mockImplementation(() => "new-timeout-id");
+      const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout").mockImplementation(() => {});
+      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout").mockImplementation((() => "new-timeout-id") as any);
 
       // Act
       await node.checkToken();
@@ -301,9 +295,9 @@ describe("Easee Configuration - Token Checking", () => {
   });
 
   describe("Edge cases", () => {
-    test("should handle negative expiration time", async() => {
+    test("should handle negative expiration time", async () => {
       // Arrange - token expired long ago
-      node.tokenExpires = new Date(Date.now() - (24 * 60 * 60 * 1000));
+      node.tokenExpires = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
       // Act
       await node.checkToken();
@@ -312,9 +306,9 @@ describe("Easee Configuration - Token Checking", () => {
       expect(node.doRefreshToken).toHaveBeenCalled();
     });
 
-    test("should handle very large expiration time", async() => {
+    test("should handle very large expiration time", async () => {
       // Arrange - token expires far in the future
-      node.tokenExpires = new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+      node.tokenExpires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
 
       // Act
       await node.checkToken();
@@ -323,7 +317,7 @@ describe("Easee Configuration - Token Checking", () => {
       expect(node.doRefreshToken).not.toHaveBeenCalled();
     });
 
-    test("should handle malformed credentials object", async() => {
+    test("should handle malformed credentials object", async () => {
       // Arrange
       node.credentials = "not an object";
 
@@ -335,7 +329,7 @@ describe("Easee Configuration - Token Checking", () => {
       expect(node.status).toHaveBeenCalledWith({
         fill: "yellow",
         shape: "ring",
-        text: "No credentials configured"
+        text: "No credentials configured",
       });
     });
   });

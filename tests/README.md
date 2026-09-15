@@ -1,188 +1,75 @@
-# Testing Documentation
+# Tests
 
-This directory contains comprehensive unit and integration tests for the Easee Node-RED contribution project.
+Vitest 5, TypeScript, ESM. The maintained description of what this suite covers — and,
+more usefully, what it does not — is [`.agents/testing.md`](../.agents/testing.md); this
+file is the short version for someone who just opened the directory.
 
-## Test Structure
+## Layout
 
 ```
 tests/
-├── setup.js                    # Jest setup and global test utilities
+├── package.json                  # {"type": "module"}: tests are ESM, the node sources are CommonJS
+├── setup.ts                      # global fetch mock + testHelpers; leaves fake timers on between tests
 ├── fixtures/
-│   └── mockData.js             # Mock data for API responses
+│   └── mockData.ts               # synthetic API payloads — keep them synthetic, this repo is public
 ├── mocks/
-│   └── nodeRedMocks.js         # Mock utilities for Node-RED environment
+│   └── nodeRedMocks.ts           # mock RED runtime, mock config node, fetchMock(), verify helpers
 ├── unit/
-│   ├── authentication.test.js  # Unit tests for login functionality
-│   ├── tokenRefresh.test.js    # Unit tests for token refresh logic
-│   └── tokenChecking.test.js   # Unit tests for automatic token checking
+│   ├── authentication.test.ts
+│   ├── charger-state-observations.test.ts
+│   ├── configValidation.test.ts
+│   ├── published-package.test.ts # what `pnpm pack` would publish — needs a built dist/
+│   ├── release-workflow.test.ts  # what release.yml must keep that no workflow run can check first
+│   ├── rest-call-errors.test.ts
+│   ├── streaming-client-lifecycle.test.ts
+│   ├── streaming-client-options.test.ts
+│   ├── tokenChecking.test.ts
+│   └── tokenRefresh.test.ts
 └── integration/
-    └── authFlow.test.js        # Integration tests for complete auth flow
+    ├── authFlow.test.ts
+    └── nodeRedTestHelper.test.ts # a real Node-RED runtime via node-red-node-test-helper
 ```
 
-## Test Categories
+Only `tests/unit/*.test.ts` and `tests/integration/*.test.ts` are run
+(`vitest.config.mts`). A test anywhere else is silently skipped.
 
-### Unit Tests (`tests/unit/`)
+## Running
 
-- **Authentication Tests** (`authentication.test.js`)
-  - Login with valid/invalid credentials
-  - Error handling for network issues
-  - Response parsing and validation
-  - Username/password validation
-
-- **Token Refresh Tests** (`tokenRefresh.test.js`)
-  - Successful token refresh scenarios
-  - Invalid/expired refresh token handling
-  - Network error retry logic
-  - Authentication state reset
-
-- **Token Checking Tests** (`tokenChecking.test.js`)
-  - Automatic token expiration checking
-  - Scheduled token renewal
-  - Credential validation
-  - Timer management
-
-### Integration Tests (`tests/integration/`)
-
-- **Authentication Flow Tests** (`authFlow.test.js`)
-  - Complete login-to-refresh workflow
-  - Error recovery scenarios
-  - Configuration edge cases
-  - Token lifecycle management
-
-## Mock System
-
-### Global Test Helpers (`setup.js`)
-
-The setup file provides global utilities available in all tests:
-
-- `testHelpers.createMockNode()` - Create mock Easee configuration nodes
-- `testHelpers.createAuthResponse()` - Generate mock authentication responses
-- `testHelpers.createFetchResponse()` - Create mock fetch responses
-- `testHelpers.resetMocks()` - Reset all mocks between tests
-
-### Mock Data (`fixtures/mockData.js`)
-
-Centralized mock data for consistent testing:
-
-- Login success/failure responses
-- Token refresh responses
-- Error scenarios
-- Network error simulations
-- Observation data
-
-### Node-RED Mocks (`mocks/nodeRedMocks.js`)
-
-Mock utilities specific to Node-RED environment:
-
-- `createMockRED()` - Mock Node-RED runtime
-- `createMockEaseeNode()` - Mock Easee configuration node
-- `mockFetchResponses` - Predefined fetch response mocks
-- Verification helpers for status, events, and API calls
-
-## Running Tests
-
-⚠️ **Important Note**: This project is located inside a `node_modules` directory, which causes Jest to ignore it by default. We've provided multiple solutions:
-
-### Option 1: Custom Test Runner (Recommended)
 ```bash
-node run-tests.js
+pnpm gates                  # what must be green before a PR (includes build + coverage floor)
+pnpm build                  # needed once before `pnpm test`: published-package.test reads dist/
+pnpm test                   # all tests, no coverage thresholds
+pnpm test:coverage          # with the coverage floor from vitest.config.mts
+pnpm test:unit
+pnpm test:integration
+pnpm test:watch
+pnpm exec vitest run tests/unit/configValidation.test.ts   # one file
 ```
 
-This custom runner works around Jest's `node_modules` exclusion and provides basic testing functionality.
+## Writing one
 
-### Option 2: Move Project Outside node_modules
-For full Jest functionality, move the project to a different location:
-```bash
-# Copy project to a different location
-cp -r /path/to/node_modules/node-red-contrib-easee ~/easee-development
-cd ~/easee-development
-npm test
-```
+```ts
+import { beforeEach, describe, expect, it } from "vitest";
+import easeeConfiguration from "../../easee-client/easee-configuration.js";
+import { createMockRED, mockFetchResponses } from "../mocks/nodeRedMocks.js";
 
-### Option 3: Standard Jest Commands (if moved outside node_modules)
-```bash
-npm test              # All tests
-npm run test:unit     # Unit tests only
-npm run test:integration  # Integration tests only
-npm run test:coverage # With coverage report
-npm run test:watch    # Watch mode
-npm run test:verbose  # Verbose output
-```
-
-## Test Features
-
-### Mocked APIs
-- All HTTP requests are mocked using Jest's `fetch` mock
-- No real network calls are made during testing
-- Predictable responses for different scenarios
-
-### Timer Testing
-- Uses Jest's fake timers for testing scheduled operations
-- Token expiration checking
-- Automatic retry mechanisms
-
-### Error Simulation
-- Network timeouts and connection errors
-- Invalid credentials and server errors
-- Malformed API responses
-
-### State Verification
-- Node status updates
-- Event emissions
-- Authentication state changes
-- Token lifecycle management
-
-## Test Coverage
-
-The test suite aims for comprehensive coverage of:
-
-- ✅ Authentication methods (`doLogin`, `doRefreshToken`)
-- ✅ Token management (`checkToken`, expiration handling)
-- ✅ Error handling and recovery
-- ✅ Network failure scenarios
-- ✅ Configuration validation
-- ✅ Timer and scheduling logic
-- ✅ Node-RED integration points
-
-## Writing New Tests
-
-When adding new tests:
-
-1. **Use the existing mock utilities** to maintain consistency
-2. **Follow the AAA pattern** (Arrange, Act, Assert)
-3. **Mock external dependencies** (fetch, timers, etc.)
-4. **Test both success and failure scenarios**
-5. **Verify side effects** (status updates, events, state changes)
-6. **Use descriptive test names** that explain the scenario
-
-### Example Test Structure
-
-```javascript
-describe('Feature Name', () => {
-  let node;
-
+describe("feature", () => {
   beforeEach(() => {
-    node = createMockEaseeNode();
-    // Setup test-specific mocks
+    // arrange
   });
 
-  test('should handle success scenario', async () => {
-    // Arrange
+  it("does the thing", async () => {
     mockFetchResponses.loginSuccess();
-
-    // Act
-    const result = await node.doLogin();
-
-    // Assert
-    expect(result).toEqual(expectedData);
-    verifyNodeStatus(node, expectedStatus);
+    // act on the REAL node, not a copy of its logic — then assert
+    expect(/* … */).toBe(/* … */);
   });
 });
 ```
 
-## Debugging Tests
-
-- Use `npm run test:verbose` for detailed output
-- Add `console.log` statements in test setup
-- Use Jest's `--detectOpenHandles` flag to find async issues
-- Run single test files: `jest tests/unit/authentication.test.js`
+- Import from `"vitest"` explicitly; there are no globals.
+- Import sources with the `.js` extension (`nodenext` requires it; Vite resolves the `.ts`).
+- No `done` callbacks — return a Promise.
+- Drive the real node. Several older tests copy the node's logic onto a mock and test the
+  copy, which passes whatever `easee-client/` does; do not add more of those.
+- Before claiming a test protects something, break the implementation and watch that test
+  go red (see `.agents/testing.md`).
