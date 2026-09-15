@@ -5,8 +5,9 @@ cannot fail.
 
 ## The shape of it
 
-12 files, 105 tests, ~2 seconds, no network, no ports, no database. Vitest 5, TypeScript,
-ESM.
+13 files, 125 tests, ~2 seconds, no network, no fixed ports, no database. Vitest 5,
+TypeScript, ESM. (`signalr-http-client.test.ts` binds an ephemeral port on 127.0.0.1, so
+concurrent runs cannot collide.)
 
 ```
 tests/
@@ -23,7 +24,8 @@ tests/
   unit/published-package.test.ts        what `pnpm pack` would publish (EASEE-3, EASEE-19)
   unit/release-workflow.test.ts         what release.yml must keep that no run can check first (EASEE-16)
   unit/rest-call-errors.test.ts         doAuthRestCall when fetch rejects (EASEE-19)
-  unit/streaming-client-lifecycle.test.ts   close + "opened" handlers through a real runtime (EASEE-19)
+  unit/streaming-client-lifecycle.test.ts   close + "opened" handlers, subscription, httpClient wiring (EASEE-19, EASEE-35)
+  unit/signalr-http-client.test.ts      the HTTP client handed to SignalR, against a real local server (EASEE-35)
   integration/authFlow.test.ts          the whole auth flow, still fully mocked
   integration/nodeRedTestHelper.test.ts node-red-node-test-helper — a real runtime
 ```
@@ -41,13 +43,19 @@ of those two directories.
   requires (Vite maps it to the `.ts`). For `require.resolve`, use
   `createRequire(import.meta.url)`.
 - `fetch` is a `vi.fn()` installed by `setup.ts`; reach it through `fetchMock()` from
-  `mocks/nodeRedMocks.ts`, which is typed.
+  `mocks/nodeRedMocks.ts`, which is typed. **That mock is global, so anything that calls
+  the real `fetch` gets `undefined` back** — a test of code that talks to a real server
+  fails with `Cannot read properties of undefined (reading 'url')` or similar, far from
+  the cause. Such a test swaps in `testHelpers.realFetch` in its `beforeEach` and puts
+  the mock back in `afterEach`, as `signalr-http-client.test.ts` does (EASEE-35).
 - Vitest has no `done` callback. Return a Promise and `reject(err)` where Jest code called
   `done(err)`.
 - `setup.ts` leaves **fake timers on** after every test, as the Jest setup did. Vitest
   throws where Jest only warned when a timer helper runs with fake timers off, so the
   setup guards `clearAllTimers` / `runOnlyPendingTimers` with `vi.isFakeTimers()`. Do the
-  same in a test that calls them.
+  same in a test that calls them. A test whose code under test needs a real timer — an
+  HTTP timeout, say — calls `vi.useRealTimers()` in its own `beforeEach`, or the timer
+  never fires and the test times out instead of failing.
 
 ## `published-package.test.ts` tests the artefact, not the code
 
@@ -68,20 +76,21 @@ Three things to know if you touch it:
   be an assertion that cannot fail. The JSON shape also differs by tool (pnpm prints one
   object; npm prints an array, or an object keyed by name on npm 12), so it normalises.
 
-## Coverage: ~47%, and the floor only goes up
+## Coverage: ~57%, and the floor only goes up
 
 ```
-statements 47.33% (337/712)   branches 39.23% (144/367)
-functions  41.93% (39/93)     lines    47.08% (331/703)     — v8, measured 2026-09-15
+statements 56.82% (454/799)   branches 51.91% (230/443)
+functions  49.03% (51/104)    lines    56.65% (447/789)     — v8, measured 2026-09-15 (EASEE-35)
 ```
 
 Per file (statements):
 
 | file | statements | note |
 | --- | --- | --- |
-| `charger-streaming-client.ts` | 47.71% | option assembly and the close / "opened" handlers; the connect/reconnect path is untested |
-| `easee-configuration.ts` | 47.34% | auth, token logic and doAuthRestCall partly covered; over half its statements still are not |
+| `charger-streaming-client.ts` | 62.17% | option assembly, the `httpClient` wiring, the close / "opened" handlers and the subscription; the connect/reconnect path is untested |
+| `easee-configuration.ts` | 49.75% | auth, token logic and doAuthRestCall partly covered; about half its statements still are not |
 | `easee-rest-client.ts` | 46.89% | the `charger_state` path (EASEE-13) through a real runtime; most topics untested |
+| `signalr-http-client.ts` | 98.80% | against a real local HTTP server and a real SignalR negotiation (EASEE-35); only the pre-18.14.1 `Set-Cookie` fallback call is unreached |
 
 The thresholds in `vitest.config.mts` sit just under those numbers. **Raise them in the
 same change that raises coverage**, and never lower one to make a build pass. The
@@ -128,10 +137,12 @@ have bitten in repos like this one:
   and check that the test **naming your claim** went red — adjacent red is not evidence.
   Restore from a copy taken before the mutation, not `git checkout -- <file>`, then
   confirm `git status --porcelain` is clean.
-- **Re-measure the count.** The suite is 105 tests as of EASEE-19: the 93 Jest tests on
+- **Re-measure the count.** The suite was 105 tests as of EASEE-19: the 93 Jest tests on
   `main` before it (87 measured at a823c30, plus EASEE-16's six release-workflow tests),
   six new must-not-ship cases, one new release-workflow case, and five for the fixes the
-  conversion forced. Quote a delta only after re-measuring on `main`, not from memory.
+  conversion forced. EASEE-35 took it to 125: fourteen for the SignalR HTTP client, five
+  in the streaming lifecycle file, and one more must-ship file checked inside an existing
+  test. Quote a delta only after re-measuring on `main`, not from memory.
 
 ## The integration suite uses a real Node-RED runtime
 

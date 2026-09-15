@@ -32,6 +32,7 @@ import {
   LogLevel,
 } from "@microsoft/signalr";
 import type { Node, NodeAPI, NodeDef, NodeStatus } from "node-red";
+import { EaseeSignalRHttpClient } from "./signalr-http-client";
 import type { EaseeConfigurationNode, InputListener, LogFn, ObservationData } from "./types";
 
 /** The streaming client's saved flow properties (the `defaults` block in the .html). */
@@ -212,18 +213,8 @@ export = (RED: NodeAPI) => {
       // send the connected msg
       node.send([{ _connectionId: event.id, payload: "Connected" }, null, null]);
 
-      try {
-        node.connection?.send("SubscribeWithCurrentState", node.charger, true);
-      } catch (error) {
-        // Was `easeeClient.logger.error(...)` — an undefined name, so this catch
-        // threw a ReferenceError instead of logging (fixed in EASEE-19).
-        node.logError("Error sending SubscribeWithCurrentState:", error);
-        node.emit("erro", {
-          err: `Failed to subscribe to charger updates: ${(error as Error).message}`,
-          id: event.id,
-        });
-      }
-
+      // Handlers are registered before subscribing: SubscribeWithCurrentState sends
+      // the current state straight away, and a message with no handler is dropped.
       node.connection?.on("ProductUpdate", (data: ObservationData) => {
         try {
           // Use the configuration node's parseObservation method
@@ -254,6 +245,26 @@ export = (RED: NodeAPI) => {
       node.connection?.on("CommandResponse", (data: unknown) => {
         node.send([null, null, null, null, null, { payload: data }]);
       });
+
+      // invoke(), not send() (EASEE-35, GitHub #62). send() is fire-and-forget: the
+      // hub never reports a failure for it, so a subscription it refused for this
+      // charger left the node showing "connected" while emitting nothing. A rejected
+      // send() also escaped the try/catch that used to surround it, being a promise.
+      const subscribe = async () => {
+        try {
+          await node.connection?.invoke("SubscribeWithCurrentState", node.charger, true);
+          node.logDebug("Subscribed to charger updates for:", node.charger);
+        } catch (error) {
+          // Was `easeeClient.logger.error(...)` — an undefined name, so this catch
+          // threw a ReferenceError instead of logging (fixed in EASEE-19).
+          node.logError("Error invoking SubscribeWithCurrentState:", error);
+          node.emit("erro", {
+            err: `Failed to subscribe to charger updates: ${error instanceof Error ? error.message : String(error)}`,
+            id: event.id,
+          });
+        }
+      };
+      void subscribe();
     });
 
     /**
@@ -370,6 +381,9 @@ export = (RED: NodeAPI) => {
           // hub rejects the connection, which reconnect() handles.
           return token as string;
         },
+        // Never SignalR's default client in Node: it requires whichever tough-cookie
+        // npm hoisted, and 2.x/3.x break negotiation with "reading 'secure'" (EASEE-35).
+        httpClient: new EaseeSignalRHttpClient(),
       };
 
       // Add skipNegotiation option if enabled - requires WebSocket transport

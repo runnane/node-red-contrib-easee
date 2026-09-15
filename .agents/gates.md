@@ -24,7 +24,7 @@ than scrolling for it: `pnpm gates > /tmp/easee-gates.log 2>&1; echo $?`.
 | 1 | lint + format | `pnpm check` | Biome over `easee-client/**/*.ts`, `scripts/`, `tests/` and root config. Formatting is an **error**, not a warning |
 | 2 | typecheck | `pnpm typecheck` | TypeScript 7 (`tsc` from `typescript@7`, the native compiler) over every `.ts` |
 | 3 | build | `pnpm build` | emit into `dist/`, then copy the `.html` halves and `locales/` beside the `.js` |
-| 4 | tests + coverage | `pnpm test:coverage` | 12 files / 105 tests (Vitest 5), **and** the `vitest.config.mts` thresholds |
+| 4 | tests + coverage | `pnpm test:coverage` | 13 files / 125 tests (Vitest 5), **and** the `vitest.config.mts` thresholds |
 | 5 | Node-RED load | `pnpm test:compat` | a node in `dist/` that no longer registers in a real Node-RED runtime, a `node-red.nodes` path that points at nothing, or a renamed node type |
 
 The order matters. Gate 4 needs gate 3: `published-package.test.ts` inspects the built
@@ -50,7 +50,7 @@ so the muscle memory from RCP, SPND and the rest is now right. Two things differ
 ## `pnpm test` is not the gate
 
 ```bash
-pnpm test             # 105 tests, thresholds NEVER evaluated; published-package fails without dist/
+pnpm test             # 125 tests, thresholds NEVER evaluated; published-package fails without dist/
 pnpm test:coverage    # the same tests, thresholds enforced
 ```
 
@@ -63,8 +63,8 @@ The thresholds in `vitest.config.mts` sit just under the measured numbers, so an
 that *reduces* coverage fails the build:
 
 ```
-statements 47.33% (337/712)   branches 39.23% (144/367)
-functions  41.93% (39/93)     lines    47.08% (331/703)     — v8, measured 2026-09-15
+statements 56.82% (454/799)   branches 51.91% (230/443)
+functions  49.03% (51/104)    lines    56.65% (447/789)     — v8, measured 2026-09-15 (EASEE-35)
 ```
 
 Those numbers are low because the suite is thin, not because the floor is slack — see
@@ -208,8 +208,9 @@ which discards every other uncommitted change in that file.
 
 ## Flake
 
-None known. The suite is 105 tests over ~2 seconds with no network, no ports, no database
-and no shared fixed filenames, so there is nothing for a concurrent run to adopt — which
+None known. The suite is 125 tests over ~2 seconds with no network, no fixed ports (the
+SignalR HTTP client tests bind an ephemeral one on 127.0.0.1), no database and no shared
+fixed filenames, so there is nothing for a concurrent run to adopt — which
 is also why `/auto --parallel N`'s gate split is unnecessary here: every gate is safe to
 run concurrently from several worktrees. The one shared path is `dist/`, per worktree.
 

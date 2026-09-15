@@ -25,6 +25,15 @@ Configure the node with username/password and a Charger ID ("EH000000").
 Streaming telemetry from the signalR enpoint will be available in the fourth output,
 the `ProductUpdate` one.
 
+If the Easee hub refuses the subscription for a charger — a charger ID the account
+cannot access, for example — the reason is sent on the second (`Errors`) output and
+shown in the node status. Earlier versions showed the node as connected and emitted
+nothing.
+
+Negotiation no longer depends on which `tough-cookie` package other installed nodes
+brought along. An older one used to make negotiation fail with
+`Cannot read properties of undefined (reading 'secure')`.
+
 ## REST node
 
 Use the `easee REST Client` node

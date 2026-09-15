@@ -16,7 +16,7 @@ relevant one on demand when working in that area:
 - [`.agents/compatibility.md`](.agents/compatibility.md) — the published-package
   compatibility surface: node type names, flow property names, credentials, and what
   renaming one does to a stranger's flow on upgrade
-- [`.agents/testing.md`](.agents/testing.md) — what the 105 tests actually cover (not
+- [`.agents/testing.md`](.agents/testing.md) — what the 125 tests actually cover (not
   much), the coverage floor and how to raise it, and the threshold trap that once made
   a 99% floor pass
 

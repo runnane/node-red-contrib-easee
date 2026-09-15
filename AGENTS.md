@@ -95,7 +95,7 @@ pnpm check:fix        # biome check --write; commit what it rewrites
 | 1 | lint + format | `biome check` | `easee-client/`, `scripts/`, `tests/` and the root config files. **Not** the `.html` editor halves |
 | 2 | typecheck | `tsc --noEmit` | TypeScript 7; every `.ts` in the repo |
 | 3 | build | `tsc -p tsconfig.build.json` + copy `.html`/`locales/` | emits `dist/easee-client/` (ships) and `dist/scripts/` (does not) |
-| 4 | tests + coverage | `vitest run --coverage` | 12 files / 105 tests. **Enforces the thresholds** |
+| 4 | tests + coverage | `vitest run --coverage` | 13 files / 125 tests. **Enforces the thresholds** |
 | 5 | Node-RED load | `node dist/scripts/check-node-loads.js` | registers all three nodes from `dist/` in a real Node-RED runtime |
 
 **`pnpm test` is not the gate.** Thresholds are only evaluated with `--coverage`, and
@@ -257,12 +257,15 @@ Keep formatters and codemods away from `.agents/**` and the two Markdown entry p
 ```
 easee-client/            the three nodes — .ts runtime half + .html editor half each
   types.ts               types shared between the nodes (the config node's shape)
+  signalr-http-client.ts the HTTP client handed to SignalR — never its default, which
+                         requires whichever tough-cookie npm hoisted (EASEE-35). Ships:
+                         charger-streaming-client.js requires it at load time
   locales/en-US/         editor strings for charger-streaming-client
 scripts/                 TypeScript, compiled to dist/scripts/ and run from there
   check-node-loads.ts    loads every node into a real Node-RED runtime (gate 5)
   audit-production.ts    pnpm audit scoped to shipped deps, with an allowlist (CI only)
 tests/                   ESM (tests/package.json), Vitest
-  unit/                  10 files: auth/token/config, node lifecycle, tarball + release guards
+  unit/                  11 files: auth/token/config, node lifecycle, SignalR HTTP client, tarball + release guards
   integration/           authFlow + node-red-node-test-helper
   fixtures/mockData.ts   synthetic fixtures — keep them synthetic
   mocks/                 hand-written Node-RED mocks
