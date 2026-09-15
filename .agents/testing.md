@@ -137,9 +137,8 @@ have bitten in repos like this one:
 
 `tests/integration/nodeRedTestHelper.test.ts` (and `charger-state-observations`) use
 `node-red-node-test-helper`, which loads the nodes into an actual Node-RED instance
-rather than a mock. That is the direction the suite should grow — `TODO.md` has "use
-actual functions for testing and not mocking" as a standing intention, and the helper is
-how that gets done.
+rather than a mock. That is the direction the suite should grow — EASEE-31 tracks moving
+the mock-based unit tests onto real code paths, and the helper is how that gets done.
 
 If a helper-based test fails with `Cannot read properties of undefined (reading 'log')`,
 the real error is hidden: the helper logs it through the mocked `console`. It is almost
