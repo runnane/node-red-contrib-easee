@@ -154,9 +154,12 @@ dependencies:
 1. An advisory that is **not** allowlisted fails the build.
 2. An allowlist entry that matches **nothing** *also* fails the build.
 
-So if upstream ever fixes `ws` (`GHSA-96hv-2xvq-fx4p`, reached via `@microsoft/signalr`,
-tracked by EASEE-8), CI goes red saying `STALE allowlist entry` and naming the issue —
-the fix is to delete the entry, not to silence it. The `review` date in an entry is
+That is exactly how the one entry it ever held left. `ws` (`GHSA-96hv-2xvq-fx4p`, reached
+via `@microsoft/signalr`, EASEE-8) was allowlisted on the belief that 7.5.10 was the last
+7.x; `ws` 7.5.11–7.5.13 shipped the fix inside SignalR's `^7.5.10` range, and the lockfile
+refresh in EASEE-21 made `audit:prod` fail with `STALE allowlist entry … matches nothing`.
+The fix was to delete the entry, not to silence it. The allowlist is empty now — keep it
+that way unless an advisory genuinely cannot be fixed from here. The `review` date in an entry is
 documentation and is deliberately **not** enforced; a gate that reddens on a calendar day
 with no code change is the same unreadable signal all over again.
 
