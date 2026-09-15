@@ -67,6 +67,8 @@ const MUST_SHIP = [
   "dist/easee-client/easee-rest-client.html",
   "dist/easee-client/charger-streaming-client.js",
   "dist/easee-client/charger-streaming-client.html",
+  // Required by charger-streaming-client.js at load time (EASEE-35).
+  "dist/easee-client/signalr-http-client.js",
   "dist/easee-client/locales/en-US/charger-streaming-client.json",
 ];
 

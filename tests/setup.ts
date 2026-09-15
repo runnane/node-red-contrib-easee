@@ -14,17 +14,24 @@ interface TestHelpers {
   createMockNode: (overrides?: MockNodeOverrides) => any;
   createAuthResponse: (overrides?: MockNodeOverrides) => any;
   createFetchResponse: (data: unknown, status?: number, headers?: Record<string, string>) => Promise<any>;
+  /** Node's own fetch, before the mock below replaced it. */
+  realFetch: typeof fetch;
 }
 
 declare global {
   var testHelpers: TestHelpers;
 }
 
+// Kept for the tests that talk to a real local HTTP server (EASEE-35).
+const realFetch = globalThis.fetch;
+
 // Mock fetch globally for all tests
 globalThis.fetch = vi.fn();
 
 // Global test helpers
 globalThis.testHelpers = {
+  realFetch,
+
   /**
    * Reset all mocks before each test
    */

@@ -23,15 +23,19 @@ export default defineConfig({
       // for the same code), so its numbers do not carry across — and was then
       // raised by the tests EASEE-19 added for the fixes the conversion forced.
       //
+      // Raised 2026-09-15 (EASEE-35), 125 tests, after the SignalR HTTP client and
+      // subscription tests: statements 56.82% (454/799), branches 51.91% (230/443),
+      // functions 49.03% (51/104), lines 56.65% (447/789).
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 47.3,
-        branches: 39.2,
-        functions: 41.9,
-        lines: 47.0,
+        statements: 56.8,
+        branches: 51.9,
+        functions: 49.0,
+        lines: 56.6,
       },
     },
   },

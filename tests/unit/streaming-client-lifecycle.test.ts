@@ -17,10 +17,12 @@
  */
 
 import { createRequire } from "node:module";
+import { HubConnectionBuilder } from "@microsoft/signalr";
 import helper from "node-red-node-test-helper";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import streamingClientNode from "../../easee-client/charger-streaming-client.js";
 import configNode from "../../easee-client/easee-configuration.js";
+import { EaseeSignalRHttpClient } from "../../easee-client/signalr-http-client.js";
 
 const require = createRequire(import.meta.url);
 
@@ -64,6 +66,7 @@ function fakeConnection() {
   return {
     handlers,
     send: vi.fn(),
+    invoke: vi.fn(async (..._args: unknown[]): Promise<unknown> => undefined),
     stop: vi.fn(),
     on: (name: string, handler: (data: unknown) => void) => {
       handlers[name] = handler;
@@ -117,7 +120,7 @@ describe("charger-streaming-client lifecycle", () => {
   it("reports a failed subscribe on the error output instead of throwing", async () => {
     const { streaming } = await load();
     const connection = fakeConnection();
-    connection.send.mockImplementation(() => {
+    connection.invoke.mockImplementation(() => {
       throw new Error("hub unavailable");
     });
     streaming.connection = connection;
@@ -125,12 +128,76 @@ describe("charger-streaming-client lifecycle", () => {
     streaming.send = (msg: unknown) => sent.push(msg);
 
     expect(() => streaming.emit("opened", { count: "", id: "conn-1" })).not.toThrow();
+    await flushPromises();
 
     expect(sent).toContainEqual([
       null,
       { payload: "Failed to subscribe to charger updates: hub unavailable", _connectionId: "conn-1" },
       null,
     ]);
+  }, 15000);
+
+  it("reports a subscription the hub refuses, instead of looking connected and emitting nothing (GitHub #62)", async () => {
+    const { streaming } = await load();
+    const connection = fakeConnection();
+    // What SignalR's invoke() does when the hub method throws: the promise rejects.
+    connection.invoke.mockRejectedValue(
+      new Error("An unexpected error occurred invoking 'SubscribeWithCurrentState' on the server."),
+    );
+    streaming.connection = connection;
+    const sent: unknown[] = [];
+    streaming.send = (msg: unknown) => sent.push(msg);
+
+    streaming.emit("opened", { count: "", id: "conn-1" });
+    await flushPromises();
+
+    expect(sent).toContainEqual([
+      null,
+      {
+        payload:
+          "Failed to subscribe to charger updates: An unexpected error occurred invoking 'SubscribeWithCurrentState' on the server.",
+        _connectionId: "conn-1",
+      },
+      null,
+    ]);
+    expect(connection.invoke).toHaveBeenCalledWith("SubscribeWithCurrentState", "EH000000", true);
+  }, 15000);
+
+  it("reports a refusal that is not an Error by its text", async () => {
+    const { streaming } = await load();
+    const connection = fakeConnection();
+    connection.invoke.mockRejectedValue("refused");
+    streaming.connection = connection;
+    const sent: unknown[] = [];
+    streaming.send = (msg: unknown) => sent.push(msg);
+
+    streaming.emit("opened", { count: "", id: "conn-1" });
+    await flushPromises();
+
+    expect(sent).toContainEqual([
+      null,
+      { payload: "Failed to subscribe to charger updates: refused", _connectionId: "conn-1" },
+      null,
+    ]);
+  }, 15000);
+
+  it("registers the update handlers before subscribing, so the current state is not dropped", async () => {
+    const { streaming, config } = await load();
+    const connection = fakeConnection();
+    config.parseObservation = (data: unknown) => data;
+    // SubscribeWithCurrentState pushes the current state before its completion.
+    connection.invoke.mockImplementation(() => {
+      connection.handlers.ProductUpdate?.({ id: 109, value: "current-state" });
+      return Promise.resolve();
+    });
+    streaming.connection = connection;
+    const sent: unknown[] = [];
+    streaming.send = (msg: unknown) => sent.push(msg);
+
+    streaming.emit("opened", { count: "", id: "conn-1" });
+    await flushPromises();
+
+    expect(sent).toContainEqual([null, null, null, { payload: { id: 109, value: "current-state" } }, null, null]);
   }, 15000);
 
   it("still forwards raw ProductUpdate and ChargerUpdate data when parsing fails", async () => {
@@ -155,4 +222,40 @@ describe("charger-streaming-client lifecycle", () => {
     expect(sent).toContainEqual([null, null, null, { payload: { id: 999, value: "raw-product" } }, null, null]);
     expect(sent).toContainEqual([null, null, null, null, { payload: { id: 998, value: "raw-charger" } }, null]);
   }, 15000);
+
+  // EASEE-35: SignalR's default Node client requires whichever tough-cookie npm
+  // hoisted, and 2.x/3.x fail negotiation with "reading 'secure'". Both paths need
+  // the package's own client: negotiation POSTs through it, and the WebSocket reads
+  // its cookies from it.
+  it.each([false, true])(
+    "hands SignalR the package's own HTTP client (skipNegotiation=%s)",
+    async (skipNegotiation) => {
+      const { streaming, config } = await load();
+      const withUrl = vi.spyOn(HubConnectionBuilder.prototype, "withUrl");
+      config.accessToken = "token-1";
+      config.signalRpath = "http://127.0.0.1:9/hubs/chargers";
+      streaming.skipNegotiation = skipNegotiation;
+      streaming.handleConnection = vi.fn();
+
+      try {
+        streaming.startconn();
+
+        expect(withUrl).toHaveBeenCalledTimes(1);
+        const options = withUrl.mock.calls[0][1] as { httpClient?: unknown; skipNegotiation?: boolean };
+        expect(options.httpClient).toBeInstanceOf(EaseeSignalRHttpClient);
+        expect(options.skipNegotiation).toBe(skipNegotiation ? true : undefined);
+        expect(streaming.handleConnection).toHaveBeenCalledTimes(1);
+      } finally {
+        withUrl.mockRestore();
+      }
+    },
+    15000,
+  );
 });
+
+/** Let the node's async subscription settle; fake timers do not hold microtasks. */
+async function flushPromises(): Promise<void> {
+  for (let i = 0; i < 10; i++) {
+    await Promise.resolve();
+  }
+}
