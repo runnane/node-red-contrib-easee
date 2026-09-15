@@ -18,14 +18,18 @@
     "signalr",
     "node-red"
   ],
+  "packageManager": "pnpm@10.34.5",
+  "files": [
+    "dist/easee-client"
+  ],
   "dependencies": {
     "@microsoft/signalr": "9.0.6"
   },
   "node-red": {
     "nodes": {
-      "easee-configuration": "easee-client/easee-configuration.js",
-      "easee-rest-client": "easee-client/easee-rest-client.js",
-      "charger-streaming-client": "easee-client/charger-streaming-client.js"
+      "easee-configuration": "dist/easee-client/easee-configuration.js",
+      "easee-rest-client": "dist/easee-client/easee-rest-client.js",
+      "charger-streaming-client": "dist/easee-client/charger-streaming-client.js"
     },
     "version": ">=2.0.0"
   },
@@ -33,32 +37,45 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "gates": "npm run lint && npm run test:coverage && npm run test:compat",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:coverage:watch": "jest --coverage --watch",
-    "test:coverage:html": "jest --coverage && echo 'Coverage report generated in coverage/lcov-report/index.html'",
-    "test:coverage:no-threshold": "jest --coverage --passWithNoTests --coverageThreshold='{}'",
-    "test:coverage:dev": "jest --coverage --passWithNoTests --coverageThreshold='{}' && echo 'HTML report: coverage/lcov-report/index.html'",
-    "test:unit": "jest tests/unit",
-    "test:unit:coverage": "jest tests/unit --coverage",
-    "test:integration": "jest tests/integration",
-    "test:integration:coverage": "jest tests/integration --coverage",
-    "test:verbose": "jest --verbose",
-    "test:silent": "jest --silent",
-    "dep-update": "npx npm-check-updates -u",
-    "test:compat": "node scripts/check-node-loads.js",
-    "audit:prod": "node scripts/audit-production.js",
-    "lint": "eslint easee-client/*.js tests/**/*.js scripts/*.js",
-    "lint:fix": "eslint easee-client/*.js tests/**/*.js scripts/*.js --fix",
-    "ci:lint": "npm run lint"
+    "gates": "pnpm check && pnpm typecheck && pnpm build && pnpm test:coverage && pnpm test:compat",
+    "check": "biome check",
+    "check:fix": "biome check --write",
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "pnpm clean && tsc -p tsconfig.build.json && node -e \"require('node:fs').cpSync('easee-client', 'dist/easee-client', { recursive: true, filter: (src) => !src.endsWith('.ts') })\"",
+    "prepack": "pnpm build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:compat": "node dist/scripts/check-node-loads.js",
+    "audit:prod": "node dist/scripts/audit-production.js",
+    "dep-update": "pnpm dlx npm-check-updates -u && pnpm install"
   },
   "devDependencies": {
-    "@eslint/js": "^9.32.0",
-    "eslint": "^10.9.1",
-    "jest": "^30.0.5",
+    "@biomejs/biome": "2.5.13",
+    "@types/node": "^22.0.0",
+    "@types/node-red": "^1.3.5",
+    "@types/node-red-node-test-helper": "^0.3.5",
+    "@vitest/coverage-v8": "^5.0.1",
     "node-red": "^4.1.0",
-    "node-red-node-test-helper": "^0.3.4"
+    "node-red-node-test-helper": "^0.3.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "pnpm": {
+    "packageExtensions": {
+      "node-red@4": {
+        "dependencies": {
+          "@node-red/registry": "4.1.8"
+        }
+      }
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "i18next>typescript": "7"
+      }
+    }
   }
 }

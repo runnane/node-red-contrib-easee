@@ -1,0 +1,33 @@
+{
+  // The typecheck config: every TypeScript file in the repo, no emit.
+  // `pnpm typecheck` runs this; `pnpm build` runs tsconfig.build.json.
+  //
+  // The node sources are CommonJS (package.json has no "type"), because Node-RED
+  // loads a node with require() and expects module.exports to BE the factory
+  // function. So each node ends in `export = function (RED) {...}`, which
+  // TypeScript 7 emits as a bare `module.exports = ...`. tests/ is ESM (its own
+  // package.json says so) because Vitest runs tests as ESM.
+  "compilerOptions": {
+    // ES2022 is what Node 18 — the oldest `engines` still allows — runs natively.
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    "noEmit": true
+  },
+  "include": ["easee-client/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts", "vitest.config.mts"],
+  "exclude": ["node_modules", "dist", "coverage"]
+}

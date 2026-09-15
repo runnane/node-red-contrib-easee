@@ -1,0 +1,4 @@
+{
+  "//": "Marks tests/ as ESM. Vitest runs tests as ES modules, and TypeScript only allows import.meta and top-level ESM semantics in a file it believes is ESM. The shipped code stays CommonJS — Node-RED require()s it — so this cannot live in the root package.json.",
+  "type": "module"
+}

@@ -10,14 +10,14 @@ imported below so they load every session.
 Topic deep-dives are in [`.agents/`](.agents/) and are **not** auto-loaded — open the
 relevant one on demand when working in that area:
 
-- [`.agents/gates.md`](.agents/gates.md) — the gate command, why this repo is the one
-  where npm muscle memory matters, what CI runs that the local gate does not, and why
-  a green run here means very little
+- [`.agents/gates.md`](.agents/gates.md) — the gate command, why `pnpm test` alone
+  proves little here (the tests read a built `dist/`), what CI runs that the local gate
+  does not, and why a green run here means very little
 - [`.agents/compatibility.md`](.agents/compatibility.md) — the published-package
   compatibility surface: node type names, flow property names, credentials, and what
   renaming one does to a stranger's flow on upgrade
-- [`.agents/testing.md`](.agents/testing.md) — what the 80 tests actually cover (not
-  much), the coverage floor and how to raise it, and the jest threshold trap that made
+- [`.agents/testing.md`](.agents/testing.md) — what the 105 tests actually cover (not
+  much), the coverage floor and how to raise it, and the threshold trap that once made
   a 99% floor pass
 
 ## Commands — you invoke these

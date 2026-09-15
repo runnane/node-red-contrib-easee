@@ -3,37 +3,38 @@
  * Tests the authentication methods with mocked API responses
  */
 
-const {
-  createMockRED,
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+// Import the actual implementation
+import EaseeConfigurationModule from "../../easee-client/easee-configuration.js";
+import {
   createMockEaseeNode,
+  createMockRED,
+  fetchMock,
+  mockData,
   mockFetchResponses,
   verifyFetchCall,
-  verifyNodeStatus,
   verifyNodeEmit,
-  _simulateTimePassage,
-  mockData
-} = require("../mocks/nodeRedMocks");
-
-// Import the actual implementation
-const EaseeConfigurationModule = require("../../easee-client/easee-configuration");
+  verifyNodeStatus,
+} from "../mocks/nodeRedMocks.js";
 
 describe("Easee Configuration - Authentication", () => {
-  let mockRED;
-  let _EaseeConfiguration;
-  let node;
+  let mockRED: any;
+  let node: any;
 
   beforeEach(() => {
     // Setup mock Node-RED environment
     mockRED = createMockRED();
 
     // Initialize the module with mock RED
-    _EaseeConfiguration = EaseeConfigurationModule(mockRED);
+    EaseeConfigurationModule(mockRED);
 
     // Create a new instance of the configuration node
     node = createMockEaseeNode();
 
     // Reset timers for each test
-    jest.clearAllTimers();
+    if (vi.isFakeTimers()) {
+      vi.clearAllTimers();
+    }
   });
 
   afterEach(() => {
@@ -41,26 +42,22 @@ describe("Easee Configuration - Authentication", () => {
     if (node.checkTokenHandler) {
       clearTimeout(node.checkTokenHandler);
     }
-    jest.clearAllTimers();
+    if (vi.isFakeTimers()) {
+      vi.clearAllTimers();
+    }
   });
 
   describe("doLogin method", () => {
     beforeEach(() => {
-      // Create an actual node instance to test the real implementation
-      const _config = {
-        name: "test-config",
-        credentials: mockData.validCredentials
-      };
-
       // Simulate creating the actual node (this would normally be done by Node-RED)
       Object.assign(node, {
         RestApipath: mockData.apiEndpoints.baseUrl,
-        credentials: mockData.validCredentials
+        credentials: mockData.validCredentials,
       });
 
       // Manually add the doLogin method from the actual implementation
       // Note: In a real test, this would be automatically available on the node
-      node.doLogin = async function(_username, _password) {
+      node.doLogin = async function (this: any, _username?: string, _password?: string) {
         const url = "/accounts/login";
 
         if (!_username && !this.username) {
@@ -69,7 +66,7 @@ describe("Easee Configuration - Authentication", () => {
           this.status({
             fill: "red",
             shape: "ring",
-            text: "No username configured"
+            text: "No username configured",
           });
           throw error;
         }
@@ -80,7 +77,7 @@ describe("Easee Configuration - Authentication", () => {
           this.status({
             fill: "red",
             shape: "ring",
-            text: "No password configured"
+            text: "No password configured",
           });
           throw error;
         }
@@ -89,14 +86,14 @@ describe("Easee Configuration - Authentication", () => {
           method: "post",
           body: JSON.stringify({
             userName: _username ?? this.username,
-            password: _password ?? this.credentials.password
+            password: _password ?? this.credentials.password,
           }),
           headers: {
             Accept: "application/json",
-            "Content-Type": "application/json"
-          }
+            "Content-Type": "application/json",
+          },
         })
-          .then(async(response) => {
+          .then(async (response) => {
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
               const json = await response.json();
@@ -104,13 +101,15 @@ describe("Easee Configuration - Authentication", () => {
               if (!response.ok) {
                 const errorMsg = json.title || json.errorCodeName || "Login failed";
                 const errorDetail = json.detail || "";
-                throw new Error(`Login failed (${response.status}): ${errorMsg}${errorDetail ? " - " + errorDetail : ""}`);
+                throw new Error(
+                  `Login failed (${response.status}): ${errorMsg}${errorDetail ? ` - ${errorDetail}` : ""}`,
+                );
               }
 
               return json;
             } else {
               const errortxt = await response.text();
-              throw new Error("Unable to login, response not JSON: " + errortxt);
+              throw new Error(`Unable to login, response not JSON: ${errortxt}`);
             }
           })
           .then((json) => {
@@ -127,34 +126,36 @@ describe("Easee Configuration - Authentication", () => {
               this.status({
                 fill: "green",
                 shape: "dot",
-                text: "Authenticated successfully"
+                text: "Authenticated successfully",
               });
 
               this.emit("update", {
-                update: "Login successful, token retrieved"
+                update: "Login successful, token retrieved",
               });
 
               return json;
             } else {
               throw new Error("Login response did not contain access token");
             }
-          }).catch((error) => {
-            const isCredentialError = error.message.includes("401") ||
-                                      error.message.includes("Unauthorized") ||
-                                      error.message.includes("Invalid credentials");
+          })
+          .catch((error) => {
+            const isCredentialError =
+              error.message.includes("401") ||
+              error.message.includes("Unauthorized") ||
+              error.message.includes("Invalid credentials");
 
             if (isCredentialError) {
               this.status({
                 fill: "red",
                 shape: "ring",
-                text: "Invalid credentials"
+                text: "Invalid credentials",
               });
               console.error("Login failed due to invalid credentials:", error.message);
             } else {
               this.status({
                 fill: "red",
                 shape: "ring",
-                text: "Login error"
+                text: "Login error",
               });
               console.error("Login failed due to other error:", error.message);
             }
@@ -167,7 +168,7 @@ describe("Easee Configuration - Authentication", () => {
       };
     });
 
-    test("should successfully login with valid credentials", async() => {
+    test("should successfully login with valid credentials", async () => {
       // Arrange
       mockFetchResponses.loginSuccess();
 
@@ -181,29 +182,26 @@ describe("Easee Configuration - Authentication", () => {
       expect(node.refreshRetryCount).toBe(0);
       expect(node.loginRetryCount).toBe(0);
 
-      verifyFetchCall(
-        `${mockData.apiEndpoints.baseUrl}/accounts/login`,
-        {
-          method: "post",
-          headers: {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-          }
-        }
-      );
+      verifyFetchCall(`${mockData.apiEndpoints.baseUrl}/accounts/login`, {
+        method: "post",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
 
       verifyNodeStatus(node, {
         fill: "green",
         shape: "dot",
-        text: "Authenticated successfully"
+        text: "Authenticated successfully",
       });
 
       verifyNodeEmit(node, "update", {
-        update: "Login successful, token retrieved"
+        update: "Login successful, token retrieved",
       });
     });
 
-    test("should fail login with invalid credentials", async() => {
+    test("should fail login with invalid credentials", async () => {
       // Arrange
       mockFetchResponses.loginFailure("invalidCredentials");
 
@@ -213,13 +211,13 @@ describe("Easee Configuration - Authentication", () => {
       verifyNodeStatus(node, {
         fill: "red",
         shape: "ring",
-        text: "Invalid credentials"
+        text: "Invalid credentials",
       });
 
       expect(node.error).toHaveBeenCalled();
     });
 
-    test("should handle server errors during login", async() => {
+    test("should handle server errors during login", async () => {
       // Arrange
       mockFetchResponses.loginFailure("serverError");
 
@@ -229,11 +227,11 @@ describe("Easee Configuration - Authentication", () => {
       verifyNodeStatus(node, {
         fill: "red",
         shape: "ring",
-        text: "Login error"
+        text: "Login error",
       });
     });
 
-    test("should handle network errors during login", async() => {
+    test("should handle network errors during login", async () => {
       // Arrange
       mockFetchResponses.networkError("timeout");
 
@@ -243,11 +241,11 @@ describe("Easee Configuration - Authentication", () => {
       verifyNodeStatus(node, {
         fill: "red",
         shape: "ring",
-        text: "Login error"
+        text: "Login error",
       });
     });
 
-    test("should handle non-JSON responses", async() => {
+    test("should handle non-JSON responses", async () => {
       // Arrange
       mockFetchResponses.nonJsonResponse();
 
@@ -255,7 +253,7 @@ describe("Easee Configuration - Authentication", () => {
       await expect(node.doLogin()).rejects.toThrow("Unable to login, response not JSON");
     });
 
-    test("should throw error when no username provided", async() => {
+    test("should throw error when no username provided", async () => {
       // Arrange
       node.username = "";
 
@@ -265,11 +263,11 @@ describe("Easee Configuration - Authentication", () => {
       verifyNodeStatus(node, {
         fill: "red",
         shape: "ring",
-        text: "No username configured"
+        text: "No username configured",
       });
     });
 
-    test("should throw error when no password provided", async() => {
+    test("should throw error when no password provided", async () => {
       // Arrange
       node.username = "test@example.com"; // Ensure username is set
       node.credentials.password = ""; // But password is empty
@@ -280,11 +278,11 @@ describe("Easee Configuration - Authentication", () => {
       verifyNodeStatus(node, {
         fill: "red",
         shape: "ring",
-        text: "No password configured"
+        text: "No password configured",
       });
     });
 
-    test("should use provided username and password over stored credentials", async() => {
+    test("should use provided username and password over stored credentials", async () => {
       // Arrange
       mockFetchResponses.loginSuccess();
       const customUsername = "custom@example.com";
@@ -294,21 +292,19 @@ describe("Easee Configuration - Authentication", () => {
       await node.doLogin(customUsername, customPassword);
 
       // Assert
-      const fetchCall = global.fetch.mock.calls[0];
+      const fetchCall = fetchMock().mock.calls[0];
       const requestBody = JSON.parse(fetchCall[1].body);
 
       expect(requestBody.userName).toBe(customUsername);
       expect(requestBody.password).toBe(customPassword);
     });
 
-    test("should handle login response without access token", async() => {
+    test("should handle login response without access token", async () => {
       // Arrange
       node.username = "test@example.com";
       node.credentials.password = "password";
 
-      global.fetch.mockResolvedValueOnce(
-        global.testHelpers.createFetchResponse({ someOtherField: "value" }, 200)
-      );
+      fetchMock().mockResolvedValueOnce(globalThis.testHelpers.createFetchResponse({ someOtherField: "value" }, 200));
 
       // Act & Assert
       await expect(node.doLogin()).rejects.toThrow("Login response did not contain access token");
@@ -316,7 +312,7 @@ describe("Easee Configuration - Authentication", () => {
   });
 
   describe("Token expiration calculation", () => {
-    test("should correctly calculate token expiration time", async() => {
+    test("should correctly calculate token expiration time", async () => {
       // Arrange
       node.username = "test@example.com";
       node.credentials.password = "password";

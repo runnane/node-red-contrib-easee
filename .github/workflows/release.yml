@@ -6,16 +6,22 @@
 # ⚠️ THE FILENAME IS LOAD-BEARING. npm's trusted publisher for
 # @runnane/node-red-contrib-easee is bound to `release.yml` in this repository.
 # Renaming this file makes every publish fail with an auth error, and nothing in
-# the repo can tell you why. tests/unit/release-workflow.test.js pins it.
+# the repo can tell you why. tests/unit/release-workflow.test.ts pins it.
 #
 # Three jobs, each doing one thing, so a failure part-way through is recoverable
 # with "Re-run failed jobs" rather than a second version bump:
 #
 #   prepare         gates + audit on the exact commit, `npm version`, check the
-#                   packed tarball loads in Node-RED, push commit + tag to main
-#   publish         check out the TAG, `npm publish` over OIDC — skipped if that
-#                   version is already on npm
+#                   packed tarball loads in Node-RED, upload the built dist/,
+#                   push commit + tag to main
+#   publish         check out the TAG, add the dist/ prepare built and checked,
+#                   `npm publish` over OIDC — skipped if that version is already on npm
 #   github-release  `gh release create` with generated notes — skipped if it exists
+#
+# Since EASEE-19 the package is its BUILD (dist/easee-client/, gitignored), not its
+# source. The publish job still installs nothing and runs no package scripts: it
+# publishes the exact dist/ that passed the gates and the load check in prepare,
+# handed over as an artifact, and refuses to publish if any node file is missing.
 
 name: Release
 
@@ -62,9 +68,10 @@ jobs:
         echo "::error::A release can only be cut from main; this run is on ${GITHUB_REF}. Dry runs work from any branch."
         exit 1
 
-    # The release job gates on one Node version; the 18/20/22/24 matrix, the
-    # packed-tarball compat job and the audit already ran on this commit when it
-    # was pushed to main. Refuse to release a commit where they did not pass.
+    # The release job gates on one Node version; the 22/24/26 test matrix, the
+    # 18/20/22/24 packed-tarball compat matrix and the audit already ran on this
+    # commit when it was pushed to main. Refuse to release a commit where they did
+    # not pass.
     - name: Refuse a commit whose CI is not green
       if: ${{ !inputs.dry_run }}
       env:
@@ -88,21 +95,30 @@ jobs:
         # run. The push step supplies it for that one command.
         persist-credentials: false
 
-    - name: Use Node.js 20.x
+    # Before setup-node: its `cache: pnpm` needs the pnpm binary. The pnpm version
+    # comes from `packageManager` in package.json.
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+
+    # 22.x: the toolchain (Vitest 5) needs >= 22.12.
+    - name: Use Node.js 22.x
       uses: actions/setup-node@v4
       with:
-        node-version: 20.x
-        cache: 'npm'
+        node-version: 22.x
+        cache: 'pnpm'
 
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
 
     - name: Run the gates
-      run: npm run gates
+      run: pnpm gates
 
     - name: Audit production dependencies
-      run: npm run audit:prod
+      run: pnpm audit:prod
 
+    # `npm version`, not pnpm: it only rewrites package.json's version, commits and
+    # tags — pnpm-lock.yaml carries no root version — and it is what cut every
+    # release before this workflow.
     - name: Bump the version
       id: bump
       env:
@@ -120,16 +136,28 @@ jobs:
         git tag --points-at HEAD
 
     # The same check as the Node-RED Compatibility job in ci.yml, on the tarball
-    # with the bumped version in it: pack, install it somewhere else, load every
-    # node from there.
+    # with the bumped version in it: pack (prepack rebuilds dist/), install it
+    # somewhere else with npm — the palette's installer — and load every node from
+    # there.
     - name: Pack the package
-      run: npm pack --pack-destination "$RUNNER_TEMP"
+      run: pnpm pack --pack-destination "$RUNNER_TEMP"
 
     - name: Install the packed tarball
       run: npm install --prefix "$RUNNER_TEMP/compat" --no-package-lock "$RUNNER_TEMP"/runnane-node-red-contrib-easee-*.tgz
 
     - name: Test Node-RED compatibility of the packed package
-      run: npm run test:compat -- --package-dir "$RUNNER_TEMP/compat/node_modules/@runnane/node-red-contrib-easee"
+      run: node dist/scripts/check-node-loads.js --package-dir "$RUNNER_TEMP/compat/node_modules/@runnane/node-red-contrib-easee"
+
+    # Hand the publish job exactly the build that just passed the gates and the
+    # load check, so it never has to install or build anything itself. Kept after
+    # the push too: "Re-run failed jobs" on publish downloads it again.
+    - name: Upload the built package
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist-easee-client
+        path: dist/easee-client/
+        if-no-files-found: error
+        retention-days: 7
 
     # --atomic: the commit and the tag land together or not at all. If main moved
     # while this ran, the push is rejected as non-fast-forward and nothing is
@@ -178,6 +206,14 @@ jobs:
         ref: ${{ needs.prepare.outputs.tag }}
         persist-credentials: false
 
+    # dist/ is gitignored, so the tag does not contain the package. Add the build
+    # prepare gated and load-checked on this same version.
+    - name: Add the built package
+      uses: actions/download-artifact@v4
+      with:
+        name: dist-easee-client
+        path: dist/easee-client
+
     # Trusted publishing needs npm 11.5.1 or newer; Node 24 bundles npm 11.
     - name: Use Node.js 24.x
       uses: actions/setup-node@v4
@@ -202,9 +238,26 @@ jobs:
           exit 1
         fi
 
-    # No `npm ci`: the package has no build step and no prepublish script, so
-    # publishing needs only the checked-out tree — and nothing third-party runs
-    # in the one job that holds a publish credential.
+    # A publish without dist/ would ship a package that installs and then loads no
+    # nodes — to every user, with nothing in this workflow going red. So check
+    # every file package.json's node-red block names, and its .html editor half.
+    - name: Check the built package is complete
+      run: |
+        node -e '
+          const fs = require("fs");
+          const nodes = require("./package.json")["node-red"].nodes;
+          const files = Object.values(nodes).flatMap((f) => [f, f.replace(/\.js$/, ".html")]);
+          const missing = files.filter((f) => !fs.existsSync(f));
+          if (files.length === 0 || missing.length > 0) {
+            console.log("::error::The package to publish is incomplete; missing: " + missing.join(", "));
+            process.exit(1);
+          }
+          console.log("Complete: " + files.join(", "));
+        '
+
+    # No install, and --ignore-scripts: `prepack` (pnpm build) must not run here —
+    # there are no dependencies to build with, dist/ is already the gated build,
+    # and nothing third-party runs in the one job that holds a publish credential.
     - name: Publish
       env:
         VERSION: ${{ needs.prepare.outputs.version }}
@@ -214,7 +267,7 @@ jobs:
           echo "::notice::${name}@${VERSION} is already on npm; nothing to publish."
           exit 0
         fi
-        npm publish --access public
+        npm publish --access public --ignore-scripts
         echo "### Published \`${name}@${VERSION}\`" >> "$GITHUB_STEP_SUMMARY"
 
   github-release:

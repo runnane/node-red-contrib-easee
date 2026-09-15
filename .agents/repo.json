@@ -4,8 +4,8 @@
   "trackerSlug": "node-red-contrib-easee",
   "visibility": "public",
   "gates": {
-    "all": "npm run gates",
-    "fix": "npm run lint:fix"
+    "all": "pnpm gates",
+    "fix": "pnpm check:fix"
   },
   "release": "release-it",
   "ci": "github-hosted",

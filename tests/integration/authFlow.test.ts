@@ -3,37 +3,36 @@
  * Tests the complete authentication flow with mocked API responses
  */
 
-const {
-  createMockRED,
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
   createMockEaseeNode,
+  fetchMock,
+  mockData,
   mockFetchResponses,
-  verifyNodeStatus,
   verifyNodeEmit,
-  mockData
-} = require("../mocks/nodeRedMocks");
+  verifyNodeStatus,
+} from "../mocks/nodeRedMocks.js";
 
 describe("Easee Configuration - Integration Tests", () => {
-  let _mockRED;
-  let node;
+  let node: any;
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     // Completely reset all mocks
-    jest.clearAllMocks();
-    jest.resetAllMocks();
-    global.fetch.mockClear();
-    global.fetch.mockReset();
+    vi.clearAllMocks();
+    vi.resetAllMocks();
+    fetchMock().mockClear();
+    fetchMock().mockReset();
 
-    _mockRED = createMockRED();
     node = createMockEaseeNode();
 
     // Reset all mocks before each test
-    jest.clearAllMocks();
-    global.fetch.mockClear();
+    vi.clearAllMocks();
+    fetchMock().mockClear();
 
     // Add all authentication methods
-    node.doLogin = async function(_username, _password) {
+    node.doLogin = async function (this: any, _username?: string, _password?: string) {
       // Credential validation (same as the real implementation)
       if (!_username && !this.username) {
         const error = new Error("No username provided for login");
@@ -41,7 +40,7 @@ describe("Easee Configuration - Integration Tests", () => {
         this.status({
           fill: "red",
           shape: "ring",
-          text: "No username configured"
+          text: "No username configured",
         });
         throw error;
       }
@@ -52,22 +51,22 @@ describe("Easee Configuration - Integration Tests", () => {
         this.status({
           fill: "red",
           shape: "ring",
-          text: "No password configured"
+          text: "No password configured",
         });
         throw error;
       }
 
       // Simplified login implementation for integration testing
-      const response = await fetch(this.RestApipath + "/accounts/login", {
+      const response = await fetch(`${this.RestApipath}/accounts/login`, {
         method: "post",
         body: JSON.stringify({
           userName: _username ?? this.username,
-          password: _password ?? this.credentials.password
+          password: _password ?? this.credentials.password,
         }),
         headers: {
           Accept: "application/json",
-          "Content-Type": "application/json"
-        }
+          "Content-Type": "application/json",
+        },
       });
 
       const json = await response.json();
@@ -89,11 +88,11 @@ describe("Easee Configuration - Integration Tests", () => {
         this.status({
           fill: "green",
           shape: "dot",
-          text: "Authenticated"
+          text: "Authenticated",
         });
 
         this.emit("update", {
-          update: "Login successful, token retrieved"
+          update: "Login successful, token retrieved",
         });
 
         return json;
@@ -102,7 +101,7 @@ describe("Easee Configuration - Integration Tests", () => {
       }
     };
 
-    node.doRefreshToken = async function() {
+    node.doRefreshToken = async function (this: any) {
       if (!this.accessToken || !this.refreshToken) {
         console.log("No tokens available for refresh, attempting fresh login");
         try {
@@ -113,23 +112,23 @@ describe("Easee Configuration - Integration Tests", () => {
           this.status({
             fill: "red",
             shape: "ring",
-            text: "Authentication failed"
+            text: "Authentication failed",
           });
           return null;
         }
       }
 
       try {
-        const response = await fetch(this.RestApipath + "/accounts/refresh_token", {
+        const response = await fetch(`${this.RestApipath}/accounts/refresh_token`, {
           method: "POST",
           headers: {
             Accept: "application/json",
-            "Content-Type": "application/*+json"
+            "Content-Type": "application/*+json",
           },
           body: JSON.stringify({
             accessToken: this.accessToken,
-            refreshToken: this.refreshToken
-          })
+            refreshToken: this.refreshToken,
+          }),
         });
 
         const json = await response.json();
@@ -144,7 +143,7 @@ describe("Easee Configuration - Integration Tests", () => {
             this.refreshRetryCount = 0;
 
             this.emit("update", {
-              update: "Token refresh failed, will attempt fresh login"
+              update: "Token refresh failed, will attempt fresh login",
             });
 
             return null; // Return null to indicate we should try fresh login
@@ -166,19 +165,19 @@ describe("Easee Configuration - Integration Tests", () => {
         this.tokenExpires = t;
 
         this.emit("update", {
-          update: "Token refreshed successfully"
+          update: "Token refreshed successfully",
         });
 
         return json;
-      } catch (error) {
+      } catch (error: any) {
         // Handle network errors and retries
-        const isTokenInvalid = error.message.includes("Invalid refresh token") ||
-                               error.message.includes("Token refresh failed") ||
-                               error.message.includes("401");
+        const isTokenInvalid =
+          error.message.includes("Invalid refresh token") ||
+          error.message.includes("Token refresh failed") ||
+          error.message.includes("401");
 
-        const isNetworkError = error.message.includes("fetch") ||
-                               error.message.includes("network") ||
-                               error.message.includes("timeout");
+        const isNetworkError =
+          error.message.includes("fetch") || error.message.includes("network") || error.message.includes("timeout");
 
         if (isTokenInvalid) {
           // Token is invalid - clear tokens and request fresh login
@@ -189,7 +188,7 @@ describe("Easee Configuration - Integration Tests", () => {
           this.refreshRetryCount = 0;
 
           this.emit("update", {
-            update: "Token refresh failed, will attempt fresh login"
+            update: "Token refresh failed, will attempt fresh login",
           });
 
           return null; // Return null to indicate we should try fresh login
@@ -199,7 +198,7 @@ describe("Easee Configuration - Integration Tests", () => {
           console.log(`Network error during token refresh, retry ${this.refreshRetryCount}/${this.maxRefreshRetries}`);
 
           this.emit("update", {
-            update: `Token refresh retry ${this.refreshRetryCount}/${this.maxRefreshRetries}`
+            update: `Token refresh retry ${this.refreshRetryCount}/${this.maxRefreshRetries}`,
           });
 
           return null; // Return null to trigger fresh login attempt
@@ -216,13 +215,13 @@ describe("Easee Configuration - Integration Tests", () => {
             this.refreshRetryCount = 0;
 
             this.emit("update", {
-              update: "Token refresh failed after retries, attempting fresh login"
+              update: "Token refresh failed after retries, attempting fresh login",
             });
 
             return null; // Return null to indicate we should try fresh login
           } else {
             this.emit("update", {
-              update: `Token refresh failed, retry ${this.refreshRetryCount}/${this.maxRefreshRetries}`
+              update: `Token refresh failed, retry ${this.refreshRetryCount}/${this.maxRefreshRetries}`,
             });
             return null;
           }
@@ -230,7 +229,7 @@ describe("Easee Configuration - Integration Tests", () => {
       }
     };
 
-    node.resetAuthenticationState = function() {
+    node.resetAuthenticationState = function (this: any) {
       this.accessToken = false;
       this.refreshToken = false;
       this.tokenExpires = new Date();
@@ -240,30 +239,31 @@ describe("Easee Configuration - Integration Tests", () => {
       this.status({
         fill: "red",
         shape: "ring",
-        text: "Authentication reset - reconfiguration required"
+        text: "Authentication reset - reconfiguration required",
       });
 
       this.emit("update", {
-        update: "Authentication failed - node requires reconfiguration"
+        update: "Authentication failed - node requires reconfiguration",
       });
     };
 
-    node.checkToken = async function() {
+    node.checkToken = async function (this: any) {
       if (!this.credentials || (!this.credentials.username && !this.credentials.password)) {
         this.status({
           fill: "yellow",
           shape: "ring",
-          text: "No credentials configured"
+          text: "No credentials configured",
         });
         return;
       }
 
-      const expiresIn = Math.floor(((this?.tokenExpires ?? 0) - new Date()) / 1000);
-      if (expiresIn < 43200) { // Less than 12 hours
+      const expiresIn = Math.floor(((this?.tokenExpires ?? 0) - Date.now()) / 1000);
+      if (expiresIn < 43200) {
+        // Less than 12 hours
         this.status({
           fill: "yellow",
           shape: "ring",
-          text: "Refreshing token..."
+          text: "Refreshing token...",
         });
 
         const refreshResult = await this.doRefreshToken();
@@ -273,7 +273,7 @@ describe("Easee Configuration - Integration Tests", () => {
           this.status({
             fill: "yellow",
             shape: "ring",
-            text: "Token expired, re-authenticating..."
+            text: "Token expired, re-authenticating...",
           });
 
           try {
@@ -289,7 +289,7 @@ describe("Easee Configuration - Integration Tests", () => {
               this.status({
                 fill: "red",
                 shape: "ring",
-                text: "Authentication failed - check credentials"
+                text: "Authentication failed - check credentials",
               });
 
               // Clear all tokens to force reconfiguration
@@ -303,7 +303,7 @@ describe("Easee Configuration - Integration Tests", () => {
               this.status({
                 fill: "yellow",
                 shape: "ring",
-                text: `Login retry ${this.loginRetryCount}/${this.maxLoginRetries}`
+                text: `Login retry ${this.loginRetryCount}/${this.maxLoginRetries}`,
               });
             }
           }
@@ -313,14 +313,14 @@ describe("Easee Configuration - Integration Tests", () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
     if (node.checkTokenHandler) {
       clearTimeout(node.checkTokenHandler);
     }
   });
 
   describe("Complete Authentication Flow", () => {
-    test("should complete full login flow successfully", async() => {
+    test("should complete full login flow successfully", async () => {
       // Arrange
       mockFetchResponses.loginSuccess();
 
@@ -335,23 +335,19 @@ describe("Easee Configuration - Integration Tests", () => {
       verifyNodeStatus(node, {
         fill: "green",
         shape: "dot",
-        text: "Authenticated"
+        text: "Authenticated",
       });
 
       verifyNodeEmit(node, "update", {
-        update: "Login successful, token retrieved"
+        update: "Login successful, token retrieved",
       });
     });
 
-    test("should handle login failure and recover with valid credentials", async() => {
+    test("should handle login failure and recover with valid credentials", async () => {
       // Arrange - first call fails, second succeeds
-      global.fetch
-        .mockResolvedValueOnce(
-          global.testHelpers.createFetchResponse(mockData.loginErrors.invalidCredentials, 401)
-        )
-        .mockResolvedValueOnce(
-          global.testHelpers.createFetchResponse(mockData.loginSuccess, 200)
-        );
+      fetchMock()
+        .mockResolvedValueOnce(globalThis.testHelpers.createFetchResponse(mockData.loginErrors.invalidCredentials, 401))
+        .mockResolvedValueOnce(globalThis.testHelpers.createFetchResponse(mockData.loginSuccess, 200));
 
       // Act - first login attempt should fail
       await expect(node.doLogin()).rejects.toThrow("Login failed (401)");
@@ -364,7 +360,7 @@ describe("Easee Configuration - Integration Tests", () => {
       expect(node.accessToken).toBe(mockData.loginSuccess.accessToken);
     });
 
-    test("should automatically refresh expired token", async() => {
+    test("should automatically refresh expired token", async () => {
       // Arrange - setup existing tokens
       node.accessToken = "existing-token";
       node.refreshToken = "existing-refresh";
@@ -380,29 +376,27 @@ describe("Easee Configuration - Integration Tests", () => {
       expect(node.refreshToken).toBe(mockData.refreshSuccess.refreshToken);
 
       verifyNodeEmit(node, "update", {
-        update: "Token refreshed successfully"
+        update: "Token refreshed successfully",
       });
     });
 
-    test("should fall back to login when refresh fails", async() => {
+    test("should fall back to login when refresh fails", async () => {
       // Arrange - setup for refresh failure, then login success
       node.accessToken = "invalid-token";
       node.refreshToken = "invalid-refresh";
-      node.tokenExpires = new Date(Date.now() + (10 * 60 * 60 * 1000)); // Token expires in 10 hours (triggers refresh)
+      node.tokenExpires = new Date(Date.now() + 10 * 60 * 60 * 1000); // Token expires in 10 hours (triggers refresh)
 
       // Ensure node has credentials for fallback login
       node.credentials = {
         username: "testuser@example.com",
-        password: "testpass123"
+        password: "testpass123",
       };
 
-      global.fetch
+      fetchMock()
         .mockResolvedValueOnce(
-          global.testHelpers.createFetchResponse(mockData.refreshErrors.invalidRefreshToken, 401)
+          globalThis.testHelpers.createFetchResponse(mockData.refreshErrors.invalidRefreshToken, 401),
         )
-        .mockResolvedValueOnce(
-          global.testHelpers.createFetchResponse(mockData.loginSuccess, 200)
-        );
+        .mockResolvedValueOnce(globalThis.testHelpers.createFetchResponse(mockData.loginSuccess, 200));
 
       // Act
       await node.checkToken();
@@ -414,20 +408,16 @@ describe("Easee Configuration - Integration Tests", () => {
       verifyNodeStatus(node, {
         fill: "green",
         shape: "dot",
-        text: "Authenticated"
+        text: "Authenticated",
       });
     });
 
-    test("should handle complete authentication flow from start to renewal", async() => {
+    test("should handle complete authentication flow from start to renewal", async () => {
       // Arrange - mock successful login followed by successful refresh
-      global.fetch.mockClear(); // Clear any previous mocks
-      global.fetch
-        .mockResolvedValueOnce(
-          global.testHelpers.createFetchResponse(mockData.loginSuccess, 200)
-        )
-        .mockResolvedValueOnce(
-          global.testHelpers.createFetchResponse(mockData.refreshSuccess, 200)
-        );
+      fetchMock().mockClear(); // Clear any previous mocks
+      fetchMock()
+        .mockResolvedValueOnce(globalThis.testHelpers.createFetchResponse(mockData.loginSuccess, 200))
+        .mockResolvedValueOnce(globalThis.testHelpers.createFetchResponse(mockData.refreshSuccess, 200));
 
       // Act - Initial login
       await node.doLogin();
@@ -436,31 +426,29 @@ describe("Easee Configuration - Integration Tests", () => {
       expect(node.accessToken).toBe(mockData.loginSuccess.accessToken);
 
       // Simulate token will expire within the next 10 hours (less than 12 hour threshold)
-      node.tokenExpires = new Date(Date.now() + (10 * 60 * 60 * 1000)); // 10 hours left
+      node.tokenExpires = new Date(Date.now() + 10 * 60 * 60 * 1000); // 10 hours left
 
       // Check token (should trigger refresh since < 12 hours)
       await node.checkToken();
 
       // Assert
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
       expect(node.accessToken).toBe(mockData.refreshSuccess.accessToken);
       expect(node.refreshToken).toBe(mockData.refreshSuccess.refreshToken);
     });
 
-    test("should handle network errors with proper fallback", async() => {
+    test("should handle network errors with proper fallback", async () => {
       // Arrange - network error on first attempt, success on retry
-      global.fetch.mockClear(); // Clear any previous mocks
+      fetchMock().mockClear(); // Clear any previous mocks
 
       // First call fails with network error
-      global.fetch.mockRejectedValueOnce(new Error("Network error"));
+      fetchMock().mockRejectedValueOnce(new Error("Network error"));
 
       // Act - first attempt fails
       await expect(node.doLogin()).rejects.toThrow("Network error");
 
       // Setup second call to succeed
-      global.fetch.mockResolvedValueOnce(
-        global.testHelpers.createFetchResponse(mockData.loginSuccess, 200)
-      );
+      fetchMock().mockResolvedValueOnce(globalThis.testHelpers.createFetchResponse(mockData.loginSuccess, 200));
 
       // Second attempt succeeds
       const result = await node.doLogin();
@@ -472,25 +460,23 @@ describe("Easee Configuration - Integration Tests", () => {
   });
 
   describe("Error Recovery Scenarios", () => {
-    test("should recover from temporary network issues", async() => {
+    test("should recover from temporary network issues", async () => {
       // Arrange
       node.accessToken = "valid-token";
       node.refreshToken = "valid-refresh";
-      node.tokenExpires = new Date(Date.now() + (6 * 60 * 60 * 1000)); // 6 hours
+      node.tokenExpires = new Date(Date.now() + 6 * 60 * 60 * 1000); // 6 hours
 
-      global.fetch.mockClear(); // Clear any previous mocks
+      fetchMock().mockClear(); // Clear any previous mocks
 
       // First refresh fails with network error
-      global.fetch.mockRejectedValueOnce(new Error("fetch failed - timeout"));
+      fetchMock().mockRejectedValueOnce(new Error("fetch failed - timeout"));
 
       // Act - first attempt should return null due to network error
       const firstResult = await node.doRefreshToken();
       expect(firstResult).toBe(null);
 
       // Setup second call to succeed
-      global.fetch.mockResolvedValueOnce(
-        global.testHelpers.createFetchResponse(mockData.refreshSuccess, 200)
-      );
+      fetchMock().mockResolvedValueOnce(globalThis.testHelpers.createFetchResponse(mockData.refreshSuccess, 200));
 
       // Second attempt should succeed
       const result = await node.doRefreshToken();
@@ -499,15 +485,15 @@ describe("Easee Configuration - Integration Tests", () => {
       expect(result).toEqual(mockData.refreshSuccess);
     });
 
-    test("should reset authentication after multiple failures", async() => {
+    test("should reset authentication after multiple failures", async () => {
       // Arrange
       node.accessToken = "invalid-token";
       node.refreshToken = "invalid-refresh";
       node.maxRefreshRetries = 1;
       node.refreshRetryCount = 1; // Already at max, so next failure should reset
 
-      global.fetch.mockClear(); // Clear any previous mocks
-      global.fetch.mockRejectedValueOnce(new Error("fetch failed - timeout"));
+      fetchMock().mockClear(); // Clear any previous mocks
+      fetchMock().mockRejectedValueOnce(new Error("fetch failed - timeout"));
 
       // Act
       const result = await node.doRefreshToken();
@@ -521,7 +507,7 @@ describe("Easee Configuration - Integration Tests", () => {
   });
 
   describe("Configuration Edge Cases", () => {
-    test("should handle missing credentials gracefully", async() => {
+    test("should handle missing credentials gracefully", async () => {
       // Arrange
       node.credentials = null;
 
@@ -532,11 +518,11 @@ describe("Easee Configuration - Integration Tests", () => {
       verifyNodeStatus(node, {
         fill: "yellow",
         shape: "ring",
-        text: "No credentials configured"
+        text: "No credentials configured",
       });
     });
 
-    test("should handle empty credentials", async() => {
+    test("should handle empty credentials", async () => {
       // Arrange
       node.credentials = { username: "", password: "" };
 
@@ -547,14 +533,14 @@ describe("Easee Configuration - Integration Tests", () => {
       verifyNodeStatus(node, {
         fill: "yellow",
         shape: "ring",
-        text: "No credentials configured"
+        text: "No credentials configured",
       });
     });
 
-    test("should handle partial credentials", async() => {
+    test("should handle partial credentials", async () => {
       // Arrange
       node.credentials = { username: "test@example.com", password: "" };
-      global.fetch.mockClear(); // Clear any previous mocks
+      fetchMock().mockClear(); // Clear any previous mocks
 
       // Since validation should happen before fetch, no mock needed
       // Act & Assert
@@ -563,26 +549,22 @@ describe("Easee Configuration - Integration Tests", () => {
   });
 
   describe("Token Lifecycle Management", () => {
-    test("should manage token lifecycle correctly", async() => {
+    test("should manage token lifecycle correctly", async () => {
       // Arrange - start with no tokens
       expect(node.accessToken).toBeNull();
       expect(node.refreshToken).toBeNull();
 
-      global.fetch.mockClear(); // Clear any previous mocks
+      fetchMock().mockClear(); // Clear any previous mocks
 
       // Mock successful login
-      global.fetch.mockResolvedValueOnce(
-        global.testHelpers.createFetchResponse(mockData.loginSuccess, 200)
-      );
+      fetchMock().mockResolvedValueOnce(globalThis.testHelpers.createFetchResponse(mockData.loginSuccess, 200));
 
       // Act - Login
       await node.doLogin();
       expect(node.accessToken).toBe(mockData.loginSuccess.accessToken);
 
       // Mock successful refresh
-      global.fetch.mockResolvedValueOnce(
-        global.testHelpers.createFetchResponse(mockData.refreshSuccess, 200)
-      );
+      fetchMock().mockResolvedValueOnce(globalThis.testHelpers.createFetchResponse(mockData.refreshSuccess, 200));
 
       // Refresh token
       await node.doRefreshToken();
@@ -597,7 +579,7 @@ describe("Easee Configuration - Integration Tests", () => {
       verifyNodeStatus(node, {
         fill: "red",
         shape: "ring",
-        text: "Authentication reset - reconfiguration required"
+        text: "Authentication reset - reconfiguration required",
       });
     });
   });
