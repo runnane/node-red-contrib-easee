@@ -73,24 +73,7 @@ interface PnpmAuditReport {
  * key — an unexplained entry is indistinguishable from someone silencing a
  * failure, which is the thing this file is trying to prevent.
  */
-const ALLOWLIST: AllowlistEntry[] = [
-  {
-    id: "GHSA-96hv-2xvq-fx4p",
-    package: "ws",
-    issue: "EASEE-8",
-    review: "2026-11-30",
-    reason:
-      "ws memory-exhaustion DoS, reached via @microsoft/signalr. Not fixable " +
-      "from this repo: every published @microsoft/signalr up to 10.0.11 " +
-      "declares ws ^7.5.10, and 7.5.10 is both the highest 7.x and the top of " +
-      "the vulnerable range, so no bump clears it and an audit fix cannot " +
-      "either. Exposure is limited: the socket is an outbound client " +
-      "connection to Easee's SignalR endpoint, not a listening server, so " +
-      "reaching it requires a malicious or compromised upstream rather than " +
-      "arbitrary internet traffic. EASEE-8 tracks forcing ws@8 via overrides, " +
-      "which needs real transport testing before it can ship.",
-  },
-];
+const ALLOWLIST: AllowlistEntry[] = [];
 
 function meetsMinimumSeverity(severity: string): boolean {
   return SEVERITY_ORDER.indexOf(severity) >= SEVERITY_ORDER.indexOf(MINIMUM_SEVERITY);
