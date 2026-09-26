@@ -55,3 +55,13 @@ updates:
     target-branch: "main"
     # Allow Dependabot to rebase PRs
     rebase-strategy: "auto"
+
+  # Keep GitHub Actions themselves current (EASEE-23) — ci.yml and release.yml
+  # pin actions by major tag, and GitHub Actions runners have started forcing
+  # actions still targeting the deprecated Node 20 runtime onto Node 24 with a
+  # warning; a version bump here is how future warnings arrive as a PR instead
+  # of as a silent annotation nobody reads until the fallback is removed.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

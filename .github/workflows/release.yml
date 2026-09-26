@@ -87,7 +87,7 @@ jobs:
         fi
 
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         # Full history and every tag, so `npm version` refuses a tag that already exists.
         fetch-depth: 0
@@ -98,11 +98,11 @@ jobs:
     # Before setup-node: its `cache: pnpm` needs the pnpm binary. The pnpm version
     # comes from `packageManager` in package.json.
     - name: Install pnpm
-      uses: pnpm/action-setup@v4
+      uses: pnpm/action-setup@v6
 
     # 22.x: the toolchain (Vitest 5) needs >= 22.12.
     - name: Use Node.js 22.x
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: 22.x
         cache: 'pnpm'
@@ -152,7 +152,7 @@ jobs:
     # load check, so it never has to install or build anything itself. Kept after
     # the push too: "Re-run failed jobs" on publish downloads it again.
     - name: Upload the built package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: dist-easee-client
         path: dist/easee-client/
@@ -201,7 +201,7 @@ jobs:
 
     steps:
     - name: Checkout the tag
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         ref: ${{ needs.prepare.outputs.tag }}
         persist-credentials: false
@@ -209,14 +209,14 @@ jobs:
     # dist/ is gitignored, so the tag does not contain the package. Add the build
     # prepare gated and load-checked on this same version.
     - name: Add the built package
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: dist-easee-client
         path: dist/easee-client
 
     # Trusted publishing needs npm 11.5.1 or newer; Node 24 bundles npm 11.
     - name: Use Node.js 24.x
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: 24.x
         registry-url: 'https://registry.npmjs.org'
