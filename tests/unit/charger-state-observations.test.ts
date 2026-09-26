@@ -266,7 +266,9 @@ describe("charger_state via the observations endpoint", () => {
 
           setTimeout(() => {
             try {
-              expect(errors).toContain("charger_state failed");
+              expect(errors).toContain(
+                "[easee] charger_state failed: Easee answered without an observations list. Check the charger id; the charger may be offline or not report its state.",
+              );
               expect(config.accessToken).toBe("test-access-token");
               resolve();
             } catch (error) {

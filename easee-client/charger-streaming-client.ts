@@ -33,6 +33,15 @@ import {
   LogLevel,
 } from "@microsoft/signalr";
 import type { Node, NodeAPI, NodeDef, NodeStatus } from "node-red";
+import {
+  classifyError,
+  type DescribeOptions,
+  describeError,
+  type ErrorCategory,
+  incompleteConfigurationError,
+  missingConfigurationError,
+  reportError,
+} from "./errors";
 import { createFallbackLogHelpers, type LogHelpers } from "./logging";
 import { EaseeSignalRHttpClient } from "./signalr-http-client";
 import type { EaseeConfigurationNode, InputListener, LogFn, ObservationData } from "./types";
@@ -46,8 +55,32 @@ interface ChargerStreamingClientDef extends NodeDef {
 }
 
 interface ErroEvent {
+  /** Sent as output 2's payload, unchanged: that is a compatibility surface. */
   err: unknown;
   id?: string | null;
+  /** How to report it (EASEE-26): category, status text and hint for node.error()/status. */
+  describe?: Pick<DescribeOptions, "category" | "statusText" | "hint">;
+  /** The input message that triggered it, passed to node.error() so a Catch node sees it. */
+  msg?: object;
+  /** Not a failure (the node is closing): status and output only, no node.error(). */
+  quiet?: boolean;
+}
+
+/** Where to set the charger, for the "no charger id" error. */
+const CHARGER_HINT = "Set Charger in this node, then deploy.";
+
+/** Charger serials shorter than this are not redacted, so redaction cannot eat unrelated text. */
+const MIN_REDACTED_ID_LENGTH = 6;
+
+/**
+ * How to report a SignalR failure: an HTTP status from the hub (SignalR's
+ * HttpError carries `statusCode`) of 401/403 means the token was refused,
+ * another status is the hub rejecting the call, and no status at all means the
+ * stream could not be reached.
+ */
+function describeSignalRError(err: unknown): Pick<DescribeOptions, "category"> {
+  const category = classifyError(err);
+  return { category: category === "unknown" ? "network" : category };
 }
 
 interface ConnectionEvent {
@@ -82,7 +115,7 @@ interface ChargerStreamingClientNode extends Node {
   reconnectTimoutHandle?: ReturnType<typeof setTimeout> | null;
   /** The SignalR hub connection; undefined until startconn() has built one. */
   connection?: HubConnection;
-  fullReconnect(): void;
+  fullReconnect(msg?: object): void;
   startconn(): void;
   reconnect(): void;
   notifyOnError(err: unknown, id: string | null): void;
@@ -165,32 +198,29 @@ export = (RED: NodeAPI) => {
     node.reconnectInterval = 3000;
     node.closing = false;
 
+    // Reported directly: these used to emit "erro" before its listener was
+    // registered, so only the status ever reached the user (EASEE-26).
     if (!node.connectionConfig) {
-      node.emit("erro", {
-        err: "[easee] Missing easee account configuration node",
-      });
-      node.status({
-        fill: "red",
-        shape: "ring",
-        text: "Missing configuration",
-      });
+      reportError(node, "Cannot start", missingConfigurationError());
       return;
     }
 
     // Check if the configuration node has valid credentials
     if (!node.connectionConfig.isConfigurationValid?.()) {
-      node.emit("erro", {
-        err: "[easee] Configuration node is invalid - missing username or password",
-      });
-      node.status({
-        fill: "red",
-        shape: "ring",
-        text: "Invalid configuration - missing credentials",
-      });
+      reportError(node, "Cannot start", incompleteConfigurationError());
       return;
     }
 
-    node.fullReconnect = () => {
+    /** Never in a message or status: the config node's secrets, and the charger serial. */
+    const secrets = (): unknown[] => [
+      ...(node.connectionConfig.secrets?.() ?? []),
+      typeof node.charger === "string" && node.charger.length >= MIN_REDACTED_ID_LENGTH ? node.charger : null,
+    ];
+
+    /** Why the configuration node is not logged in, as far as it knows. */
+    const authFailureCategory = (): ErrorCategory => node.connectionConfig.authFailureCategory?.() ?? "unknown";
+
+    node.fullReconnect = (msg) => {
       node.connectionConfig
         .ensureAuthentication()
         .then((isAuthenticated) => {
@@ -199,12 +229,16 @@ export = (RED: NodeAPI) => {
           } else {
             node.emit("erro", {
               err: "Authentication failed during fullReconnect()",
+              describe: { category: authFailureCategory() },
+              msg,
             });
           }
         })
         .catch((e) => {
           node.emit("erro", {
             err: `Error during fullReconnect(): ${e.message}`,
+            describe: { category: classifyError(e) },
+            msg,
           });
         });
     };
@@ -217,8 +251,8 @@ export = (RED: NodeAPI) => {
       });
     });
 
-    node.on("input", (_msg, _send, done) => {
-      node.fullReconnect();
+    node.on("input", (msg, _send, done) => {
+      node.fullReconnect(msg);
       if (done) {
         done();
       }
@@ -287,6 +321,11 @@ export = (RED: NodeAPI) => {
           node.emit("erro", {
             err: `Failed to subscribe to charger updates: ${error instanceof Error ? error.message : String(error)}`,
             id: event.id,
+            describe: {
+              category: "api",
+              statusText: "Subscribe failed",
+              hint: "Check the charger id, and that this Easee account has access to that charger.",
+            },
           });
         }
       };
@@ -297,19 +336,32 @@ export = (RED: NodeAPI) => {
      * Error event
      */
     node.on("erro", (event) => {
-      node.logError("Error in easee-streaming-client:", event.err);
-      node.warn(event.err);
-
-      node.status({
-        fill: "red",
-        shape: "ring",
-        text: event.err,
+      // One node.error() on this node (with the input msg when there is one,
+      // so a Catch node sees it) and a status naming the kind of failure
+      // (EASEE-26). This used to be an error on the configuration node plus a
+      // warning here, and the raw error text as the status.
+      const statusExtra = {
         event: "error",
         _session: {
           type: "signalr",
           id: event.id,
         },
-      });
+      };
+      if (event.quiet) {
+        node.status({
+          fill: "red",
+          shape: "ring",
+          text: describeError(event.err, { ...event.describe, secrets: secrets() }).statusText,
+          ...statusExtra,
+        });
+      } else {
+        reportError(node, "Charger stream", event.err, {
+          ...event.describe,
+          msg: event.msg,
+          secrets: secrets(),
+          statusExtra,
+        });
+      }
       const errMsg: { payload: unknown; _connectionId?: string } = { payload: event.err };
       if (event.id) {
         errMsg._connectionId = event.id;
@@ -366,6 +418,7 @@ export = (RED: NodeAPI) => {
 
       node.emit("erro", {
         err: "Disconnected",
+        quiet: true,
       });
       if (done) {
         done();
@@ -383,12 +436,16 @@ export = (RED: NodeAPI) => {
       if (!node.charger) {
         node.emit("erro", {
           err: "No charger, exiting",
+          describe: { category: "config", statusText: "No charger id", hint: CHARGER_HINT },
         });
         return;
       }
       if (!node.connectionConfig.accessToken) {
+        // Say why, when the configuration node knows (EASEE-26).
+        const category = authFailureCategory();
         node.emit("erro", {
           err: "No accessToken, waiting",
+          describe: category === "unknown" ? { category, statusText: "Waiting for login" } : { category },
         });
         node.reconnectTimoutHandle = setTimeout(() => node.startconn(), node.reconnectInterval);
         return;
@@ -437,14 +494,11 @@ export = (RED: NodeAPI) => {
           .configureLogging(createSignalRLogger(node, Boolean(node.connectionConfig.debugLogging)))
           .build();
       } catch (error) {
-        node.logError("Error creating SignalR connection:", error);
+        // One report through the erro handler; this used to log it on the
+        // configuration node as well and then overwrite the status (EASEE-26).
         node.emit("erro", {
           err: `[easee] Error creating SignalR connection: ${(error as Error).message}`,
-        });
-        node.status({
-          fill: "red",
-          shape: "ring",
-          text: "SignalR connection error",
+          describe: { statusText: "SignalR setup error" },
         });
         return;
       }
@@ -466,11 +520,13 @@ export = (RED: NodeAPI) => {
           if (isAuthenticated) {
             node.reconnectTimoutHandle = setTimeout(() => node.startconn(), node.reconnectInterval);
           } else {
-            node.logError("Authentication failed during reconnect");
+            node.logError(
+              `Authentication failed during reconnect: ${describeError("not logged in to Easee", { category: authFailureCategory(), secrets: secrets() }).message}`,
+            );
           }
         })
         .catch((error) => {
-          node.logError("Error during reconnect:", error);
+          node.logError(`Error during reconnect: ${describeError(error, { secrets: secrets() }).message}`);
         });
     };
 
@@ -481,6 +537,7 @@ export = (RED: NodeAPI) => {
       node.emit("erro", {
         err: err,
         id: id,
+        describe: describeSignalRError(err),
       });
     };
 

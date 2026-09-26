@@ -9,6 +9,7 @@
  * renamed freely as long as all three nodes agree.
  */
 import type { Node, NodeDef, NodeMessage, NodeMessageInFlow } from "node-red";
+import type { ErrorCategory } from "./errors";
 
 export type LogFn = (message: string, data?: unknown) => void;
 
@@ -102,6 +103,13 @@ export interface EaseeConfigurationNode extends Node<EaseeCredentials> {
 
   validateCredentials(): CredentialsValidation;
   isConfigurationValid(): boolean;
+
+  /** The password, both tokens and the username: never in a message or status (EASEE-26). */
+  secrets(): unknown[];
+  /** Category of the last failed login; null after a good one (EASEE-26). */
+  lastAuthFailure: ErrorCategory | null;
+  /** Why ensureAuthentication() would return false: `config`, or lastAuthFailure. */
+  authFailureCategory(): ErrorCategory;
 
   signalRpath: string;
   RestApipath: string;

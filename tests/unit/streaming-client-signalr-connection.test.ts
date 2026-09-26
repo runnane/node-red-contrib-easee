@@ -256,7 +256,13 @@ describe("charger-streaming-client SignalR connection lifecycle", () => {
     streaming.startconn();
 
     expect(sent).toContainEqual([null, { payload: "[easee] Error creating SignalR connection: bad url" }, null]);
-    expect(statuses).toContainEqual({ fill: "red", shape: "ring", text: "SignalR connection error" });
+    expect(statuses).toContainEqual({
+      fill: "red",
+      shape: "ring",
+      text: "SignalR setup error",
+      event: "error",
+      _session: { type: "signalr", id: undefined },
+    });
     expect(streaming.connection).toBeUndefined();
   }, 15000);
 

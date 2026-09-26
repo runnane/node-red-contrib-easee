@@ -25,6 +25,13 @@
  * by Scott Page (Apache License 2.0).
  **/
 import type { Node, NodeAPI, NodeDef, NodeMessageInFlow } from "node-red";
+import {
+  categorizedError,
+  type DescribeOptions,
+  incompleteConfigurationError,
+  missingConfigurationError,
+  reportError,
+} from "./errors";
 import { createFallbackLogHelpers } from "./logging";
 import type { EaseeConfigurationNode, LogFn, ObservationData } from "./types";
 
@@ -73,12 +80,29 @@ interface EaseeRestClientNode extends Node {
   logDebug: LogFn;
   logError: LogFn;
   logWarn: LogFn;
-  fail(url: string, method: string, error: unknown): boolean;
+  /**
+   * Report a failed request (EASEE-26): node.error() with the input `msg`, so a
+   * Catch node sees it, a status naming the kind of failure, and the unchanged
+   * `status: "error"` output message.
+   */
+  fail(url: string, method: string, error: unknown, msg?: object, describe?: FailDescription): boolean;
   ok(url: string, method: string, response: unknown): boolean;
-  REQUEST(url: string, method?: string, body?: unknown): Promise<boolean>;
-  GET(url: string): Promise<boolean>;
-  POST(url: string, body?: unknown): Promise<boolean>;
+  REQUEST(url: string, method?: string, body?: unknown, msg?: object): Promise<boolean>;
+  GET(url: string, msg?: object): Promise<boolean>;
+  POST(url: string, body?: unknown, msg?: object): Promise<boolean>;
 }
+
+/** How fail() should describe an error that is a plain string (kept a string for the output msg). */
+type FailDescription = Pick<DescribeOptions, "category" | "statusText" | "hint">;
+
+/** Where to set the charger, for the "no charger id" error. */
+const CHARGER_HINT = "Set Charger in this node, or send msg.charger.";
+
+/**
+ * Charger serials are account identifiers; redact one from messages when it is
+ * long enough that redacting it cannot eat unrelated text (a status code, say).
+ */
+const MIN_REDACTED_ID_LENGTH = 6;
 
 // `export =` rather than `export default`: Node-RED require()s this file and needs
 // module.exports to BE the factory. TypeScript emits this as `module.exports = ...`.
@@ -172,39 +196,30 @@ export = (RED: NodeAPI) => {
     node.logWarn = node.connection?.logWarn || fallbackLog.logWarn;
 
     if (!node.connection) {
-      node.error("[easee] Missing easee configuration node");
-      node.status({
-        fill: "red",
-        shape: "ring",
-        text: "Missing configuration",
-      });
+      reportError(node, "Cannot start", missingConfigurationError());
       return;
     }
 
     // Check if the configuration node has valid credentials
     if (!node.connection.isConfigurationValid?.()) {
-      node.error("[easee] Configuration node is invalid - missing username or password");
-      node.status({
-        fill: "red",
-        shape: "ring",
-        text: "Invalid configuration - missing credentials",
-      });
+      reportError(node, "Cannot start", incompleteConfigurationError());
       return;
     }
 
+    /** Never in a message or status: the config node's secrets, and the charger serial. */
+    const secrets = (): unknown[] => [
+      ...(node.connection.secrets?.() ?? []),
+      typeof node.charger === "string" && node.charger.length >= MIN_REDACTED_ID_LENGTH ? node.charger : null,
+    ];
+
     /**
-     * Helper func for sending sailure
-     * @param string url
-     * @param {string} method
-     * @param {*} error
+     * Helper func for sending failure. The output message is unchanged
+     * (`error` is whatever was thrown, as before); what changed is the
+     * node.error() + status, which now say what failed and what to do, and
+     * carry the input msg (EASEE-26).
      */
-    node.fail = (url, method, error) => {
-      node.logError("Error in easee-rest-client:", error);
-      node.status({
-        fill: "red",
-        shape: "dot",
-        text: `${method}: failed`,
-      });
+    node.fail = (url, method, error, msg, describe) => {
+      reportError(node, `${method} request failed`, error, { msg, secrets: secrets(), ...describe });
       node.send({
         status: "error",
         topic: `${method}: failed`,
@@ -243,7 +258,7 @@ export = (RED: NodeAPI) => {
      * @param {*} body
      * @returns
      */
-    node.REQUEST = async (url, method = "GET", body = null) => {
+    node.REQUEST = async (url, method = "GET", body = null, msg = undefined) => {
       // Status: Sending the request
       node.status({
         fill: "yellow",
@@ -273,17 +288,17 @@ export = (RED: NodeAPI) => {
           return node.ok(url, method, response);
         })
         .catch((error) => {
-          return node.fail(url, method, error);
+          return node.fail(url, method, error, msg);
         });
     };
 
     /**
      * REST API GET helper command
      * @param {*} url
-     * @returns
+     * @param {object} msg the input message, for error reporting
      */
-    node.GET = (url) => {
-      return node.REQUEST(url, "GET");
+    node.GET = (url, msg) => {
+      return node.REQUEST(url, "GET", null, msg);
     };
 
     /**
@@ -291,18 +306,38 @@ export = (RED: NodeAPI) => {
      *
      * @param {string} url
      * @param {*} body
-     * @returns
+     * @param {object} msg the input message, for error reporting
      */
-    node.POST = (url, body = {}) => {
-      return node.REQUEST(url, "POST", body);
+    node.POST = (url, body = {}, msg = undefined) => {
+      return node.REQUEST(url, "POST", body, msg);
+    };
+
+    /** A charger-scoped topic with no charger id: say so, rather than asking Easee for /chargers/undefined. */
+    const failWithoutCharger = (method: string, msg: RestClientMessage): boolean => {
+      if (node.charger) {
+        return false;
+      }
+      node.fail(
+        "error",
+        method,
+        categorizedError("No charger id", "config", { statusText: "No charger id", hint: CHARGER_HINT }),
+        msg,
+      );
+      return true;
     };
 
     /**
-     * On incoming nodered message
+     * On incoming nodered message. done() is called on every path, including
+     * the error ones that used to return before reaching it (EASEE-26).
      */
     node.on("input", async (inputMsg, _send, done) => {
-      const msg = inputMsg as RestClientMessage;
+      await handleInput(inputMsg as RestClientMessage);
+      if (done) {
+        done();
+      }
+    });
 
+    const handleInput = async (msg: RestClientMessage): Promise<unknown> => {
       // Status: Preparing the query
       node.status({
         fill: "blue",
@@ -335,16 +370,25 @@ export = (RED: NodeAPI) => {
         body = msg.payload.body;
       }
 
-      // `method` comes from the message, so this is a lookup of an arbitrary name
-      // on the node — GET and POST are the ones meant to be reached.
-      const handler = (node as unknown as Record<string, unknown>)[method];
-      if (handler === undefined) {
-        return node.fail("error", "POST", `Invalid HTTP method: ${method}`);
+      // `method` comes from the message. It used to be looked up as a property
+      // of the node, which let any method name reach any node function (`ok`,
+      // `fail`…); only GET and POST were ever meant to (EASEE-26). The output
+      // msg.error stays the plain string it always was.
+      if (method !== "GET" && method !== "POST") {
+        return node.fail("error", "POST", `Invalid HTTP method: ${method}`, msg, {
+          category: "input",
+          statusText: "Invalid HTTP method",
+          hint: "Use GET or POST in msg.payload.method.",
+        });
       }
 
       if (path && method) {
         // Run full path as defined by node-red parameters
-        await (handler as (url: string, body?: unknown) => Promise<boolean>).call(node, path, body);
+        if (method === "GET") {
+          await node.GET(path, msg);
+        } else {
+          await node.POST(path, body, msg);
+        }
       } else if (msg?.topic) {
         // Run command as defined by topic
         try {
@@ -369,11 +413,18 @@ export = (RED: NodeAPI) => {
                   if (isAuthenticated) {
                     return node.ok("/accounts/login/", "POST", { success: true, message: "Authentication verified" });
                   } else {
-                    return node.fail("/accounts/login/", "POST", new Error("Authentication failed"));
+                    // Same message as ever (it reaches msg.error), now tagged
+                    // with why the login failed (EASEE-26).
+                    return node.fail(
+                      "/accounts/login/",
+                      "POST",
+                      categorizedError("Authentication failed", node.connection.authFailureCategory?.() ?? "unknown"),
+                      msg,
+                    );
                   }
                 })
                 .catch((error) => {
-                  return node.fail("/accounts/login/", "POST", error);
+                  return node.fail("/accounts/login/", "POST", error, msg);
                 });
               break;
             case "refresh_token":
@@ -403,19 +454,34 @@ export = (RED: NodeAPI) => {
                   return node.ok("/accounts/refresh_token/", "POST", json);
                 })
                 .catch((error) => {
-                  return node.fail("/accounts/refresh_token/", "POST", error);
+                  return node.fail("/accounts/refresh_token/", "POST", error, msg);
                 });
 
               break;
             case "dynamic_current":
+              // No output message on these two, as before; the error now
+              // carries the msg, and no longer echoes the ids it was given
+              // (account identifiers) back into the log (EASEE-26).
               if (!node.site) {
-                node.error(
-                  `dynamic_current failed: site missing. Provide site in msg.site, msg.payload.site_id, or node configuration. Current values: msg.site=${msg?.site}, msg.payload.site_id=${msg?.payload?.site_id}, node.site=${n.site}`,
+                reportError(
+                  node,
+                  "dynamic_current failed",
+                  categorizedError("site missing", "config", {
+                    statusText: "No site id",
+                    hint: "Set Site in this node, or send msg.site or msg.payload.site_id.",
+                  }),
+                  { msg },
                 );
                 return;
               } else if (!node.circuit) {
-                node.error(
-                  `dynamic_current failed: circuit missing. Provide circuit in msg.circuit, msg.payload.circuit_id, or node configuration. Current values: msg.circuit=${msg?.circuit}, msg.payload.circuit_id=${msg?.payload?.circuit_id}, node.circuit=${n.circuit}`,
+                reportError(
+                  node,
+                  "dynamic_current failed",
+                  categorizedError("circuit missing", "config", {
+                    statusText: "No circuit id",
+                    hint: "Set Circuit in this node, or send msg.circuit or msg.payload.circuit_id.",
+                  }),
+                  { msg },
                 );
                 return;
               } else if (
@@ -429,35 +495,47 @@ export = (RED: NodeAPI) => {
                 const apiPayload = { ...msg.payload };
                 delete apiPayload.site_id;
                 delete apiPayload.circuit_id;
-                await node.POST(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`, apiPayload);
+                await node.POST(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`, apiPayload, msg);
               } else {
                 // GET circuit information
-                await node.GET(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`);
+                await node.GET(`/sites/${node.site}/circuits/${node.circuit}/dynamicCurrent`, msg);
               }
               break;
 
             case "charger":
-              await node.GET(`/chargers/${node.charger}?alwaysGetChargerAccessLevel=true`);
+              if (!failWithoutCharger("GET", msg)) {
+                await node.GET(`/chargers/${node.charger}?alwaysGetChargerAccessLevel=true`, msg);
+              }
               break;
 
             case "charger_details":
-              await node.GET(`/chargers/${node.charger}/details`);
+              if (!failWithoutCharger("GET", msg)) {
+                await node.GET(`/chargers/${node.charger}/details`, msg);
+              }
               break;
 
             case "charger_site":
-              await node.GET(`/chargers/${node.charger}/site`);
+              if (!failWithoutCharger("GET", msg)) {
+                await node.GET(`/chargers/${node.charger}/site`, msg);
+              }
               break;
 
             case "charger_config":
-              await node.GET(`/chargers/${node.charger}/config`);
+              if (!failWithoutCharger("GET", msg)) {
+                await node.GET(`/chargers/${node.charger}/config`, msg);
+              }
               break;
 
             case "charger_session_latest":
-              await node.GET(`/chargers/${node.charger}/sessions/latest`);
+              if (!failWithoutCharger("GET", msg)) {
+                await node.GET(`/chargers/${node.charger}/sessions/latest`, msg);
+              }
               break;
 
             case "charger_session_ongoing":
-              await node.GET(`/chargers/${node.charger}/sessions/ongoing`);
+              if (!failWithoutCharger("GET", msg)) {
+                await node.GET(`/chargers/${node.charger}/sessions/ongoing`, msg);
+              }
               break;
 
             case "start_charging":
@@ -466,10 +544,15 @@ export = (RED: NodeAPI) => {
             case "resume_charging":
             case "toggle_charging":
             case "reboot":
-              await node.POST(`/chargers/${node.charger}/commands/${msg.topic}`);
+              if (!failWithoutCharger("POST", msg)) {
+                await node.POST(`/chargers/${node.charger}/commands/${msg.topic}`, undefined, msg);
+              }
               break;
 
             case "charger_state": {
+              if (failWithoutCharger("GET", msg)) {
+                break;
+              }
               // Easee sunset GET /api/chargers/{charger}/state on 2026-09-01;
               // it now 404s. The observations endpoint replaces it and lives
               // outside /api, so this is an absolute URL — doAuthRestCall()
@@ -509,7 +592,17 @@ export = (RED: NodeAPI) => {
                   json === null ||
                   !Array.isArray((json as { observations?: unknown }).observations)
                 ) {
-                  node.error("charger_state failed");
+                  // No output message here, as before; the error now says
+                  // what was wrong and carries the msg (EASEE-26).
+                  reportError(
+                    node,
+                    "charger_state failed",
+                    categorizedError("Easee answered without an observations list", "api", {
+                      statusText: "No charger state",
+                      hint: "Check the charger id; the charger may be offline or not report its state.",
+                    }),
+                    { msg, secrets: secrets() },
+                  );
                 } else {
                   // The endpoint returns a flat array keyed by observation id.
                   // Re-key it by the field names the old /state endpoint used,
@@ -542,25 +635,31 @@ export = (RED: NodeAPI) => {
                   return node.ok(url, "GET", state);
                 }
               } catch (error) {
-                return node.fail(url, "GET", error);
+                return node.fail(url, "GET", error, msg);
               }
               break;
             }
 
             default:
-              return node.fail("error", "GET", `Unknown topic ${msg.topic}`);
+              return node.fail("error", "GET", `Unknown topic ${msg.topic}`, msg, {
+                category: "input",
+                statusText: "Unknown topic",
+                hint: "See this node's help for the supported topics.",
+              });
           }
         } catch (error) {
-          return node.fail("REST client command failed", "GET", error);
+          return node.fail("REST client command failed", "GET", error, msg);
         }
       } else {
         // Missing topic
-        return node.fail("error", "GET", `Missing required payload.path or topic`);
+        return node.fail("error", "GET", `Missing required payload.path or topic`, msg, {
+          category: "input",
+          statusText: "No topic or path",
+          hint: "Send msg.topic, or msg.payload.path with an optional method and body.",
+        });
       }
-      if (done) {
-        done();
-      }
-    });
+      return undefined;
+    };
   }
 
   RED.nodes.registerType("easee-rest-client", EaseeRestClient);

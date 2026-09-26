@@ -95,7 +95,7 @@ describe("easee-configuration token-check cycle after failed logins (EASEE-38)",
     ]);
     for (const { status } of results) {
       expect(status).not.toMatch(/credential/i);
-      expect(status).toMatch(/^Cannot reach Easee - retrying in \d+s$/);
+      expect(status).toMatch(/^Easee unreachable – retrying in \d+s$/);
     }
     expect(node.loginRetryCount).toBe(0);
   });
@@ -109,7 +109,7 @@ describe("easee-configuration token-check cycle after failed logins (EASEE-38)",
       results.push(await cycle(node));
     }
 
-    expect(results.at(-1)).toEqual({ nextCheckMs: 5 * MINUTE, status: "Cannot reach Easee - retrying in 300s" });
+    expect(results.at(-1)).toEqual({ nextCheckMs: 5 * MINUTE, status: "Easee error 503 – retrying in 300s" });
     for (const { status } of results) {
       expect(status).not.toMatch(/credential/i);
     }
@@ -127,10 +127,13 @@ describe("easee-configuration token-check cycle after failed logins (EASEE-38)",
 
     const max = node.maxLoginRetries;
     expect(results.slice(0, max - 1)).toEqual(
-      Array.from({ length: max - 1 }, (_, i) => ({ nextCheckMs: 1 * MINUTE, status: `Login retry ${i + 1}/${max}` })),
+      Array.from({ length: max - 1 }, (_, i) => ({
+        nextCheckMs: 1 * MINUTE,
+        status: `Login rejected – retry ${i + 1}/${max}`,
+      })),
     );
     for (const result of results.slice(max - 1)) {
-      expect(result).toEqual({ nextCheckMs: 30 * MINUTE, status: "Authentication failed - check credentials" });
+      expect(result).toEqual({ nextCheckMs: 30 * MINUTE, status: "Login rejected – check credentials" });
     }
   });
 

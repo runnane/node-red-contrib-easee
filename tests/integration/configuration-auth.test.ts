@@ -162,8 +162,14 @@ describe("easee-configuration auth, through the real node", () => {
 
       await expect(node.doLogin()).rejects.toThrow("Login failed (401): Unauthorized - Invalid username or password");
 
-      expect(node.status).toHaveBeenLastCalledWith({ fill: "red", shape: "ring", text: "Invalid credentials" });
-      expect(node.error).toHaveBeenCalled();
+      expect(node.status).toHaveBeenLastCalledWith({
+        fill: "red",
+        shape: "ring",
+        text: "Login rejected – check credentials",
+      });
+      expect(node.error).toHaveBeenCalledWith(
+        "[easee] Login failed: Login failed (401): Unauthorized - Invalid username or password. Check the username and password in the easee-configuration node, then press Re-login there.",
+      );
       expect(node.accessToken).toBe(false);
     });
 
@@ -184,7 +190,11 @@ describe("easee-configuration auth, through the real node", () => {
 
       await expect(node.doLogin()).rejects.toThrow("fetch failed");
 
-      expect(node.status).toHaveBeenLastCalledWith({ fill: "red", shape: "ring", text: "Login error" });
+      expect(node.status).toHaveBeenLastCalledWith({
+        fill: "red",
+        shape: "ring",
+        text: "Easee unreachable – retrying",
+      });
     });
 
     it("rejects a response that is not JSON, quoting it", async () => {
@@ -214,7 +224,7 @@ describe("easee-configuration auth, through the real node", () => {
       expect(node.status).toHaveBeenLastCalledWith({
         fill: "red",
         shape: "ring",
-        text: "Invalid configuration - missing credentials",
+        text: "Missing username or password",
       });
     });
 
@@ -391,7 +401,7 @@ describe("easee-configuration auth, through the real node", () => {
       expect(await check(node)).toBeNull();
 
       expect(fetchMock()).not.toHaveBeenCalled();
-      expect(lastStatusText(node)).toBe("Invalid configuration - edit to add credentials");
+      expect(lastStatusText(node)).toBe("Missing username or password");
     });
 
     it("skips a check while another authentication is in progress", async () => {

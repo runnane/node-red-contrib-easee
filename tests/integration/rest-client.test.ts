@@ -217,7 +217,9 @@ describe("easee-rest-client, through the real node", () => {
 
       rest.receive({ topic: "dynamic_current" });
 
-      expect(errors.some((e) => e.startsWith("dynamic_current failed: site missing"))).toBe(true);
+      expect(errors).toContain(
+        "[easee] dynamic_current failed: site missing. Set Site in this node, or send msg.site or msg.payload.site_id.",
+      );
       expect(fetchMock()).not.toHaveBeenCalled();
       expect(gotOutput).toBe(false);
     });
@@ -229,7 +231,9 @@ describe("easee-rest-client, through the real node", () => {
 
       rest.receive({ topic: "dynamic_current", site: SITE });
 
-      expect(errors.some((e) => e.startsWith("dynamic_current failed: circuit missing"))).toBe(true);
+      expect(errors).toContain(
+        "[easee] dynamic_current failed: circuit missing. Set Circuit in this node, or send msg.circuit or msg.payload.circuit_id.",
+      );
       expect(fetchMock()).not.toHaveBeenCalled();
     });
 
@@ -420,8 +424,10 @@ describe("easee-rest-client, through the real node", () => {
         });
       });
 
-      expect(events).toContain("[easee] Missing easee configuration node");
-      expect(events.some((e) => e.includes("Missing configuration"))).toBe(true);
+      expect(events).toContain(
+        "[easee] Cannot start: No easee-configuration node is selected. Open this node, select or add an easee-configuration node, then deploy.",
+      );
+      expect(events).toContain(JSON.stringify({ fill: "red", shape: "ring", text: "No configuration node" }));
       expect(fetchMock()).not.toHaveBeenCalled();
     });
 
@@ -452,8 +458,10 @@ describe("easee-rest-client, through the real node", () => {
         );
       });
 
-      expect(events).toContain("[easee] Configuration node is invalid - missing username or password");
-      expect(events.some((e) => e.includes("Invalid configuration - missing credentials"))).toBe(true);
+      expect(events).toContain(
+        "[easee] Cannot start: The easee-configuration node has no username or password. Open the easee-configuration node, enter both username and password, then deploy.",
+      );
+      expect(events).toContain(JSON.stringify({ fill: "red", shape: "ring", text: "Configuration incomplete" }));
       expect(fetchMock()).not.toHaveBeenCalled();
     });
   });
