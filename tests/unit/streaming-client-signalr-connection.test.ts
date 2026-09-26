@@ -13,6 +13,7 @@
  */
 
 import { createRequire } from "node:module";
+import { LogLevel } from "@microsoft/signalr";
 import helper from "node-red-node-test-helper";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import configNode from "../../easee-client/easee-configuration.js";
@@ -29,6 +30,8 @@ const mockState = vi.hoisted(() => {
     nextBuildError: null as Error | null,
     /** The options object the most recent `withUrl()` call was given. */
     lastWithUrlOptions: null as { accessTokenFactory?: () => string } | null,
+    /** What the most recent `configureLogging()` call was given (EASEE-29). */
+    lastLogging: null as unknown,
   };
 });
 
@@ -47,7 +50,10 @@ vi.mock("@microsoft/signalr", async (importOriginal) => {
           mockState.lastWithUrlOptions = options;
           return builder;
         }),
-        configureLogging: vi.fn(() => builder),
+        configureLogging: vi.fn((logging: unknown) => {
+          mockState.lastLogging = logging;
+          return builder;
+        }),
         build: vi.fn(() => {
           if (mockState.nextBuildError) {
             const err = mockState.nextBuildError;
@@ -128,6 +134,7 @@ describe("charger-streaming-client SignalR connection lifecycle", () => {
     vi.useFakeTimers();
     mockState.nextConnection = null;
     mockState.nextBuildError = null;
+    mockState.lastLogging = null;
   });
 
   afterEach(() => {
@@ -305,5 +312,95 @@ describe("charger-streaming-client SignalR connection lifecycle", () => {
 
     expect(statuses).toContainEqual(expect.objectContaining({ fill: "red", shape: "ring", event: "disconnect" }));
     expect(sent).toContainEqual([null, null, { _connectionId: "conn-10", payload: "Disconnected" }]);
+  }, 15000);
+});
+
+/**
+ * What startconn() hands HubConnectionBuilder.configureLogging() (EASEE-29).
+ * It used to be LogLevel.Debug unconditionally; now it is an ILogger adapter
+ * whose minimum is Debug only with the configuration node's debugLogging on,
+ * else Warning, forwarding onto the configuration node's logging helpers.
+ *
+ * The flag-off case asserts on Information, not Debug, on purpose: a Debug line
+ * would be dropped by logDebug's own debugLogging gate even if the adapter let
+ * it through, so only a level the adapter alone filters can tell the two apart.
+ */
+describe("charger-streaming-client SignalR log level", () => {
+  interface Adapter {
+    minimumLevel: LogLevel;
+    log(level: LogLevel, message: string): void;
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockState.nextConnection = null;
+    mockState.nextBuildError = null;
+    mockState.lastLogging = null;
+  });
+
+  afterEach(() => {
+    helper.unload();
+  });
+
+  async function connectWith(debugLogging: boolean): Promise<{ adapter: Adapter; config: any }> {
+    const { streaming, config } = await load();
+    config.debugLogging = debugLogging;
+    config.accessToken = "token-1";
+    config.signalRpath = "http://127.0.0.1:9/hubs/chargers";
+    mockState.nextConnection = new FakeHubConnection("conn-log");
+    streaming.startconn();
+    return { adapter: mockState.lastLogging as Adapter, config };
+  }
+
+  it("with debugLogging off: a Warning-minimum adapter that drops SignalR's info and debug output", async () => {
+    const { adapter, config } = await connectWith(false);
+    const logSpy = vi.spyOn(config, "log");
+    const debugSpy = vi.spyOn(config, "debug");
+    const warnSpy = vi.spyOn(config, "warn");
+    const errorSpy = vi.spyOn(config, "error");
+
+    expect(adapter.minimumLevel).toBe(LogLevel.Warning);
+
+    adapter.log(LogLevel.Information, "WebSocket connected.");
+    adapter.log(LogLevel.Debug, "Starting connection.");
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(debugSpy).not.toHaveBeenCalled();
+
+    adapter.log(LogLevel.Warning, "retrying");
+    adapter.log(LogLevel.Error, "connection lost");
+    expect(warnSpy).toHaveBeenCalledWith("[easee] WARN: SignalR: retrying");
+    expect(errorSpy).toHaveBeenCalledWith("[easee] ERROR: SignalR: connection lost");
+  }, 15000);
+
+  it("with debugLogging on: a Debug-minimum adapter that forwards to node.debug()/node.log(), never Trace", async () => {
+    const { adapter, config } = await connectWith(true);
+    const logSpy = vi.spyOn(config, "log");
+    const debugSpy = vi.spyOn(config, "debug");
+
+    expect(adapter.minimumLevel).toBe(LogLevel.Debug);
+
+    adapter.log(LogLevel.Debug, "Starting connection.");
+    adapter.log(LogLevel.Information, "WebSocket connected.");
+    adapter.log(LogLevel.Trace, "(WebSockets transport) sending data.");
+    adapter.log(LogLevel.None, "never");
+
+    expect(debugSpy).toHaveBeenCalledWith("[easee] DEBUG: SignalR: Starting connection.");
+    expect(logSpy).toHaveBeenCalledWith("[easee] SignalR: WebSocket connected.");
+    expect(debugSpy).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledTimes(1);
+  }, 15000);
+
+  it("redacts an access_token query value from anything SignalR logs", async () => {
+    const { adapter, config } = await connectWith(true);
+    const logSpy = vi.spyOn(config, "log");
+
+    adapter.log(
+      LogLevel.Information,
+      "WebSocket connected to wss://127.0.0.1:9/hubs?id=1&access_token=synthetic-token-9.",
+    );
+
+    expect(logSpy).toHaveBeenCalledWith(
+      "[easee] SignalR: WebSocket connected to wss://127.0.0.1:9/hubs?id=1&access_token=[redacted]",
+    );
   }, 15000);
 });

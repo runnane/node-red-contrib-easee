@@ -25,6 +25,7 @@
  * by Scott Page (Apache License 2.0).
  **/
 import type { NodeAPI } from "node-red";
+import { formatLogMessage } from "./logging";
 import type {
   ApiErrorBody,
   EaseeConfigurationDef,
@@ -90,30 +91,30 @@ export = (RED: NodeAPI) => {
     node.debugToNodeWarn = n.debugToNodeWarn || false;
 
     /**
-     * Centralized logging helper functions following Node-RED standards
-     * Define these early so they can be used in validation and throughout the node
+     * Centralized logging helpers, on Node-RED's own per-node logger (EASEE-29):
+     * node.log()/debug()/warn()/error() honour the runtime's
+     * `logging.console.level` in settings.js and tag each line with this node's
+     * id and name. Nothing here writes to `console` directly.
+     *
+     * The REST and streaming nodes borrow these from their configuration node.
+     * Defined early so validation below can use them.
      */
 
-    // Log info level messages (equivalent to console.log)
+    // Info level: node.log(). `debugToNodeWarn` also copies it to node.warn()
+    // (the debug sidebar), exactly as before EASEE-29.
     node.logInfo = (message: string, data: unknown = null) => {
       const formattedMessage = `[easee] ${message}`;
 
-      // Always log to console
-      if (data !== null && typeof data === "object") {
-        console.log(formattedMessage, data);
-      } else if (data !== null) {
-        console.log(`${formattedMessage} ${data}`);
-      } else {
-        console.log(formattedMessage);
-      }
+      node.log(formatLogMessage(formattedMessage, data));
 
-      // Also log to node warn if configured
       if (node.debugToNodeWarn) {
         node.warn(data !== null ? `${formattedMessage} ${JSON.stringify(data)}` : formattedMessage);
       }
     };
 
-    // Log debug level messages (only when debug logging is enabled)
+    // Debug level: silent unless `debugLogging` is on, then node.debug(), which
+    // the runtime prints only at `logging.console.level: "debug"` or lower.
+    // `debugToNodeWarn` copies it to node.warn() (the debug sidebar) as before.
     node.logDebug = (message: string, data: unknown = null) => {
       if (!node.debugLogging) {
         return;
@@ -121,33 +122,19 @@ export = (RED: NodeAPI) => {
 
       const formattedMessage = `[easee] DEBUG: ${message}`;
 
-      // Log to console when debug is enabled
-      if (data !== null && typeof data === "object") {
-        console.log(formattedMessage, data);
-      } else if (data !== null) {
-        console.log(`${formattedMessage} ${data}`);
-      } else {
-        console.log(formattedMessage);
-      }
+      node.debug(formatLogMessage(formattedMessage, data));
 
-      // Also log to node warn if configured
       if (node.debugToNodeWarn) {
         node.warn(data !== null ? `${formattedMessage} ${JSON.stringify(data)}` : formattedMessage);
       }
     };
 
-    // Log error level messages (equivalent to console.error)
+    // Error level: node.error(), without a msg, so it reaches the log and the
+    // debug sidebar but no Catch node (the same call as before EASEE-29, minus
+    // the duplicate console.error).
     node.logError = (message: string, error: unknown = null) => {
       const formattedMessage = `[easee] ERROR: ${message}`;
 
-      // Always log errors to console
-      if (error !== null) {
-        console.error(formattedMessage, error);
-      } else {
-        console.error(formattedMessage);
-      }
-
-      // Also log to node error for Node-RED error handling
       if (error !== null) {
         node.error(`${formattedMessage} ${(error as { message?: unknown }).message || error}`);
       } else {
@@ -155,20 +142,11 @@ export = (RED: NodeAPI) => {
       }
     };
 
-    // Log warning level messages
+    // Warning level: node.warn() (the same call as before EASEE-29, minus the
+    // duplicate console.warn).
     node.logWarn = (message: string, data: unknown = null) => {
       const formattedMessage = `[easee] WARN: ${message}`;
 
-      // Log to console
-      if (data !== null && typeof data === "object") {
-        console.warn(formattedMessage, data);
-      } else if (data !== null) {
-        console.warn(`${formattedMessage} ${data}`);
-      } else {
-        console.warn(formattedMessage);
-      }
-
-      // Always log warnings to node warn
       node.warn(data !== null ? `${formattedMessage} ${JSON.stringify(data)}` : formattedMessage);
     };
 
@@ -1984,17 +1962,18 @@ export = (RED: NodeAPI) => {
               shape: "ring",
               text: "Invalid credentials",
             });
-            console.error("[easee] Login failed due to invalid credentials:", error.message);
+            // One node.error() through the helper, where this used to be a
+            // console.error() followed by a bare node.error(error) (EASEE-29).
+            node.logError("Login failed due to invalid credentials:", error);
           } else {
             node.status({
               fill: "red",
               shape: "ring",
               text: "Login error",
             });
-            console.error("[easee] Login failed due to other error:", error.message);
+            node.logError("Login failed due to other error:", error);
           }
 
-          node.error(error);
           throw error; // Re-throw to be handled by caller
         });
 

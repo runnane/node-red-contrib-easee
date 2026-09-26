@@ -38,6 +38,21 @@ the username or password five times in a row does it report
 "Authentication failed - check credentials", and even then it tries again every
 30 minutes; press **Re-login** to try again at once.
 
+### Logging and debug output
+
+All three nodes log through Node-RED's own logger, so their lines carry the
+node's id and name and follow the `logging.console.level` in your `settings.js`.
+
+- **Enable debug logging** (configuration node) turns on the detailed messages
+  about authentication, tokens, API calls and the SignalR connection. They are
+  logged at Node-RED's `debug` level, so the runtime only prints them when
+  `logging.console.level` is `"debug"` (or `"trace"`). With the box unticked
+  they are not produced at all.
+- **Output debug to node warnings** also copies those messages (and the info
+  messages) to the debug sidebar as warnings, which needs no `settings.js` change.
+- The streaming node's SignalR client logs only warnings and errors unless debug
+  logging is on (up to 0.7.6 it logged at debug level for everyone).
+
 ## Streaming node
 
 Configure the node with username/password and a Charger ID ("EH000000").
