@@ -27,23 +27,25 @@ export default defineConfig({
       // subscription tests: statements 56.82% (454/799), branches 51.91% (230/443),
       // functions 49.03% (51/104), lines 56.65% (447/789).
       //
-      // Lowered 2026-09-26 (EASEE-10) — a re-baseline, not a regression: deleting
-      // the two dead, always-executed `node.responses = n.responses` assignments
-      // (and their two type-only members, which emit no runtime code) removed 2
-      // fully-covered statement/line entries from both the numerator and the
-      // denominator, so the ratio fell with no test coverage lost. Branches and
-      // functions are untouched (230/443, 51/104 — identical to EASEE-35). New
-      // measured: statements 56.71% (452/797), lines 56.54% (445/787).
+      // Raised 2026-09-26 (EASEE-10), 126 tests, after
+      // streaming-client-missing-config.test.ts covered the constructor's guard
+      // for a configuration node that does not resolve (previously untested):
+      // statements 57.08% (455/797), branches 52.14% (231/443), functions 49.03%
+      // (51/104, unchanged), lines 56.92% (448/787). (The denominators dropped
+      // from EASEE-35's 799/789 to 797/787 in the same change, from deleting the
+      // two dead `responses` assignments — see the PR; that alone would have
+      // needed a re-baseline, but this test covers more than enough to raise
+      // through it instead.)
       //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 56.7,
-        branches: 51.9,
+        statements: 57.0,
+        branches: 52.1,
         functions: 49.0,
-        lines: 56.5,
+        lines: 56.9,
       },
     },
   },
