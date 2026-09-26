@@ -24,7 +24,7 @@ than scrolling for it: `pnpm gates > /tmp/easee-gates.log 2>&1; echo $?`.
 | 1 | lint + format | `pnpm check` | Biome over `easee-client/**/*.ts`, `scripts/`, `tests/` and root config. Formatting is an **error**, not a warning |
 | 2 | typecheck | `pnpm typecheck` | TypeScript 7 (`tsc` from `typescript@7`, the native compiler) over every `.ts` |
 | 3 | build | `pnpm build` | emit into `dist/`, then copy the `.html` halves and `locales/` beside the `.js` |
-| 4 | tests + coverage | `pnpm test:coverage` | 13 files / 125 tests (Vitest 5), **and** the `vitest.config.mts` thresholds |
+| 4 | tests + coverage | `pnpm test:coverage` | the Vitest 5 suite, **and** the `vitest.config.mts` thresholds |
 | 5 | Node-RED load | `pnpm test:compat` | a node in `dist/` that no longer registers in a real Node-RED runtime, a `node-red.nodes` path that points at nothing, or a renamed node type |
 
 The order matters. Gate 4 needs gate 3: `published-package.test.ts` inspects the built
@@ -50,7 +50,7 @@ so the muscle memory from RCP, SPND and the rest is now right. Two things differ
 ## `pnpm test` is not the gate
 
 ```bash
-pnpm test             # 125 tests, thresholds NEVER evaluated; published-package fails without dist/
+pnpm test             # the whole suite, thresholds NEVER evaluated; published-package fails without dist/
 pnpm test:coverage    # the same tests, thresholds enforced
 ```
 
@@ -60,16 +60,16 @@ single easiest way to report "gates green" in this repo and be wrong.
 ## The coverage floor
 
 The thresholds in `vitest.config.mts` sit just under the measured numbers, so any change
-that *reduces* coverage fails the build:
+that *reduces* coverage fails the build. **Read the current floor there**, not here: the
+`thresholds` block is the enforced value, and the comment above it records every raise
+with its date, issue key and measurement. This file deliberately quotes no percentage —
+the last one it carried was ~40 points stale within eleven days (EASEE-43).
 
-```
-statements 56.82% (454/799)   branches 51.91% (230/443)
-functions  49.03% (51/104)    lines    56.65% (447/789)     — v8, measured 2026-09-15 (EASEE-35)
-```
-
-Those numbers are low because the suite is thin, not because the floor is slack — see
-[`testing.md`](testing.md). When coverage rises, **raise the floor in the same change**.
-Never lower one to make a build pass.
+The floor is now high (above 90% on every axis as of 2026-09-26), so a change that
+**deletes covered code** can nudge a ratio under it without anything regressing: the
+denominator shrank. Answer that with a genuine test for an uncovered path — the report's
+"Uncovered Line #s" column names them — never by lowering the threshold. When coverage
+rises, **raise the floor in the same change**, whatever the change's type.
 
 The floor was **re-baselined** in EASEE-19, not lowered: Jest measured with istanbul, the
 v8 provider counts differently (Jest said branches 29.11% over 395 for the same code), so
@@ -208,7 +208,7 @@ which discards every other uncommitted change in that file.
 
 ## Flake
 
-None known. The suite is 125 tests over ~2 seconds with no network, no fixed ports (the
+None known. The suite runs in a few seconds with no network, no fixed ports (the
 SignalR HTTP client tests bind an ephemeral one on 127.0.0.1), no database and no shared
 fixed filenames, so there is nothing for a concurrent run to adopt — which
 is also why `/auto --parallel N`'s gate split is unnecessary here: every gate is safe to

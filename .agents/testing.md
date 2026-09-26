@@ -5,8 +5,10 @@ cannot fail.
 
 ## The shape of it
 
-13 files, 125 tests, ~2 seconds, no network, no fixed ports, no database. Vitest 5,
-TypeScript, ESM. (`signalr-http-client.test.ts` binds an ephemeral port on 127.0.0.1, so
+A few seconds, no network, no fixed ports, no database. Vitest 5, TypeScript, ESM. No
+file or test count is quoted here on purpose: prose no gate checks drifted three times
+(EASEE-43). The run itself prints the count; the enforced number is the floor in
+`vitest.config.mts`. (`signalr-http-client.test.ts` binds an ephemeral port on 127.0.0.1, so
 concurrent runs cannot collide.)
 
 ```
@@ -73,23 +75,24 @@ Three things to know if you touch it:
   be an assertion that cannot fail. The JSON shape also differs by tool (pnpm prints one
   object; npm prints an array, or an object keyed by name on npm 12), so it normalises.
 
-## Coverage: ~57%, and the floor only goes up
+## Coverage: the floor in `vitest.config.mts`, and it only goes up
 
-```
-statements 56.82% (454/799)   branches 51.91% (230/443)
-functions  49.03% (51/104)    lines    56.65% (447/789)     — v8, measured 2026-09-15 (EASEE-35)
-```
+**The authoritative number is the `thresholds` block in `vitest.config.mts`**, which
+`pnpm gates` enforces, with a dated comment for every raise above it. Read it there
+rather than trusting a figure in prose. As a dated snapshot only:
 
-Per file (statements):
+Per file, measured 2026-09-26 on `main` at `dee95a3` (after EASEE-26), v8:
 
-| file | statements | note |
-| --- | --- | --- |
-| `charger-streaming-client.ts` | 62.17% | option assembly, the `httpClient` wiring, the close / "opened" handlers and the subscription; the connect/reconnect path is untested |
-| `easee-configuration.ts` | 49.75% | auth, token logic and doAuthRestCall partly covered; about half its statements still are not |
-| `easee-rest-client.ts` | 46.89% | the `charger_state` path (EASEE-13) through a real runtime; most topics untested |
-| `signalr-http-client.ts` | 98.80% | against a real local HTTP server and a real SignalR negotiation (EASEE-35); only the pre-18.14.1 `Set-Cookie` fallback call is unreached |
+| file | stmts | branch | funcs | note |
+| --- | --- | --- | --- | --- |
+| `charger-streaming-client.ts` | 98.82% | 93.05% | 93.75% | the real connect / reconnect / close path with SignalR stubbed at the module boundary (EASEE-45) |
+| `easee-configuration.ts` | 93.49% | 89.79% | 80% | auth, token check, refresh and Re-login through the real node; the least-covered file by functions |
+| `easee-rest-client.ts` | 97.53% | 91.22% | 95.45% | every predefined topic and the custom-path route through a real runtime (EASEE-44) |
+| `errors.ts` / `logging.ts` | ≥93% | ≥99% | 100% | the classifier and logging plumbing (EASEE-26 / EASEE-29) |
+| `signalr-http-client.ts` | 98.80% | 95.94% | 100% | a real local HTTP server and SignalR negotiation (EASEE-35); only the pre-18.14.1 `Set-Cookie` fallback is unreached |
 
-The thresholds in `vitest.config.mts` sit just under those numbers. **Raise them in the
+Global at that commit: statements 96.19%, branches 92.7%, functions 90.57%, lines 96.43%.
+The thresholds sit just under the latest measured numbers. **Raise them in the
 same change that raises coverage**, and never lower one to make a build pass. The
 mechanics, and the path-group trap that once made a 99% floor pass silently, are in
 [`gates.md`](gates.md).
@@ -134,12 +137,9 @@ have bitten in repos like this one:
   and check that the test **naming your claim** went red — adjacent red is not evidence.
   Restore from a copy taken before the mutation, not `git checkout -- <file>`, then
   confirm `git status --porcelain` is clean.
-- **Re-measure the count.** The suite was 105 tests as of EASEE-19: the 93 Jest tests on
-  `main` before it (87 measured at a823c30, plus EASEE-16's six release-workflow tests),
-  six new must-not-ship cases, one new release-workflow case, and five for the fixes the
-  conversion forced. EASEE-35 took it to 125: fourteen for the SignalR HTTP client, five
-  in the streaming lifecycle file, and one more must-ship file checked inside an existing
-  test. Quote a delta only after re-measuring on `main`, not from memory.
+- **Re-measure the count before quoting one.** Run `pnpm gates` on `main` and on your
+  branch and quote both Vitest summary lines; never quote a count from memory or from
+  these docs, which deliberately carry none (EASEE-43).
 
 ## The integration suite uses a real Node-RED runtime
 
