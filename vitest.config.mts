@@ -37,15 +37,22 @@ export default defineConfig({
       // needed a re-baseline, but this test covers more than enough to raise
       // through it instead.)
       //
+      // Raised 2026-09-26 (EASEE-20), 130 tests, after the doAuthRestCall JSON
+      // error-message tests: statements 57.24% (462/807), branches 53.34%
+      // (247/463), functions 49.52% (52/105), lines 57.08% (455/797).
+      //
+      // Re-measured 2026-09-26 after merging main into EASEE-20's branch (the sweep's
+      // PRs combined): statements 57.51% (463/805), branches 53.56% (248/463), functions 49.52% (52/105), lines 57.35% (456/795).
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 57.0,
-        branches: 52.1,
-        functions: 49.0,
-        lines: 56.9,
+        statements: 57.5,
+        branches: 53.5,
+        functions: 49.5,
+        lines: 57.3,
       },
     },
   },

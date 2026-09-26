@@ -78,6 +78,16 @@ node.send({
 });
 ```
 
+#### Errors from a failed command
+
+When the Easee API rejects a REST command, `msg.error` now carries the API's own
+error message (its `title` and `detail`, or a `message` field) instead of the raw
+response body — for example `REST Command failed (403: Forbidden) Unauthorized -
+The charger does not belong to this account` rather than the JSON blob that used to
+appear there. If a flow matches on the old raw-body text, it will need updating; the
+`REST Command failed (<status>: <statusText>)` prefix is unchanged. A response that
+is not JSON, or whose JSON is `null`, still falls back to the raw body as before.
+
 #### Note on `charger_state`
 
 Easee retired `GET /api/chargers/{id}/state` on **1 September 2026**; it now returns
