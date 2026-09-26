@@ -12,6 +12,10 @@ Node-Red module for streaming Easee charger data.
 - Pre-defined list of REST API GET/POST commands
 - Custom commands through REST API
 
+Every REST and SignalR request identifies itself to Easee with a
+`node-red-contrib-easee/<version> (Node-RED/<version>; Node/<version>)` User-Agent, so
+Easee can attribute traffic to this package instead of to anonymous Node.js fetch/SignalR.
+
 ## Howto
 
 `npm i @runnane/node-red-contrib-easee`
