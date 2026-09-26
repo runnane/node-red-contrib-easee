@@ -23,6 +23,14 @@ Easee can attribute traffic to this package instead of to anonymous Node.js fetc
 Add the `easee Charger Streaming Client` node
 Configure the node with username/password and the Charger ID.
 
+### Re-login
+
+If the configuration node's status says authentication failed or timed out, open
+the configuration node in the editor and press **Re-login**. It discards the
+deployed node's tokens and logs in to Easee again, without a redeploy, and shows
+the outcome as a notification. The button is disabled until the configuration has
+been deployed; it acts on the deployed credentials, not on unsaved edits.
+
 ## Streaming node
 
 Configure the node with username/password and a Charger ID ("EH000000").
@@ -81,6 +89,16 @@ node.send({
   charger: "EH000000",
 });
 ```
+
+#### Errors from a failed command
+
+When the Easee API rejects a REST command, `msg.error` now carries the API's own
+error message (its `title` and `detail`, or a `message` field) instead of the raw
+response body — for example `REST Command failed (403: Forbidden) Unauthorized -
+The charger does not belong to this account` rather than the JSON blob that used to
+appear there. If a flow matches on the old raw-body text, it will need updating; the
+`REST Command failed (<status>: <statusText>)` prefix is unchanged. A response that
+is not JSON, or whose JSON is `null`, still falls back to the raw body as before.
 
 #### Note on `charger_state`
 

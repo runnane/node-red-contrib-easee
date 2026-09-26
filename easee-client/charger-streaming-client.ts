@@ -41,8 +41,6 @@ interface ChargerStreamingClientDef extends NodeDef {
   charger?: string;
   configuration: string;
   skipNegotiation?: boolean;
-  /** Not in the editor's `defaults`, so always undefined — EASEE-10. */
-  responses?: unknown;
 }
 
 interface ErroEvent {
@@ -69,7 +67,6 @@ interface SessionStatus extends Omit<NodeStatus, "text"> {
 interface ChargerStreamingClientNode extends Node {
   charger?: string;
   configurationNode: string;
-  responses: unknown;
   skipNegotiation: boolean;
   /** Typed non-null: the constructor returns before any use when it is missing. */
   connectionConfig: EaseeConfigurationNode;
@@ -112,10 +109,8 @@ export = (RED: NodeAPI) => {
     const node = this;
     node.charger = n.charger;
     node.configurationNode = n.configuration;
-    node.responses = n.responses;
     node.skipNegotiation = n.skipNegotiation !== undefined ? n.skipNegotiation : true;
     node.connectionConfig = RED.nodes.getNode(node.configurationNode) as EaseeConfigurationNode;
-    node.responses = n.responses;
 
     // Use configuration node's logging if available, fallback to console
     node.logInfo =

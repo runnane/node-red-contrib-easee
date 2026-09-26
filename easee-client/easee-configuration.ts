@@ -30,6 +30,7 @@ import type {
   EaseeConfigurationDef,
   EaseeConfigurationNode,
   EaseeCredentials,
+  ReloginResult,
   TokenResponse,
 } from "./types";
 import { buildUserAgent } from "./user-agent";
@@ -41,6 +42,32 @@ interface ObservationDefinition {
   valueUnit?: string;
   altName?: string;
   valueMapping?: (val: unknown) => string | undefined;
+}
+
+/**
+ * Pull a human-readable message out of a failed REST response's parsed JSON body,
+ * for doAuthRestCall() (EASEE-20). Mirrors what doLogin() / doRefreshToken() already
+ * parse from the Easee API's problem-details shape (`title` / `detail` /
+ * `errorCodeName`, modelled by ApiErrorBody) — the same fields
+ * tests/fixtures/mockData.ts's loginErrors / refreshErrors already encode, and
+ * doAuthRestCall's own callers had never seen because of the bug this fixes. No gate
+ * can corroborate the shape against a live Easee response; this is the shape those
+ * two call sites already believe.
+ *
+ * Falls back to a plain `message` field, then to null so the caller falls back to
+ * the raw response body. A `null` or non-object JSON value must never reach here —
+ * the caller is responsible for treating those as "not JSON".
+ */
+function extractApiErrorDetail(json: ApiErrorBody & { message?: string }): string | null {
+  const { title, detail, errorCodeName } = json;
+  if (title || detail || errorCodeName) {
+    const label = title || errorCodeName || "Unknown error";
+    return `${label}${detail ? ` - ${detail}` : ""}`;
+  }
+  if (typeof json.message === "string" && json.message) {
+    return json.message;
+  }
+  return null;
 }
 
 // `export =` rather than `export default`: Node-RED require()s this file and needs
@@ -311,11 +338,17 @@ export = (RED: NodeAPI) => {
       const is_json = typeof http_json === "object";
 
       if (!is_ok) {
-        // This used to try `is_json?.message` first — but is_json is a boolean, so
-        // that branch never ran and every failure has always reported the raw
-        // body. Kept exactly as it behaves; EASEE-20 tracks
-        // surfacing the API's own message.
-        throw new Error(`REST Command failed (${http_status}: ${http_statusText}) ${http_text}`);
+        // This used to try `is_json?.message` first — but is_json was a boolean, so
+        // that branch never ran and every failure reported the raw body regardless
+        // of shape. extractApiErrorDetail() is the fix (EASEE-20): it reads the same
+        // problem-details fields doLogin()/doRefreshToken() already parse, with a
+        // `message` fallback, and returns null (raw body stays the message) for a
+        // `null` or non-JSON body.
+        const errorDetail =
+          is_json && http_json !== null
+            ? extractApiErrorDetail(http_json as ApiErrorBody & { message?: string })
+            : null;
+        throw new Error(`REST Command failed (${http_status}: ${http_statusText}) ${errorDetail ?? http_text}`);
       }
       if (is_json && http_json !== null) {
         node.status({
@@ -1952,6 +1985,60 @@ export = (RED: NodeAPI) => {
       return response;
     };
 
+    /**
+     * Throw the tokens away and log in again, on request from the editor's
+     * "Re-login" button (EASEE-28). Also restarts the token-check cycle, which
+     * checkToken() stops for good once it has used up maxLoginRetries — without
+     * this the only way back from that state is a redeploy.
+     *
+     * The result is sent to the browser, so its error text has the password and
+     * both tokens redacted from it: doLogin() errors embed API response text.
+     */
+    node.relogin = async () => {
+      if (node.authenticationInProgress) {
+        return { ok: false, status: 409, error: "Authentication is already in progress; try again in a moment" };
+      }
+
+      const credentialsCheck = node.validateCredentials();
+      if (!credentialsCheck.valid) {
+        return { ok: false, status: 401, error: `Cannot login: ${credentialsCheck.message}` };
+      }
+
+      const secrets = [node.credentials?.password, node.accessToken, node.refreshToken];
+
+      if (node.checkTokenHandler) {
+        clearTimeout(node.checkTokenHandler);
+        node.checkTokenHandler = null;
+      }
+      node.accessToken = false;
+      node.refreshToken = false;
+      node.tokenExpires = new Date();
+      node.tokenIssuedAt = new Date();
+      node.tokenLifetime = 0;
+      node.refreshRetryCount = 0;
+      node.loginRetryCount = 0;
+
+      node.logInfo("Re-login requested from the editor");
+      node.authenticationInProgress = true;
+      let result: ReloginResult;
+      try {
+        await node.doLogin();
+        result = { ok: true, status: 200 };
+      } catch (error) {
+        const raw = error instanceof Error ? error.message : String(error);
+        const message = redactSecrets(raw, [...secrets, node.accessToken, node.refreshToken]);
+        const status = /^Login failed \((400|401|403)\)/.test(message) ? 401 : 500;
+        result = { ok: false, status, error: message };
+      } finally {
+        node.authenticationInProgress = false;
+      }
+
+      // Restart the token-check cycle: straight away after a good login (it only
+      // schedules the next check), after a minute after a failed one.
+      node.checkTokenHandler = setTimeout(() => node.emit("start"), result.ok ? 0 : 60 * 1000);
+      return result;
+    };
+
     // Start connecting in two seconds
     node.checkTokenHandler = setTimeout(() => node.emit("start"), 2000);
   }
@@ -1968,4 +2055,44 @@ export = (RED: NodeAPI) => {
       },
     },
   );
+
+  // The editor's "Re-login" button (EASEE-28). Registered once per runtime, here
+  // rather than in the constructor, and dispatches on the deployed node's id.
+  // The response carries ok/error only — never the password or a token.
+  RED.httpAdmin.post(
+    "/easee-configuration/:id/relogin",
+    RED.auth.needsPermission("easee-configuration.write"),
+    async (req, res) => {
+      const target = RED.nodes.getNode(String(req.params.id)) as EaseeConfigurationNode | null;
+      if (!target || target.type !== "easee-configuration" || typeof target.relogin !== "function") {
+        res.status(404).json({
+          ok: false,
+          error: "No deployed easee-configuration node has that id. Deploy the flow first.",
+        });
+        return;
+      }
+
+      try {
+        const result = await target.relogin();
+        if (result.ok) {
+          res.status(200).json({ ok: true });
+        } else {
+          res.status(result.status).json({ ok: false, error: result.error });
+        }
+      } catch {
+        res.status(500).json({ ok: false, error: "Re-login failed unexpectedly; see the Node-RED log" });
+      }
+    },
+  );
 };
+
+/** Replace every occurrence of each non-empty secret in `text` with a marker. */
+function redactSecrets(text: string, secrets: unknown[]): string {
+  let out = text;
+  for (const secret of secrets) {
+    if (typeof secret === "string" && secret.length > 0) {
+      out = out.split(secret).join("[redacted]");
+    }
+  }
+  return out;
+}
