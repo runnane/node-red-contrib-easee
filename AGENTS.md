@@ -225,11 +225,12 @@ Traps, each of which fails only on the run that publishes:
   artifact is kept for 7 days. **Do not dispatch a new run**; that bumps the version a
   second time.
 
-The manifest records `release: "release-it"`, which is the closest of the three values
-the shared schema allows (`changesets` / `release-it` / `none`) — there is no `np`
-member. It is the right answer to the question the field exists to settle, *"is a
-changeset owed?"* (no), and `none` would have been worse: it means "this repo does not
-release", which is false for a published npm package. Tracked upstream as **RCP-1090**.
+The manifest records `release: "np"`, for what that value *means* in the shared schema
+("prompts for a version and reads no commit messages") rather than for the tool: a
+human picks `patch` / `minor` / `major` at dispatch, and nothing reads commit messages.
+The `np` tool itself is gone (EASEE-16). `release-it` would say conventional commits
+drive the version, and `none` would say this repo does not publish; both are false.
+(EASEE-14.)
 
 Publishing is the only thing in this repo with a blast radius outside it, and it is
 **operator work**: an agent does not publish. `liveBoundary` is `none` for the repo
