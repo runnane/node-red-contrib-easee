@@ -25,6 +25,7 @@
  * by Scott Page (Apache License 2.0).
  **/
 import type { Node, NodeAPI, NodeDef, NodeMessageInFlow } from "node-red";
+import { createFallbackLogHelpers } from "./logging";
 import type { EaseeConfigurationNode, LogFn, ObservationData } from "./types";
 
 /** The rest client's saved flow properties (the `defaults` block in the .html). */
@@ -162,29 +163,13 @@ export = (RED: NodeAPI) => {
     node.configurationNode = n.configuration;
     node.connection = RED.nodes.getNode(node.configurationNode) as EaseeConfigurationNode;
 
-    // Use configuration node's logging if available, fallback to console
-    node.logInfo =
-      node.connection?.logInfo ||
-      ((msg: string, data?: unknown) => {
-        console.log(`[easee] ${msg}`, data || "");
-      });
-    node.logDebug =
-      node.connection?.logDebug ||
-      ((msg: string, data?: unknown) => {
-        if (node.connection?.debugLogging) {
-          console.log(`[easee] DEBUG: ${msg}`, data || "");
-        }
-      });
-    node.logError =
-      node.connection?.logError ||
-      ((msg: string, error?: unknown) => {
-        console.error(`[easee] ERROR: ${msg}`, error || "");
-      });
-    node.logWarn =
-      node.connection?.logWarn ||
-      ((msg: string, data?: unknown) => {
-        console.warn(`[easee] WARN: ${msg}`, data || "");
-      });
+    // Use the configuration node's logging if available, else this node's own
+    // Node-RED logger (never console directly, EASEE-29).
+    const fallbackLog = createFallbackLogHelpers(node, () => Boolean(node.connection?.debugLogging));
+    node.logInfo = node.connection?.logInfo || fallbackLog.logInfo;
+    node.logDebug = node.connection?.logDebug || fallbackLog.logDebug;
+    node.logError = node.connection?.logError || fallbackLog.logError;
+    node.logWarn = node.connection?.logWarn || fallbackLog.logWarn;
 
     if (!node.connection) {
       node.error("[easee] Missing easee configuration node");

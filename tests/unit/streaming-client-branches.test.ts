@@ -46,7 +46,8 @@ function createNode(): {
   const configHandlers: Record<string, (...args: any[]) => void> = {};
 
   // Deliberately missing logInfo/logDebug/logError/logWarn: the constructor's
-  // console fallbacks are what several tests below exercise. A resolvable,
+  // fallbacks onto the node's own Node-RED logger (EASEE-29) are what several
+  // tests below exercise. A resolvable,
   // valid config node so the constructor runs past its guards.
   const connectionConfig: StubConnectionConfig = {
     isConfigurationValid: () => true,
@@ -69,6 +70,8 @@ function createNode(): {
     node.emit = vi.fn();
     node.error = vi.fn();
     node.warn = vi.fn();
+    node.log = vi.fn();
+    node.debug = vi.fn();
     node.on = vi.fn((event: string, handler: (...args: any[]) => void) => {
       handlers[event] = handler;
     });
@@ -94,25 +97,29 @@ async function flushPromises(): Promise<void> {
 }
 
 describe("charger-streaming-client — logging fallbacks", () => {
-  it("falls back to console logging when the configuration node has none", () => {
+  it("falls back to the node's own Node-RED logger, never console, when the configuration node has none", () => {
     const { node, connectionConfig } = createNode();
 
     node.logInfo("info message", { a: 1 });
-    expect(console.log).toHaveBeenCalledWith("[easee] info message", { a: 1 });
+    expect(node.log).toHaveBeenCalledWith('[easee] info message {"a":1}');
 
     connectionConfig.debugLogging = false;
     node.logDebug("debug message", { skip: true });
-    expect(console.log).not.toHaveBeenCalledWith("[easee] DEBUG: debug message", { skip: true });
+    expect(node.debug).not.toHaveBeenCalled();
 
     connectionConfig.debugLogging = true;
     node.logDebug("debug message", { b: 2 });
-    expect(console.log).toHaveBeenCalledWith("[easee] DEBUG: debug message", { b: 2 });
+    expect(node.debug).toHaveBeenCalledWith('[easee] DEBUG: debug message {"b":2}');
 
     node.logError("error message", new Error("boom"));
-    expect(console.error).toHaveBeenCalledWith("[easee] ERROR: error message", new Error("boom"));
+    expect(node.error).toHaveBeenCalledWith("[easee] ERROR: error message boom");
 
     node.logWarn("warn message");
-    expect(console.warn).toHaveBeenCalledWith("[easee] WARN: warn message", "");
+    expect(node.warn).toHaveBeenCalledWith("[easee] WARN: warn message");
+
+    expect(console.log).not.toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
+    expect(console.warn).not.toHaveBeenCalled();
   });
 });
 
@@ -211,7 +218,7 @@ describe("charger-streaming-client — reconnect()", () => {
     node.reconnect();
     await flushPromises();
 
-    expect(console.error).toHaveBeenCalledWith("[easee] ERROR: Authentication failed during reconnect", "");
+    expect(node.error).toHaveBeenCalledWith("[easee] ERROR: Authentication failed during reconnect");
     // Unlike the isAuthenticated===true branch, the false branch never touches
     // reconnectTimoutHandle — it is left exactly as reconnect() found it.
     expect(node.reconnectTimoutHandle).toBeUndefined();
@@ -224,7 +231,7 @@ describe("charger-streaming-client — reconnect()", () => {
     node.reconnect();
     await flushPromises();
 
-    expect(console.error).toHaveBeenCalledWith("[easee] ERROR: Error during reconnect:", new Error("timeout"));
+    expect(node.error).toHaveBeenCalledWith("[easee] ERROR: Error during reconnect: timeout");
   });
 });
 

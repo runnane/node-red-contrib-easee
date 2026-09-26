@@ -119,15 +119,22 @@ export default defineConfig({
       // vice versa) were covered: statements 93% (824/886), branches 85.14%
       // (430/505), functions 85.21% (98/115, unchanged), lines 93.13% (814/874).
       //
+      // Raised 2026-09-26 (EASEE-29), 205 tests, after the logging helpers moved
+      // onto Node-RED's node.log/debug/warn/error (dropping their console
+      // branches), the REST and streaming fallbacks moved into logging.ts, and
+      // the SignalR ILogger adapter and the config node's helpers got tests:
+      // statements 95.39% (849/890), branches 92.81% (452/487), functions 88.88%
+      // (104/117), lines 95.66% (838/876).
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 92.9,
-        branches: 85.1,
-        functions: 85.2,
-        lines: 93.1,
+        statements: 95.3,
+        branches: 92.7,
+        functions: 88.8,
+        lines: 95.6,
       },
     },
   },

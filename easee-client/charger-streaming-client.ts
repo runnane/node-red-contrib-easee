@@ -29,9 +29,11 @@ import {
   type HubConnection,
   HubConnectionBuilder,
   type IHttpConnectionOptions,
+  type ILogger,
   LogLevel,
 } from "@microsoft/signalr";
 import type { Node, NodeAPI, NodeDef, NodeStatus } from "node-red";
+import { createFallbackLogHelpers, type LogHelpers } from "./logging";
 import { EaseeSignalRHttpClient } from "./signalr-http-client";
 import type { EaseeConfigurationNode, InputListener, LogFn, ObservationData } from "./types";
 import { buildUserAgent } from "./user-agent";
@@ -96,6 +98,46 @@ interface ChargerStreamingClientNode extends Node {
   on(event: "erro", listener: (event: ErroEvent) => void): this;
 }
 
+/** SignalR's ILogger, plus the minimum level it lets through (pinned by tests). */
+interface SignalRLogger extends ILogger {
+  readonly minimumLevel: LogLevel;
+}
+
+/**
+ * The logger handed to HubConnectionBuilder.configureLogging() (EASEE-29).
+ *
+ * It used to be `LogLevel.Debug` unconditionally, so every user got SignalR's
+ * debug chatter on the console, ticked or not. Now SignalR's own levels are cut
+ * at Debug only when the configuration node's `debugLogging` is on, else at
+ * Warning, and what passes goes through the node's logging helpers, so it lands
+ * in Node-RED's logger like everything else. Trace is never forwarded.
+ *
+ * In Node, SignalR sends the token as a header rather than in the URL, but any
+ * `access_token=` query value is redacted anyway: whatever this prints may end up
+ * pasted into a public GitHub issue.
+ */
+function createSignalRLogger(log: LogHelpers, debugLogging: boolean): SignalRLogger {
+  const minimumLevel = debugLogging ? LogLevel.Debug : LogLevel.Warning;
+  return {
+    minimumLevel,
+    log(logLevel: LogLevel, message: string) {
+      if (logLevel < minimumLevel || logLevel === LogLevel.None) {
+        return;
+      }
+      const text = `SignalR: ${message.replace(/access_token=[^&\s'"]*/gi, "access_token=[redacted]")}`;
+      if (logLevel >= LogLevel.Error) {
+        log.logError(text);
+      } else if (logLevel === LogLevel.Warning) {
+        log.logWarn(text);
+      } else if (logLevel === LogLevel.Information) {
+        log.logInfo(text);
+      } else {
+        log.logDebug(text);
+      }
+    },
+  };
+}
+
 // `export =` rather than `export default`: Node-RED require()s this file and needs
 // module.exports to BE the factory. TypeScript emits this as `module.exports = ...`.
 export = (RED: NodeAPI) => {
@@ -112,29 +154,13 @@ export = (RED: NodeAPI) => {
     node.skipNegotiation = n.skipNegotiation !== undefined ? n.skipNegotiation : true;
     node.connectionConfig = RED.nodes.getNode(node.configurationNode) as EaseeConfigurationNode;
 
-    // Use configuration node's logging if available, fallback to console
-    node.logInfo =
-      node.connectionConfig?.logInfo ||
-      ((msg: string, data?: unknown) => {
-        console.log(`[easee] ${msg}`, data || "");
-      });
-    node.logDebug =
-      node.connectionConfig?.logDebug ||
-      ((msg: string, data?: unknown) => {
-        if (node.connectionConfig?.debugLogging) {
-          console.log(`[easee] DEBUG: ${msg}`, data || "");
-        }
-      });
-    node.logError =
-      node.connectionConfig?.logError ||
-      ((msg: string, error?: unknown) => {
-        console.error(`[easee] ERROR: ${msg}`, error || "");
-      });
-    node.logWarn =
-      node.connectionConfig?.logWarn ||
-      ((msg: string, data?: unknown) => {
-        console.warn(`[easee] WARN: ${msg}`, data || "");
-      });
+    // Use the configuration node's logging if available, else this node's own
+    // Node-RED logger (never console directly, EASEE-29).
+    const fallbackLog = createFallbackLogHelpers(node, () => Boolean(node.connectionConfig?.debugLogging));
+    node.logInfo = node.connectionConfig?.logInfo || fallbackLog.logInfo;
+    node.logDebug = node.connectionConfig?.logDebug || fallbackLog.logDebug;
+    node.logError = node.connectionConfig?.logError || fallbackLog.logError;
+    node.logWarn = node.connectionConfig?.logWarn || fallbackLog.logWarn;
     node.options = {};
     node.reconnectInterval = 3000;
     node.closing = false;
@@ -408,7 +434,7 @@ export = (RED: NodeAPI) => {
       try {
         connection = new HubConnectionBuilder()
           .withUrl(signalRUrl, signalROptions)
-          .configureLogging(LogLevel.Debug)
+          .configureLogging(createSignalRLogger(node, Boolean(node.connectionConfig.debugLogging)))
           .build();
       } catch (error) {
         node.logError("Error creating SignalR connection:", error);
