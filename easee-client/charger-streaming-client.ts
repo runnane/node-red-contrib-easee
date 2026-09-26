@@ -205,10 +205,14 @@ export = (RED: NodeAPI) => {
       return;
     }
 
-    // Check if the configuration node has valid credentials
-    if (!node.connectionConfig.isConfigurationValid?.()) {
+    // Check if the configuration node has valid credentials. Reported, but the
+    // node still wires up: a REST node's `update_credentials` topic can supply
+    // them at runtime (EASEE-34/EASEE-46), and the "waiting for credentials"
+    // block near the bottom of this constructor starts the connection the
+    // first time that happens.
+    const validAtDeploy = Boolean(node.connectionConfig.isConfigurationValid?.());
+    if (!validAtDeploy) {
       reportError(node, "Cannot start", incompleteConfigurationError());
-      return;
     }
 
     /** Never in a message or status: the config node's secrets, and the charger serial. */
@@ -250,6 +254,12 @@ export = (RED: NodeAPI) => {
         text: msg.update,
       });
     });
+
+    // Set below, only when credentials were missing at deploy: removes the
+    // listener that waits for them to arrive at runtime. A no-op otherwise.
+    // Declared here (rather than inline where it is assigned) so the `close`
+    // handler, which runs first, can always call it unconditionally.
+    let stopWaitingForCredentials: (() => void) | null = null;
 
     node.on("input", (msg, _send, done) => {
       node.fullReconnect(msg);
@@ -399,6 +409,10 @@ export = (RED: NodeAPI) => {
     // close callback by the listener's arity.
     node.on("close", (_removed: boolean, done: () => void) => {
       node.closing = true;
+      // A redeploy while still waiting for runtime credentials must not leak
+      // this listener on the configuration node (EASEE-46): it would outlive
+      // this node and fire again for the next deploy's node too.
+      stopWaitingForCredentials?.();
       // Optional since EASEE-19: a node that never connected (no charger, no token
       // yet) has no connection, and this used to throw here. Node-RED swallows an
       // error from a close listener, so nothing was reported — the rest of this
@@ -568,8 +582,41 @@ export = (RED: NodeAPI) => {
 
     node.closing = false;
 
-    // Start in 2 sec
-    setTimeout(() => node.fullReconnect(), 2000);
+    if (validAtDeploy) {
+      // Start in 2 sec
+      setTimeout(() => node.fullReconnect(), 2000);
+    } else {
+      // Waiting for runtime credentials (EASEE-46): the configuration node's
+      // `update` event fires on every successful login, including the one a
+      // flow's `update_credentials` message causes (easee-configuration's
+      // updateCredentials() -> doLogin()). `accessToken` is what that event
+      // sets first, and is exactly what startconn() itself checks, so it is
+      // the right signal — it is only ever set by a login this configuration
+      // node's own doLogin() accepted. A rejected runtime login never emits
+      // "update" at all (EASEE-34), so this never mis-fires on a failed
+      // attempt.
+      //
+      // startconn() directly, not fullReconnect(): updateCredentials() only
+      // records the new username/password on the configuration node *after*
+      // doLogin() (and so this "update" event) resolves, so
+      // isConfigurationValid() is still false at this exact instant and
+      // fullReconnect()'s own ensureAuthentication() check would wrongly
+      // report a fresh, successful login as a failure. accessToken is already
+      // set by this point, which is all startconn() itself needs.
+      let startedFromRuntimeCredentials = false;
+      const onCredentialsMayBeReady = () => {
+        if (startedFromRuntimeCredentials || !node.connectionConfig.accessToken) {
+          return;
+        }
+        // Once only: a later token refresh emits "update" again, and must not
+        // open a second connection.
+        startedFromRuntimeCredentials = true;
+        node.connectionConfig.removeListener("update", onCredentialsMayBeReady);
+        node.startconn();
+      };
+      node.connectionConfig.on("update", onCredentialsMayBeReady);
+      stopWaitingForCredentials = () => node.connectionConfig.removeListener("update", onCredentialsMayBeReady);
+    }
   }
 
   RED.nodes.registerType("charger-streaming-client", ChargerStreamingClientNode);
