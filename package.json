@@ -76,6 +76,10 @@
       "allowedVersions": {
         "i18next>typescript": "7"
       }
+    },
+    "overrides": {
+      "@types/node-red__util>jsonata": ">=2.2.1",
+      "express>qs": ">=6.16.0"
     }
   }
 }
