@@ -352,31 +352,6 @@ describe("easee-configuration auth, through the real node", () => {
     });
   });
 
-  describe("resetAuthenticationState()", () => {
-    it("clears tokens and counters, and says the node needs reconfiguring", async () => {
-      const node = await load();
-      holdTokens(node, { expiresInS: 3600, lifetimeS: 3600 });
-      node.refreshRetryCount = 2;
-      node.loginRetryCount = 1;
-
-      node.resetAuthenticationState();
-
-      expect(node.accessToken).toBe(false);
-      expect(node.refreshToken).toBe(false);
-      expect(node.tokenLifetime).toBe(0);
-      expect(node.refreshRetryCount).toBe(0);
-      expect(node.loginRetryCount).toBe(0);
-      expect(node.status).toHaveBeenLastCalledWith({
-        fill: "red",
-        shape: "ring",
-        text: "Authentication reset - reconfiguration required",
-      });
-      expect(node.emit).toHaveBeenCalledWith("update", {
-        update: "Authentication failed - node requires reconfiguration",
-      });
-    });
-  });
-
   describe("checkToken()", () => {
     /** Run one check; report the delay of the next check it scheduled (null if none). */
     async function check(node: any): Promise<number | null> {

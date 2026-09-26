@@ -36,6 +36,8 @@ function load(password = PASSWORD): Promise<any> {
       // restart relogin() schedules), which hides whether relogin() itself did.
       // Stubbed, so every login these tests see is the route's own.
       node.checkToken = vi.fn(() => Promise.resolve());
+      vi.spyOn(node, "status");
+      vi.spyOn(node, "emit");
       resolve(node);
     });
   });
@@ -83,6 +85,25 @@ describe("easee-configuration re-login admin route", () => {
     // ...and the token-check cycle, which checkToken() stops after too many
     // failed logins, is running again.
     await vi.waitFor(() => expect(node.checkToken).toHaveBeenCalled());
+  }, 15000);
+
+  it("resets authentication state through the shared resetAuthenticationState() before logging in (EASEE-42)", async () => {
+    const node = await load();
+    loginSucceeds();
+
+    await relogin("cfg");
+
+    // Only resetAuthenticationState() sets this status/update pair; relogin()
+    // used to reset the same fields with its own duplicated assignments,
+    // which never called it and so never produced these.
+    expect(node.status).toHaveBeenCalledWith({
+      fill: "red",
+      shape: "ring",
+      text: "Authentication reset - reconfiguration required",
+    });
+    expect(node.emit).toHaveBeenCalledWith("update", {
+      update: "Authentication failed - node requires reconfiguration",
+    });
   }, 15000);
 
   it("never puts the password or a token in a successful response", async () => {

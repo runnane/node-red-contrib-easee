@@ -1837,8 +1837,11 @@ export = (RED: NodeAPI) => {
     };
 
     /**
-     * Reset authentication state and clear all tokens
-     * Used when authentication completely fails
+     * Reset authentication state and clear all tokens: drops both tokens and
+     * their timing, and zeroes every retry counter checkToken() and doLogin()
+     * maintain. Called from relogin() (EASEE-28's "Re-login" button) before it
+     * attempts a fresh login — the caller stops the token-check timer itself
+     * first, since only it knows whether that's appropriate.
      */
     node.resetAuthenticationState = () => {
       node.logInfo("Resetting authentication state");
@@ -2027,14 +2030,7 @@ export = (RED: NodeAPI) => {
         clearTimeout(node.checkTokenHandler);
         node.checkTokenHandler = null;
       }
-      node.accessToken = false;
-      node.refreshToken = false;
-      node.tokenExpires = new Date();
-      node.tokenIssuedAt = new Date();
-      node.tokenLifetime = 0;
-      node.refreshRetryCount = 0;
-      node.loginRetryCount = 0;
-      node.transportRetryCount = 0;
+      node.resetAuthenticationState();
 
       node.logInfo("Re-login requested from the editor");
       node.authenticationInProgress = true;
