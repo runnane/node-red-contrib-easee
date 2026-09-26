@@ -11,11 +11,10 @@ tests/
 ├── package.json                  # {"type": "module"}: tests are ESM, the node sources are CommonJS
 ├── setup.ts                      # global fetch mock + testHelpers; leaves fake timers on between tests
 ├── fixtures/
-│   └── mockData.ts               # synthetic API payloads — keep them synthetic, this repo is public
+│   └── mockData.ts               # synthetic API error bodies — keep them synthetic, this repo is public
 ├── mocks/
-│   └── nodeRedMocks.ts           # mock RED runtime, mock config node, fetchMock(), verify helpers
+│   └── nodeRedMocks.ts           # a stub RED runtime and the typed fetchMock()
 ├── unit/
-│   ├── authentication.test.ts
 │   ├── charger-state-observations.test.ts
 │   ├── configValidation.test.ts
 │   ├── published-package.test.ts # what `pnpm pack` would publish — needs a built dist/
@@ -23,10 +22,9 @@ tests/
 │   ├── rest-call-errors.test.ts
 │   ├── streaming-client-lifecycle.test.ts
 │   ├── streaming-client-options.test.ts
-│   ├── tokenChecking.test.ts
-│   └── tokenRefresh.test.ts
+│   └── …
 └── integration/
-    ├── authFlow.test.ts
+    ├── configuration-auth.test.ts # login / refresh / token check on the real config node
     └── nodeRedTestHelper.test.ts # a real Node-RED runtime via node-red-node-test-helper
 ```
 
@@ -49,17 +47,23 @@ pnpm exec vitest run tests/unit/configValidation.test.ts   # one file
 ## Writing one
 
 ```ts
-import { beforeEach, describe, expect, it } from "vitest";
+import { createRequire } from "node:module";
+import helper from "node-red-node-test-helper";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import easeeConfiguration from "../../easee-client/easee-configuration.js";
-import { createMockRED, mockFetchResponses } from "../mocks/nodeRedMocks.js";
+import { fetchMock } from "../mocks/nodeRedMocks.js";
+
+helper.init(createRequire(import.meta.url).resolve("node-red"));
 
 describe("feature", () => {
-  beforeEach(() => {
-    // arrange
-  });
+  beforeEach(() => vi.useRealTimers()); // the helper needs real timers
+  afterEach(() => helper.unload());
 
   it("does the thing", async () => {
-    mockFetchResponses.loginSuccess();
+    const flow = [{ id: "cfg", type: "easee-configuration", username: "user@example.invalid" }];
+    await new Promise<void>((resolve) => helper.load(easeeConfiguration as any, flow, { cfg: { password: "synthetic" } }, resolve));
+    const node: any = helper.getNode("cfg");
+    fetchMock().mockImplementation(() => globalThis.testHelpers.createFetchResponse({ /* synthetic body */ }));
     // act on the REAL node, not a copy of its logic — then assert
     expect(/* … */).toBe(/* … */);
   });
@@ -69,7 +73,8 @@ describe("feature", () => {
 - Import from `"vitest"` explicitly; there are no globals.
 - Import sources with the `.js` extension (`nodenext` requires it; Vite resolves the `.ts`).
 - No `done` callbacks — return a Promise.
-- Drive the real node. Several older tests copy the node's logic onto a mock and test the
-  copy, which passes whatever `easee-client/` does; do not add more of those.
+- Drive the real node (see `integration/configuration-auth.test.ts`), stubbing only the
+  network. Tests that copied the node's logic onto a mock and tested the copy passed
+  whatever `easee-client/` did; EASEE-31 removed them — do not add more.
 - Before claiming a test protects something, break the implementation and watch that test
   go red (see `.agents/testing.md`).

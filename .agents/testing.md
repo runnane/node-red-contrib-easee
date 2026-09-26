@@ -13,20 +13,17 @@ concurrent runs cannot collide.)
 tests/
   package.json                          {"type": "module"} — tests are ESM, the sources are not
   setup.ts                              global setup, runs before each file
-  fixtures/mockData.ts                  synthetic API payloads — keep them synthetic
-  mocks/nodeRedMocks.ts                 hand-written RED / node mocks, and fetchMock()
-  unit/authentication.test.ts           login, error paths, non-JSON responses
+  fixtures/mockData.ts                  synthetic API error bodies — keep them synthetic
+  mocks/nodeRedMocks.ts                 a stub RED, and fetchMock()
   unit/charger-state-observations.test.ts   rest client charger_state → observations (EASEE-13)
   unit/configValidation.test.ts         the credential-validation helper
   unit/streaming-client-options.test.ts SignalR option assembly (incl. skipNegotiation)
-  unit/tokenChecking.test.ts            token expiry arithmetic
-  unit/tokenRefresh.test.ts             refresh flow and its failure paths
   unit/published-package.test.ts        what `pnpm pack` would publish (EASEE-3, EASEE-19)
   unit/release-workflow.test.ts         what release.yml must keep that no run can check first (EASEE-16)
   unit/rest-call-errors.test.ts         doAuthRestCall when fetch rejects (EASEE-19)
   unit/streaming-client-lifecycle.test.ts   close + "opened" handlers, subscription, httpClient wiring (EASEE-19, EASEE-35)
   unit/signalr-http-client.test.ts      the HTTP client handed to SignalR, against a real local server (EASEE-35)
-  integration/authFlow.test.ts          the whole auth flow, still fully mocked
+  integration/configuration-auth.test.ts   doLogin / doRefreshToken / checkToken on the real node (EASEE-31)
   integration/nodeRedTestHelper.test.ts node-red-node-test-helper — a real runtime
 ```
 
@@ -122,11 +119,11 @@ corroborate it.
 The failing-direction check is the point (constitution §14), and the specific traps that
 have bitten in repos like this one:
 
-- **Is the function under test actually called?** Several of the older unit tests
-  (`authentication`, `tokenChecking`, `tokenRefresh`) re-implement the node's logic
-  inline on a mock and test *that* — they pass no matter what `easee-client/` does.
-  Don't add more of those; drive the real node, as `charger-state-observations` and the
-  integration suite do. Grep your own diff for a `test(` block with no assertion, and for
+- **Is the function under test actually called?** Four older files (`authentication`,
+  `tokenChecking`, `tokenRefresh`, `authFlow`) re-implemented the node's logic inline on
+  a mock and tested *that* — they passed no matter what `easee-client/` did, and had
+  drifted from it. EASEE-31 replaced them with `configuration-auth.test.ts`. Don't add
+  more of those; drive the real node, as that file and `charger-state-observations` do. Grep your own diff for a `test(` block with no assertion, and for
   a mock that is created and never asserted on.
 - **Could expected and actual drift together?** `mockData.ts` feeds both the code and, in
   places, the expectation. Pin the expected value literally rather than deriving it from
@@ -148,8 +145,9 @@ have bitten in repos like this one:
 
 `tests/integration/nodeRedTestHelper.test.ts` (and `charger-state-observations`) use
 `node-red-node-test-helper`, which loads the nodes into an actual Node-RED instance
-rather than a mock. That is the direction the suite should grow — EASEE-31 tracks moving
-the mock-based unit tests onto real code paths, and the helper is how that gets done.
+rather than a mock. That is the direction the suite should grow; EASEE-31 moved the auth tests onto it.
+`configValidation` and `streaming-client-missing-config` still construct the real node
+against the stub RED in `mocks/nodeRedMocks.ts` — real code, a fake runtime.
 
 If a helper-based test fails with `Cannot read properties of undefined (reading 'log')`,
 the real error is hidden: the helper logs it through the mocked `console`. It is almost

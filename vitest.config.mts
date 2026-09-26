@@ -59,15 +59,21 @@ export default defineConfig({
       // Re-measured 2026-09-26 after merging main into EASEE-27's branch (the sweep's
       // PRs combined): statements 64.77% (570/880), branches 59.68% (299/501), functions 55.35% (62/112), lines 64.63% (561/868).
       //
+      // Raised 2026-09-26 (EASEE-31), 131 tests, after replacing the four files
+      // that re-implemented doLogin / doRefreshToken / checkToken inline with
+      // integration/configuration-auth.test.ts, which drives the real
+      // configuration node: statements 76.59% (674/880), branches 69.06%
+      // (346/501), functions 60.71% (68/112), lines 76.61% (665/868).
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 64.7,
-        branches: 59.6,
-        functions: 55.3,
-        lines: 64.6,
+        statements: 76.5,
+        branches: 69,
+        functions: 60.7,
+        lines: 76.5,
       },
     },
   },

@@ -277,10 +277,10 @@ scripts/                 TypeScript, compiled to dist/scripts/ and run from ther
   check-node-loads.ts    loads every node into a real Node-RED runtime (gate 5)
   audit-production.ts    pnpm audit scoped to shipped deps, with an allowlist (CI only)
 tests/                   ESM (tests/package.json), Vitest
-  unit/                  11 files: auth/token/config, node lifecycle, SignalR HTTP client, tarball + release guards
-  integration/           authFlow + node-red-node-test-helper
-  fixtures/mockData.ts   synthetic fixtures — keep them synthetic
-  mocks/                 hand-written Node-RED mocks
+  unit/                  config validation, node lifecycle, SignalR HTTP client, tarball + release guards
+  integration/           real Node-RED runtime via node-red-node-test-helper (auth, re-login)
+  fixtures/mockData.ts   synthetic API error bodies — keep them synthetic
+  mocks/                 a stub RED and the typed fetch mock
 dist/                    build output, gitignored; dist/easee-client/ is what ships
 .github/workflows/ci.yml the test matrix, the packed-tarball compat matrix, the audit job
 .github/workflows/release.yml  dispatched release: gate, bump, tag, publish the gated dist/ (EASEE-16)

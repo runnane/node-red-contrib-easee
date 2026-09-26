@@ -5,14 +5,8 @@
 
 import { afterEach, beforeEach, vi } from "vitest";
 
-interface MockNodeOverrides {
-  [key: string]: unknown;
-}
-
 interface TestHelpers {
   resetMocks: () => void;
-  createMockNode: (overrides?: MockNodeOverrides) => any;
-  createAuthResponse: (overrides?: MockNodeOverrides) => any;
   createFetchResponse: (data: unknown, status?: number, headers?: Record<string, string>) => Promise<any>;
   /** Node's own fetch, before the mock below replaced it. */
   realFetch: typeof fetch;
@@ -38,45 +32,6 @@ globalThis.testHelpers = {
   resetMocks: () => {
     vi.clearAllMocks();
     (globalThis.fetch as any).mockClear();
-  },
-
-  /**
-   * Create a mock Node-RED node
-   */
-  createMockNode: (overrides = {}) => {
-    return {
-      credentials: {
-        username: "test@example.com",
-        password: "testpassword",
-      },
-      RestApipath: "https://api.easee.cloud",
-      accessToken: null,
-      refreshToken: null,
-      tokenExpires: new Date(),
-      refreshRetryCount: 0,
-      loginRetryCount: 0,
-      maxRefreshRetries: 3,
-      maxLoginRetries: 3,
-      status: vi.fn(),
-      emit: vi.fn(),
-      error: vi.fn(),
-      warn: vi.fn(),
-      log: vi.fn(),
-      ...overrides,
-    };
-  },
-
-  /**
-   * Create mock authentication response
-   */
-  createAuthResponse: (overrides = {}) => {
-    return {
-      accessToken: "mock-access-token",
-      refreshToken: "mock-refresh-token",
-      expiresIn: 3600,
-      tokenType: "Bearer",
-      ...overrides,
-    };
   },
 
   /**
