@@ -1549,8 +1549,10 @@ export = (RED: NodeAPI) => {
 
           const refreshResult = await node.doRefreshToken();
 
-          // If refresh failed (returned null), try fresh login
-          if (refreshResult === null) {
+          // undefined: no tokens to refresh, doRefreshToken() never attempted
+          // anything (EASEE-39). null: a refresh was attempted and failed.
+          // Either way this is the one and only place that logs in.
+          if (refreshResult === null || refreshResult === undefined) {
             node.status({
               fill: "yellow",
               shape: "ring",
@@ -1671,25 +1673,23 @@ export = (RED: NodeAPI) => {
     };
 
     /**
-     * Refresh the access token using the refresh token
-     * @returns {Promise<Object|null>} The refresh response or null if refresh failed
+     * Refresh the access token using the refresh token.
+     * @returns {Promise<Object|null|undefined>} The refresh response; `null` if a
+     *   refresh was attempted and failed; `undefined` if there were no tokens to
+     *   refresh at all — the caller must log in itself (EASEE-39), this function
+     *   no longer does.
      */
     node.doRefreshToken = async () => {
       if (!node.accessToken || !node.refreshToken) {
-        // Not logged in, will not refresh - attempt login instead
-        node.logInfo("No tokens available for refresh, attempting fresh login");
-        try {
-          await node.doLogin();
-          return undefined;
-        } catch (loginError) {
-          node.logError("Login failed during refresh:", loginError);
-          node.status({
-            fill: "red",
-            shape: "ring",
-            text: "Authentication failed",
-          });
-          return null;
-        }
+        // Not logged in, so there is nothing to refresh. Signal "needs login"
+        // (undefined, already part of this function's declared return type)
+        // and leave the login itself to the caller (EASEE-39): checkToken()
+        // is the only caller that used to treat doRefreshToken()'s own
+        // failed-login `null` as a second, separate signal to log in again,
+        // which meant a failed cycle with no tokens sent two logins for one
+        // loginRetryCount. Logging in here as well as there was the bug.
+        node.logInfo("No tokens available for refresh, needs login");
+        return undefined;
       }
 
       const response = await fetch(`${node.RestApipath}/accounts/refresh_token`, {
