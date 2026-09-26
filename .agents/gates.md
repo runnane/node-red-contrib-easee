@@ -98,7 +98,7 @@ comment in `vitest.config.mts` says so in the file it would be reintroduced into
 | job | what | local equivalent |
 | --- | --- | --- |
 | `lint-and-test` × **3** (Node 22/24/26) | `pnpm gates`, all five checks, on every leg; coverage uploaded from 24 | `pnpm gates` |
-| `Node-RED Compatibility` × **4** (Node 18/20/22/24) | build + `pnpm pack` on 22, then switch Node, `npm install` the tarball elsewhere and load all three nodes from **there** | gate 5, but see below |
+| `Node-RED Compatibility` × **6** (node-red 4 on Node 18/20/22/24; node-red 5 on Node 22/24) | build + `pnpm pack` on 22, then switch Node, `npm install` the tarball elsewhere and load all three nodes from **there**. The node-red 5 legs install `node-red@5` into its own prefix and pass `--node-red-dir` (EASEE-24); the Vitest suite still runs against node-red 4 only | gate 5, but see below |
 | `Security Audit` | `pnpm audit:prod` (blocking) + `pnpm audit` and `pnpm outdated` (informational) | **none — needs the network** |
 
 `.github/workflows/release.yml` (EASEE-16) is **not a gate** — it runs only when a
