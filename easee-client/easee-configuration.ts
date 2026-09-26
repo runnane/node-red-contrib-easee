@@ -32,6 +32,7 @@ import type {
   EaseeCredentials,
   TokenResponse,
 } from "./types";
+import { buildUserAgent } from "./user-agent";
 
 interface ObservationDefinition {
   observationId: number;
@@ -45,6 +46,10 @@ interface ObservationDefinition {
 // `export =` rather than `export default`: Node-RED require()s this file and needs
 // module.exports to BE the factory. TypeScript emits this as `module.exports = ...`.
 export = (RED: NodeAPI) => {
+  // Computed once per runtime start (this factory function runs once), not per
+  // node instance or per request — see EASEE-27.
+  const userAgent = buildUserAgent(RED);
+
   function EaseeConfiguration(this: EaseeConfigurationNode, n: EaseeConfigurationDef) {
     RED.nodes.createNode(this, n);
     // biome-ignore lint/complexity/noUselessThisAlias: `node` is the Node-RED idiom, captured by every helper below
@@ -263,6 +268,7 @@ export = (RED: NodeAPI) => {
       }
 
       const requestHeaders = {
+        "User-Agent": userAgent,
         ...headers,
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -1638,6 +1644,7 @@ export = (RED: NodeAPI) => {
       const response = await fetch(`${node.RestApipath}/accounts/refresh_token`, {
         method: "POST",
         headers: {
+          "User-Agent": userAgent,
           Accept: "application/json",
           "Content-Type": "application/*+json",
         },
@@ -1854,6 +1861,7 @@ export = (RED: NodeAPI) => {
           password: _password ?? node.credentials.password,
         }),
         headers: {
+          "User-Agent": userAgent,
           Accept: "application/json",
           "Content-Type": "application/json",
         },

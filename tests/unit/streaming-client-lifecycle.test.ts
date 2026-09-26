@@ -251,6 +251,33 @@ describe("charger-streaming-client lifecycle", () => {
     },
     15000,
   );
+
+  // EASEE-27: identifies this package to Easee on the SignalR connection too,
+  // not just the REST calls. HttpConnection merges `options.headers` on top of
+  // its own default headers for both the negotiate request (through the
+  // package's own httpClient) and the Node `ws` transport (see
+  // node_modules/@microsoft/signalr/src/HttpConnection.ts's
+  // `_getNegotiationResponse()`/`_constructTransport()` and
+  // WebSocketTransport.ts's `connect()`), so a later key wins over SignalR's own
+  // default User-Agent — this only has to prove the option reaches withUrl().
+  it("passes a User-Agent header naming this package to withUrl()", async () => {
+    const { streaming, config } = await load();
+    const withUrl = vi.spyOn(HubConnectionBuilder.prototype, "withUrl");
+    config.accessToken = "token-1";
+    config.signalRpath = "http://127.0.0.1:9/hubs/chargers";
+    streaming.handleConnection = vi.fn();
+
+    try {
+      streaming.startconn();
+
+      expect(withUrl).toHaveBeenCalledTimes(1);
+      const options = withUrl.mock.calls[0][1] as { headers?: Record<string, string> };
+      expect(options.headers?.["User-Agent"]).toMatch(/^node-red-contrib-easee\/\S+ \(Node-RED\/\S+; Node\/\S+\)$/);
+      expect(options.headers?.["User-Agent"]).not.toContain("test@example.com");
+    } finally {
+      withUrl.mockRestore();
+    }
+  }, 15000);
 });
 
 /** Let the node's async subscription settle; fake timers do not hold microtasks. */

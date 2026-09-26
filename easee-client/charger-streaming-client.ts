@@ -34,6 +34,7 @@ import {
 import type { Node, NodeAPI, NodeDef, NodeStatus } from "node-red";
 import { EaseeSignalRHttpClient } from "./signalr-http-client";
 import type { EaseeConfigurationNode, InputListener, LogFn, ObservationData } from "./types";
+import { buildUserAgent } from "./user-agent";
 
 /** The streaming client's saved flow properties (the `defaults` block in the .html). */
 interface ChargerStreamingClientDef extends NodeDef {
@@ -101,6 +102,10 @@ interface ChargerStreamingClientNode extends Node {
 // `export =` rather than `export default`: Node-RED require()s this file and needs
 // module.exports to BE the factory. TypeScript emits this as `module.exports = ...`.
 export = (RED: NodeAPI) => {
+  // Computed once per runtime start (this factory function runs once), not per
+  // node instance or per connection — see EASEE-27.
+  const userAgent = buildUserAgent(RED);
+
   function ChargerStreamingClientNode(this: ChargerStreamingClientNode, n: ChargerStreamingClientDef) {
     RED.nodes.createNode(this, n);
     // biome-ignore lint/complexity/noUselessThisAlias: `node` is the Node-RED idiom, captured by every helper below
@@ -384,6 +389,12 @@ export = (RED: NodeAPI) => {
         // Never SignalR's default client in Node: it requires whichever tough-cookie
         // npm hoisted, and 2.x/3.x break negotiation with "reading 'secure'" (EASEE-35).
         httpClient: new EaseeSignalRHttpClient(),
+        // Identifies this package to Easee on both the negotiate request (merged
+        // into EaseeSignalRHttpClient's fetch via request.headers) and the Node
+        // `ws` WebSocket upgrade (HttpConnection passes `_options.headers` into
+        // WebSocketTransport, which spreads it over its own default User-Agent
+        // header) — see EASEE-27 and the confirmation in user-agent.ts's tests.
+        headers: { "User-Agent": userAgent },
       };
 
       // Add skipNegotiation option if enabled - requires WebSocket transport
