@@ -38,13 +38,11 @@ updates:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
-    # Reviewers for dependency PRs
-    reviewers:
-      - "runnane"
-    # Labels to add to PRs
+    # Review requests come from .github/CODEOWNERS; the `reviewers:` key is
+    # deprecated for Dependabot.
+    # Labels to add to PRs (each must exist on the repo, or Dependabot skips it)
     labels:
       - "dependencies"
-      - "automated"
     # Ignore specific packages if needed
     ignore:
       # Ignore major version updates for stable dependencies
