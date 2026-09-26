@@ -99,15 +99,28 @@ export default defineConfig({
       // Global: statements 86.14% (771/895), branches 79.4% (401/505), functions
       // 71.3% (82/115), lines 86.18% (761/883).
       //
+      // Raised 2026-09-26 (EASEE-45), 194 tests, after driving
+      // charger-streaming-client.ts through the real node with
+      // @microsoft/signalr's HubConnectionBuilder stubbed at the module
+      // boundary: startconn()/handleConnection()/reconnect(), the
+      // hub-initiated "closed" event's two status branches, the
+      // CommandResponse output (output 6), the accessTokenFactory closure,
+      // the logging fallbacks, the config-node "update" forwarder, the
+      // "input" topic, and startconn()'s charger/accessToken guards were
+      // previously untested. charger-streaming-client.ts alone rose from
+      // 63.87%/42.85%/40% statements/branches/functions to
+      // 98.7%/91.07%/93.33%. Global: statements 92.17% (825/895), branches
+      // 84.75% (428/505), functions 85.21% (98/115), lines 92.29% (815/883).
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 86.1,
-        branches: 79.3,
-        functions: 71.2,
-        lines: 86.1,
+        statements: 92.1,
+        branches: 84.7,
+        functions: 85.2,
+        lines: 92.2,
       },
     },
   },
