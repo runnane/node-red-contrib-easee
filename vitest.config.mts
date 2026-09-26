@@ -126,15 +126,22 @@ export default defineConfig({
       // statements 95.39% (849/890), branches 92.81% (452/487), functions 88.88%
       // (104/117), lines 95.66% (838/876).
       //
+      // Raised 2026-09-26 (EASEE-26), 228 tests, after the error classifier and
+      // reporter (errors.ts) were added and every node's error paths went
+      // through it, with real-node tests per error category and unit tests for
+      // the classifier: statements 96.19% (961/999), branches 92.7% (585/631),
+      // functions 90.57% (125/138), lines 96.43% (946/981). Branches stay at
+      // 92.7: that is exactly where they landed.
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 95.3,
+        statements: 96.1,
         branches: 92.7,
-        functions: 88.8,
-        lines: 95.6,
+        functions: 90.5,
+        lines: 96.4,
       },
     },
   },

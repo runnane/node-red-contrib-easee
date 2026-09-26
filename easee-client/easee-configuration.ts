@@ -25,6 +25,16 @@
  * by Scott Page (Apache License 2.0).
  **/
 import type { NodeAPI } from "node-red";
+import {
+  categorizedError,
+  classifyError,
+  describeError,
+  httpStatusError,
+  isCredentialRejection,
+  redactSecrets,
+  reportError,
+  tagError,
+} from "./errors";
 import { formatLogMessage } from "./logging";
 import type {
   ApiErrorBody,
@@ -129,25 +139,37 @@ export = (RED: NodeAPI) => {
       }
     };
 
+    /**
+     * The strings no error, warning or status may carry (EASEE-26): the
+     * password, both tokens and the username. Error texts embed Easee API
+     * response bodies, and whatever this package prints may be pasted into a
+     * public GitHub issue.
+     */
+    node.secrets = () => [node.credentials?.password, node.accessToken, node.refreshToken, node.username];
+
     // Error level: node.error(), without a msg, so it reaches the log and the
     // debug sidebar but no Catch node (the same call as before EASEE-29, minus
-    // the duplicate console.error).
+    // the duplicate console.error). Redacted (EASEE-26).
     node.logError = (message: string, error: unknown = null) => {
       const formattedMessage = `[easee] ERROR: ${message}`;
 
       if (error !== null) {
-        node.error(`${formattedMessage} ${(error as { message?: unknown }).message || error}`);
+        node.error(
+          redactSecrets(`${formattedMessage} ${(error as { message?: unknown }).message || error}`, node.secrets()),
+        );
       } else {
-        node.error(formattedMessage);
+        node.error(redactSecrets(formattedMessage, node.secrets()));
       }
     };
 
     // Warning level: node.warn() (the same call as before EASEE-29, minus the
-    // duplicate console.warn).
+    // duplicate console.warn). Redacted (EASEE-26).
     node.logWarn = (message: string, data: unknown = null) => {
       const formattedMessage = `[easee] WARN: ${message}`;
 
-      node.warn(data !== null ? `${formattedMessage} ${JSON.stringify(data)}` : formattedMessage);
+      node.warn(
+        redactSecrets(data !== null ? `${formattedMessage} ${JSON.stringify(data)}` : formattedMessage, node.secrets()),
+      );
     };
 
     // Validate credentials are provided during node creation
@@ -172,19 +194,31 @@ export = (RED: NodeAPI) => {
       return node.validateCredentials().valid;
     };
 
-    // Perform initial validation
+    /**
+     * Why ensureAuthentication() last came back false, for the nodes that
+     * report it (EASEE-26): `config` when the username or password is missing,
+     * else the category of the last failed login.
+     */
+    node.lastAuthFailure = null;
+    node.authFailureCategory = () => {
+      if (!node.validateCredentials().valid) {
+        return "config";
+      }
+      return node.lastAuthFailure ?? "unknown";
+    };
+
+    // Perform initial validation: one node.error() saying what is missing and
+    // what to do, where this used to be an error, a second error and a warning.
     const validation = node.validateCredentials();
     if (!validation.valid) {
-      node.logError(`Configuration node validation failed: ${validation.message}`);
-      node.status({
-        fill: "red",
-        shape: "ring",
-        text: "Invalid configuration - missing credentials",
-      });
-      node.error(
-        `[easee] Configuration node is invalid: ${validation.message}. Please edit the configuration and provide both username and password.`,
+      reportError(
+        node,
+        "Configuration node is invalid",
+        categorizedError(validation.message, "config", {
+          statusText: MISSING_CREDENTIALS_STATUS,
+          hint: EDIT_CREDENTIALS_HINT,
+        }),
       );
-      node.warn(`[easee] This node will not function until valid credentials are provided.`);
       // Don't return or throw - let the node exist but be non-functional
     }
 
@@ -229,12 +263,7 @@ export = (RED: NodeAPI) => {
      */
     node.on("start", () => {
       node.checkToken().catch((error) => {
-        node.logError("Error in checkToken during start:", error);
-        node.status({
-          fill: "red",
-          shape: "ring",
-          text: "Authentication error",
-        });
+        reportError(node, "Token check failed during start", error, { secrets: node.secrets() });
       });
     });
 
@@ -263,12 +292,15 @@ export = (RED: NodeAPI) => {
       // Ensure authentication is available before making the call
       const authAvailable = await node.ensureAuthentication();
       if (!authAvailable) {
-        const error = new Error("Authentication not available");
-        node.logError("Authentication not available for doAuthRestCall");
+        // Categorised by why the login failed, so the calling node can say so
+        // (EASEE-26). The calling node reports it; logging it here as well
+        // only doubled every error.
+        const error = categorizedError("Authentication not available", node.authFailureCategory());
+        node.logDebug("Authentication not available for doAuthRestCall");
         node.status({
           fill: "red",
           shape: "ring",
-          text: "Authentication failed",
+          text: describeError(error).statusText,
         });
         throw error;
       }
@@ -286,21 +318,20 @@ export = (RED: NodeAPI) => {
       // base. Needed because the observations endpoint lives outside /api.
       const requestUrl = /^https?:\/\//i.test(url) ? url : node.RestApipath + url;
 
-      const response = await fetch(requestUrl, {
-        method: method,
-        headers: requestHeaders,
-        body: bodyPayload,
-      }).catch((error) => {
-        node.logError("Critical error in doAuthRestCall() fetch, failing", error);
-        node.error(error);
-        return undefined;
-      });
-
-      if (response === undefined) {
-        // fetch() rejected, and that is logged above. Before the TypeScript
-        // conversion (EASEE-19) this fell through to `response.text()` and threw
-        // "Cannot read properties of undefined (reading 'text')" instead.
-        throw new Error("REST Command failed: the request did not complete");
+      let response: Response;
+      try {
+        response = await fetch(requestUrl, {
+          method: method,
+          headers: requestHeaders,
+          body: bodyPayload,
+        });
+      } catch (error) {
+        // fetch() rejected: no answer from Easee. Tagged `network` with the
+        // cause attached, and reported once by the calling node (EASEE-26) —
+        // this used to log it twice here as well. The message is unchanged: it
+        // reaches the REST client's output msg.error. (Before the TypeScript
+        // conversion, EASEE-19, this fell through to `response.text()`.)
+        throw categorizedError("REST Command failed: the request did not complete", "network", { cause: error });
       }
 
       const http_text = await response.text();
@@ -327,7 +358,16 @@ export = (RED: NodeAPI) => {
           is_json && http_json !== null
             ? extractApiErrorDetail(http_json as ApiErrorBody & { message?: string })
             : null;
-        throw new Error(`REST Command failed (${http_status}: ${http_statusText}) ${errorDetail ?? http_text}`);
+        // Tagged `api` with the status (EASEE-26): a 401/403 here is Easee
+        // refusing this one call, not the login, so it must not be classified
+        // as a credential rejection.
+        throw categorizedError(
+          `REST Command failed (${http_status}: ${http_statusText}) ${errorDetail ?? http_text}`,
+          "api",
+          {
+            status: http_status,
+          },
+        );
       }
       if (is_json && http_json !== null) {
         node.status({
@@ -1469,7 +1509,7 @@ export = (RED: NodeAPI) => {
         node.status({
           fill: "red",
           shape: "ring",
-          text: "Invalid configuration - edit to add credentials",
+          text: MISSING_CREDENTIALS_STATUS,
         });
         // Don't schedule another check if credentials are invalid
         return;
@@ -1544,7 +1584,8 @@ export = (RED: NodeAPI) => {
               node.loginRetryCount = 0;
               node.transportRetryCount = 0;
             } catch (loginError) {
-              node.logError("Fresh login also failed:", loginError);
+              // doLogin() has already reported it, with what to do (EASEE-26).
+              node.logDebug("Fresh login also failed:", describeError(loginError).category);
 
               // The cycle is never stopped here (EASEE-38). A failure the API
               // did not answer with 400/401/403 says nothing about the
@@ -1552,10 +1593,19 @@ export = (RED: NodeAPI) => {
               if (!isCredentialRejection(loginError)) {
                 node.transportRetryCount++;
                 retryAfterMs = transportRetryDelayMs(node.transportRetryCount);
+                // Says which kind of failure it was (EASEE-26): no answer at
+                // all, or an Easee server error.
+                const { category, httpStatus } = describeError(loginError);
+                const what =
+                  category === "network"
+                    ? "Easee unreachable"
+                    : httpStatus !== undefined
+                      ? `Easee error ${httpStatus}`
+                      : "Login failed";
                 node.status({
                   fill: "yellow",
                   shape: "ring",
-                  text: `Cannot reach Easee - retrying in ${Math.round(retryAfterMs / 1000)}s`,
+                  text: `${what} – retrying in ${Math.round(retryAfterMs / 1000)}s`,
                 });
               } else {
                 node.transportRetryCount = 0;
@@ -1567,10 +1617,10 @@ export = (RED: NodeAPI) => {
                   node.status({
                     fill: "red",
                     shape: "ring",
-                    text: "Authentication failed - check credentials",
+                    text: CREDENTIALS_REJECTED_STATUS,
                   });
                   node.error(
-                    "[easee] Authentication failed after maximum retries. Please check credentials and reconfigure the node, or press Re-login.",
+                    `[easee] Login: Easee rejected the username or password ${node.maxLoginRetries} times in a row; retrying every ${CREDENTIAL_RETRY_DELAY_MS / 60000} minutes. Check the username and password in the easee-configuration node, then press Re-login there.`,
                   );
 
                   // Drop any tokens, and keep trying - slowly - rather than stop:
@@ -1587,7 +1637,7 @@ export = (RED: NodeAPI) => {
                   node.status({
                     fill: "yellow",
                     shape: "ring",
-                    text: `Login retry ${node.loginRetryCount}/${node.maxLoginRetries}`,
+                    text: `Login rejected – retry ${node.loginRetryCount}/${node.maxLoginRetries}`,
                   });
                 }
               }
@@ -1636,12 +1686,7 @@ export = (RED: NodeAPI) => {
         // Schedule next token check
         node.checkTokenHandler = setTimeout(() => {
           node.checkToken().catch((error) => {
-            node.logError("Error in checkToken during scheduled check:", error);
-            node.status({
-              fill: "red",
-              shape: "ring",
-              text: "Authentication error",
-            });
+            reportError(node, "Scheduled token check failed", error, { secrets: node.secrets() });
           });
         }, checkInterval);
       } finally {
@@ -1682,6 +1727,10 @@ export = (RED: NodeAPI) => {
           refreshToken: node.refreshToken,
         }),
       })
+        .catch((error: unknown) => {
+          // No answer at all: tagged `network`, message kept (EASEE-26).
+          throw tagError(error, "network");
+        })
         .then(async (response) => {
           const contentType = response.headers.get("content-type");
           if (contentType && contentType.indexOf("application/json") !== -1) {
@@ -1706,10 +1755,9 @@ export = (RED: NodeAPI) => {
         .then((json) => {
           if (!json.accessToken) {
             // Failed getting token
-            node.logError("doRefreshToken error(): ", json);
-            node.error(
-              "[easee] EaseeConfiguration::doRefreshToken() - Failed doRefreshToken(), REST command did not return token",
-            );
+            // One error, not two, and never the response body: a refresh
+            // response is where tokens live (EASEE-26).
+            node.logError("Token refresh: Easee answered without a new access token; logging in again.");
             return null;
           }
 
@@ -1786,7 +1834,9 @@ export = (RED: NodeAPI) => {
             });
           } else {
             // Max retries reached or other error
-            node.logError("Token refresh failed after retries or due to other error:", error);
+            // Reported once, with what to do (EASEE-26); this used to be
+            // node.error + node.warn + two logError calls for one failure.
+            node.logError(`Token refresh failed: ${describeError(error).message}`);
             node.refreshRetryCount++;
             if (node.refreshRetryCount >= node.maxRefreshRetries) {
               node.logInfo("Max refresh retries reached, clearing tokens and attempting fresh login");
@@ -1804,9 +1854,6 @@ export = (RED: NodeAPI) => {
               return null; // Return null to indicate we should try fresh login
             }
 
-            node.error(error);
-            node.warn(error);
-            node.logError("Fatal error during doRefreshToken()", error);
             return null;
           }
         });
@@ -1837,6 +1884,7 @@ export = (RED: NodeAPI) => {
       node.refreshRetryCount = 0;
       node.loginRetryCount = 0;
       node.transportRetryCount = 0;
+      node.lastAuthFailure = null;
     };
 
     /**
@@ -1852,13 +1900,11 @@ export = (RED: NodeAPI) => {
       if (!_username && !_password) {
         const credentialsCheck = node.validateCredentials();
         if (!credentialsCheck.valid) {
-          const error = new Error(`Cannot login: ${credentialsCheck.message}`);
-          node.logError(`Login failed: ${credentialsCheck.message}`);
-          node.status({
-            fill: "red",
-            shape: "ring",
-            text: "Invalid configuration - missing credentials",
+          const error = categorizedError(`Cannot login: ${credentialsCheck.message}`, "config", {
+            statusText: MISSING_CREDENTIALS_STATUS,
+            hint: EDIT_CREDENTIALS_HINT,
           });
+          reportError(node, "Login failed", error);
           throw error;
         }
       }
@@ -1896,6 +1942,10 @@ export = (RED: NodeAPI) => {
           "Content-Type": "application/json",
         },
       })
+        .catch((error: unknown) => {
+          // No answer at all: tagged `network`, message kept (EASEE-26).
+          throw tagError(error, "network");
+        })
         .then(async (response) => {
           const contentType = response.headers.get("content-type");
           if (contentType && contentType.indexOf("application/json") !== -1) {
@@ -1935,6 +1985,7 @@ export = (RED: NodeAPI) => {
             node.refreshRetryCount = 0;
             node.loginRetryCount = 0;
             node.transportRetryCount = 0;
+            node.lastAuthFailure = null;
 
             node.logInfo(`Login successful. Token lifetime: ${node.tokenLifetime}s, expires at: ${t.toISOString()}`);
 
@@ -1956,23 +2007,11 @@ export = (RED: NodeAPI) => {
         .catch((error) => {
           // Only a 400/401/403 answer is a credential error; a 5xx used to
           // match "Login failed" here and was reported as one (EASEE-38).
-          if (isCredentialRejection(error)) {
-            node.status({
-              fill: "red",
-              shape: "ring",
-              text: "Invalid credentials",
-            });
-            // One node.error() through the helper, where this used to be a
-            // console.error() followed by a bare node.error(error) (EASEE-29).
-            node.logError("Login failed due to invalid credentials:", error);
-          } else {
-            node.status({
-              fill: "red",
-              shape: "ring",
-              text: "Login error",
-            });
-            node.logError("Login failed due to other error:", error);
-          }
+          // classifyError() draws that line (isCredentialRejection), and the
+          // one node.error() + status say which it was and what to do
+          // (EASEE-26), redacted: the API's answer is embedded in the text.
+          node.lastAuthFailure = classifyError(error);
+          reportError(node, "Login failed", error, { secrets: node.secrets() });
 
           throw error; // Re-throw to be handled by caller
         });
@@ -2015,7 +2054,7 @@ export = (RED: NodeAPI) => {
         result = { ok: true, status: 200 };
       } catch (error) {
         const raw = error instanceof Error ? error.message : String(error);
-        const message = redactSecrets(raw, [...secrets, node.accessToken, node.refreshToken]);
+        const message = redactSecrets(raw, [...secrets, node.accessToken, node.refreshToken, node.username]);
         const status = isCredentialRejection(error) ? 401 : 500;
         result = { ok: false, status, error: message };
       } finally {
@@ -2075,36 +2114,17 @@ export = (RED: NodeAPI) => {
   );
 };
 
-/** Replace every occurrence of each non-empty secret in `text` with a marker. */
-function redactSecrets(text: string, secrets: unknown[]): string {
-  let out = text;
-  for (const secret of secrets) {
-    if (typeof secret === "string" && secret.length > 0) {
-      out = out.split(secret).join("[redacted]");
-    }
-  }
-  return out;
-}
+// redactSecrets, httpStatusError and isCredentialRejection moved to errors.ts
+// (EASEE-26), so the REST and streaming nodes classify errors the same way.
 
-/** An Error that carries the HTTP status the Easee API answered with, if it answered at all. */
-type HttpStatusError = Error & { status?: number };
+/** Status text when the username or password is missing from this node. */
+const MISSING_CREDENTIALS_STATUS = "Missing username or password";
 
-function httpStatusError(message: string, status: number): HttpStatusError {
-  const error: HttpStatusError = new Error(message);
-  error.status = status;
-  return error;
-}
+/** What to do about a missing username or password, said on this node itself. */
+const EDIT_CREDENTIALS_HINT = "Open this easee-configuration node, enter both username and password, then deploy.";
 
-/**
- * True only for a definite credential rejection: `accounts/login` answered
- * 400, 401 or 403. A rejected fetch (no response), a 5xx or anything else is
- * a transport or server failure and says nothing about the credentials
- * (EASEE-38).
- */
-function isCredentialRejection(error: unknown): boolean {
-  const status = (error as HttpStatusError | null | undefined)?.status;
-  return status === 400 || status === 401 || status === 403;
-}
+/** Status text once Easee has rejected the credentials maxLoginRetries times. */
+const CREDENTIALS_REJECTED_STATUS = "Login rejected – check credentials";
 
 /**
  * Delay before the next token check after the `failures`-th transport failure

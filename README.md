@@ -35,8 +35,26 @@ The configuration node keeps retrying on its own. When Easee cannot be reached
 (a network error or a 5xx from the API) it says so and retries after 1, 2 and 4
 minutes, then every 5 minutes, for as long as it takes. Only when Easee rejects
 the username or password five times in a row does it report
-"Authentication failed - check credentials", and even then it tries again every
+"Login rejected – check credentials", and even then it tries again every
 30 minutes; press **Re-login** to try again at once.
+
+### Troubleshooting errors
+
+Every error the nodes report says what failed and what to do about it, and the
+node's status names the kind of failure in a few words:
+
+| Status | Meaning | What to do |
+| --- | --- | --- |
+| `Login rejected – check credentials` | Easee rejected the username or password | Fix them in the configuration node, then press **Re-login** |
+| `Easee unreachable – retrying` | No answer from Easee | Check the network; the node retries on its own |
+| `API error <status>` | Easee answered this one request with an error (e.g. 403: no access to that charger, 404: unknown id) | Check the charger, site or circuit id |
+| `No configuration node` / `Configuration incomplete` / `Missing username or password` | The node has no configuration node, or it lacks a username or password | Select or fill in the configuration node, then deploy |
+| `No charger id` / `No site id` / `No circuit id` | The node or message does not say which charger, site or circuit | Set it on the node, or send `msg.charger` / `msg.site` / `msg.circuit` |
+
+Errors raised while handling an incoming message are passed to `node.error()` with
+that message, so a **Catch** node receives them. The password, the tokens, the
+username and the charger serial are replaced with `[redacted]` in error text, so it
+is safe to paste into an issue. The messages on the nodes' outputs are unchanged.
 
 ### Logging and debug output
 

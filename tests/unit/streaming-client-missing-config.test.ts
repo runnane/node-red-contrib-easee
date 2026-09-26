@@ -38,13 +38,15 @@ describe("charger-streaming-client — missing configuration node", () => {
       configuration: "config-does-not-exist",
     });
 
-    expect(node.emit).toHaveBeenCalledWith("erro", {
-      err: "[easee] Missing easee account configuration node",
-    });
+    // Reported straight to node.error(): the "erro" this used to emit had no
+    // listener yet, so only the status ever reached the user (EASEE-26).
+    expect(node.error).toHaveBeenCalledWith(
+      "[easee] Cannot start: No easee-configuration node is selected. Open this node, select or add an easee-configuration node, then deploy.",
+    );
     expect(node.status).toHaveBeenCalledWith({
       fill: "red",
       shape: "ring",
-      text: "Missing configuration",
+      text: "No configuration node",
     });
     // The guard returns before the constructor reaches the rest of its setup.
     expect(node.on).not.toHaveBeenCalledWith("input", expect.anything());

@@ -168,7 +168,11 @@ describe("charger-streaming-client — fullReconnect()", () => {
     await flushPromises();
 
     expect(node.startconn).not.toHaveBeenCalled();
-    expect(node.emit).toHaveBeenCalledWith("erro", { err: "Authentication failed during fullReconnect()" });
+    // This mock config node has no authFailureCategory(), so the cause is unknown.
+    expect(node.emit).toHaveBeenCalledWith("erro", {
+      err: "Authentication failed during fullReconnect()",
+      describe: { category: "unknown" },
+    });
   });
 
   it("reports an erro when ensureAuthentication rejects", async () => {
@@ -178,7 +182,10 @@ describe("charger-streaming-client — fullReconnect()", () => {
     node.fullReconnect();
     await flushPromises();
 
-    expect(node.emit).toHaveBeenCalledWith("erro", { err: "Error during fullReconnect(): network down" });
+    expect(node.emit).toHaveBeenCalledWith("erro", {
+      err: "Error during fullReconnect(): network down",
+      describe: { category: "unknown" },
+    });
   });
 });
 
@@ -218,7 +225,9 @@ describe("charger-streaming-client — reconnect()", () => {
     node.reconnect();
     await flushPromises();
 
-    expect(node.error).toHaveBeenCalledWith("[easee] ERROR: Authentication failed during reconnect");
+    expect(node.error).toHaveBeenCalledWith(
+      "[easee] ERROR: Authentication failed during reconnect: not logged in to Easee",
+    );
     // Unlike the isAuthenticated===true branch, the false branch never touches
     // reconnectTimoutHandle — it is left exactly as reconnect() found it.
     expect(node.reconnectTimoutHandle).toBeUndefined();
@@ -250,7 +259,8 @@ describe("charger-streaming-client — notifyOnError()", () => {
 
     node.notifyOnError(err, "conn-1");
 
-    expect(node.emit).toHaveBeenCalledWith("erro", { err, id: "conn-1" });
+    // No HTTP status on it: the stream could not be reached.
+    expect(node.emit).toHaveBeenCalledWith("erro", { err, id: "conn-1", describe: { category: "network" } });
   });
 });
 
@@ -261,7 +271,10 @@ describe("charger-streaming-client — startconn() guards", () => {
 
     node.startconn();
 
-    expect(node.emit).toHaveBeenCalledWith("erro", { err: "No charger, exiting" });
+    expect(node.emit).toHaveBeenCalledWith("erro", {
+      err: "No charger, exiting",
+      describe: { category: "config", statusText: "No charger id", hint: "Set Charger in this node, then deploy." },
+    });
     expect(node.connection).toBeUndefined();
   });
 
@@ -273,7 +286,10 @@ describe("charger-streaming-client — startconn() guards", () => {
 
       node.startconn();
 
-      expect(node.emit).toHaveBeenCalledWith("erro", { err: "No accessToken, waiting" });
+      expect(node.emit).toHaveBeenCalledWith("erro", {
+        err: "No accessToken, waiting",
+        describe: { category: "unknown", statusText: "Waiting for login" },
+      });
       expect(node.reconnectTimoutHandle).not.toBeNull();
     } finally {
       vi.useRealTimers();

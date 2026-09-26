@@ -71,6 +71,8 @@ const MUST_SHIP = [
   "dist/easee-client/signalr-http-client.js",
   // Required by all three node files at load time (EASEE-29).
   "dist/easee-client/logging.js",
+  // Required by all three node files at load time (EASEE-26).
+  "dist/easee-client/errors.js",
   "dist/easee-client/locales/en-US/charger-streaming-client.json",
 ];
 
