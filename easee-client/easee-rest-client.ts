@@ -30,6 +30,7 @@ import {
   type DescribeOptions,
   incompleteConfigurationError,
   missingConfigurationError,
+  redactSecrets,
   reportError,
 } from "./errors";
 import { createFallbackLogHelpers } from "./logging";
@@ -94,6 +95,14 @@ interface EaseeRestClientNode extends Node {
 
 /** How fail() should describe an error that is a plain string (kept a string for the output msg). */
 type FailDescription = Pick<DescribeOptions, "category" | "statusText" | "hint">;
+
+/** The topic that sets the configuration node's credentials at runtime (EASEE-34). */
+const UPDATE_CREDENTIALS_TOPIC = "update_credentials";
+
+/** The text of an error, for the output msg of `update_credentials` (redacted by the caller). */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 /** Where to set the charger, for the "no charger id" error. */
 const CHARGER_HINT = "Set Charger in this node, or send msg.charger.";
@@ -200,10 +209,11 @@ export = (RED: NodeAPI) => {
       return;
     }
 
-    // Check if the configuration node has valid credentials
+    // Check if the configuration node has valid credentials. Reported, but the
+    // node still listens: an `update_credentials` message can supply them at
+    // runtime (EASEE-34). Every other topic is refused until then.
     if (!node.connection.isConfigurationValid?.()) {
       reportError(node, "Cannot start", incompleteConfigurationError());
-      return;
     }
 
     /** Never in a message or status: the config node's secrets, and the charger serial. */
@@ -327,6 +337,64 @@ export = (RED: NodeAPI) => {
     };
 
     /**
+     * The `update_credentials` topic (EASEE-34): hand msg.payload's username
+     * and/or password to the configuration node, which logs in with them and
+     * keeps them (in memory) only if Easee accepts them.
+     *
+     * The input message carries the password, so it is never passed on as it
+     * stands: the output is a new message, and the copy handed to node.error()
+     * (and so to a Catch node) has both fields removed from its payload.
+     */
+    const updateCredentials = async (msg: RestClientMessage): Promise<boolean> => {
+      const payload = msg.payload;
+      let safeMsg: object = msg;
+      if (payload !== null && typeof payload === "object") {
+        const { username: _username, password: _password, ...rest } = payload;
+        safeMsg = { ...msg, payload: rest };
+      }
+
+      // Belt and braces: the values this message carries, whatever became of them.
+      const offered = payload !== null && typeof payload === "object" ? [payload.username, payload.password] : [];
+      const fail = (error: unknown): boolean => {
+        const all = [...secrets(), ...offered];
+        reportError(node, "Credential update failed", error, { msg: safeMsg, secrets: all });
+        node.send({
+          status: "error",
+          topic: UPDATE_CREDENTIALS_TOPIC,
+          payload: null,
+          error: redactSecrets(errorMessage(error), all),
+        });
+        return true;
+      };
+
+      if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+        return fail(
+          categorizedError("msg.payload must be an object with username and/or password", "input", {
+            statusText: "Invalid credentials message",
+            hint: "Send msg.payload { username, password }; either may be left out, not both.",
+          }),
+        );
+      }
+
+      node.status({ fill: "yellow", shape: "ring", text: "Updating credentials..." });
+      try {
+        const changed = await node.connection.updateCredentials({
+          username: payload.username as string | undefined,
+          password: payload.password as string | undefined,
+        });
+        node.status({ fill: "green", shape: "dot", text: "Credentials updated" });
+        node.send({
+          status: "ok",
+          topic: UPDATE_CREDENTIALS_TOPIC,
+          payload: { success: true, message: "Credentials updated and logged in", changed },
+        });
+        return true;
+      } catch (error) {
+        return fail(error);
+      }
+    };
+
+    /**
      * On incoming nodered message. done() is called on every path, including
      * the error ones that used to return before reaching it (EASEE-26).
      */
@@ -338,6 +406,14 @@ export = (RED: NodeAPI) => {
     });
 
     const handleInput = async (msg: RestClientMessage): Promise<unknown> => {
+      if (msg?.topic === UPDATE_CREDENTIALS_TOPIC) {
+        return updateCredentials(msg);
+      }
+      if (!node.connection.isConfigurationValid?.()) {
+        reportError(node, "Cannot send request", incompleteConfigurationError(), { msg });
+        return undefined;
+      }
+
       // Status: Preparing the query
       node.status({
         fill: "blue",

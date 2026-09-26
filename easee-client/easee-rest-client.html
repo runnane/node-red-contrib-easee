@@ -86,6 +86,9 @@
 
   - `login`
   - `refresh_token`
+  - `update_credentials` (`msg.payload` = `{ username, password }`, either may be
+    left out: logs in with them and, only if Easee accepts them, uses them until
+    Node-RED restarts or the configuration node is redeployed — see the README)
   - `charger`
   - `charger_details`
   - `charger_state` (reads the observations endpoint since Easee retired

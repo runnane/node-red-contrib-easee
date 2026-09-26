@@ -91,6 +91,16 @@ export interface ReloginResult {
   error?: string;
 }
 
+/**
+ * New credentials a flow supplies at runtime (EASEE-34), through the REST
+ * client's `update_credentials` topic. Either may be omitted to keep the
+ * current one; at least one must be given.
+ */
+export interface CredentialsUpdate {
+  username?: string;
+  password?: string;
+}
+
 export interface EaseeConfigurationNode extends Node<EaseeCredentials> {
   username: string;
   debugLogging: boolean;
@@ -149,6 +159,13 @@ export interface EaseeConfigurationNode extends Node<EaseeCredentials> {
   resetAuthenticationState(): void;
   doLogin(username?: string, password?: string): Promise<TokenResponse>;
   relogin(): Promise<ReloginResult>;
+  /**
+   * Log in with runtime-supplied credentials and, only if Easee accepts them,
+   * use them from then on — in memory, until the node restarts (EASEE-34).
+   * Throws a categorized, redacted error and keeps the previous credentials
+   * (and tokens) when the login fails. Returns which fields changed.
+   */
+  updateCredentials(update: CredentialsUpdate): Promise<{ username: boolean; password: boolean }>;
 
   on(event: "input", listener: InputListener): this;
   on(event: "close", listener: () => void): this;
