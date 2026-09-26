@@ -73,15 +73,21 @@ export default defineConfig({
       // EASEE-31's branch, 136 tests: statements 78.39% (704/898), branches
       // 70.03% (353/504), functions 61.73% (71/115), lines 78.44% (695/886).
       //
+      // Raised 2026-09-26 (EASEE-39), 139 tests, after the doRefreshToken()
+      // no-token-branch test and the new rest-client-refresh-token.test.ts
+      // (the other doRefreshToken() caller's explicit-login path, previously
+      // untested): statements 79.44% (711/895), branches 70.47% (358/508),
+      // functions 64.34% (74/115), lines 79.5% (702/883).
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 78.3,
-        branches: 70,
-        functions: 61.7,
-        lines: 78.4,
+        statements: 79.3,
+        branches: 70.4,
+        functions: 64.3,
+        lines: 79.4,
       },
     },
   },

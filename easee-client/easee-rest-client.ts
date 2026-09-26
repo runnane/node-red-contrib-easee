@@ -401,7 +401,14 @@ export = (RED: NodeAPI) => {
 
               await node.connection
                 .doRefreshToken()
-                .then((json) => {
+                .then(async (json) => {
+                  // undefined: no tokens to refresh — doRefreshToken() no longer
+                  // logs in on its own (EASEE-39). This command explicitly asked
+                  // to authenticate, so do the login it used to do implicitly.
+                  if (json === undefined) {
+                    json = await node.connection.doLogin();
+                  }
+
                   // Status: Processing token refresh result
                   node.status({
                     fill: "blue",

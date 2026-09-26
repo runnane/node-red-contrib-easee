@@ -267,25 +267,15 @@ describe("easee-configuration auth, through the real node", () => {
       expect(node.emit).toHaveBeenCalledWith("update", { update: "Token refresh failed, will attempt fresh login" });
     });
 
-    it("logs in instead when it holds no tokens", async () => {
+    it("signals a needed login instead of attempting one when it holds no tokens (EASEE-39)", async () => {
       const node = await load();
       api({ login: [json(loginBody)] });
 
       const result = await node.doRefreshToken();
 
       expect(result).toBeUndefined();
-      expect(fetchedUrls()).toEqual([LOGIN_URL]);
-      expect(node.accessToken).toBe(LOGIN_ACCESS);
-    });
-
-    it("answers null and reports it when it holds no tokens and the login fails", async () => {
-      const node = await load();
-      api({ login: [json(mockData.loginErrors.invalidCredentials, 401)] });
-
-      const result = await node.doRefreshToken();
-
-      expect(result).toBeNull();
-      expect(node.status).toHaveBeenLastCalledWith({ fill: "red", shape: "ring", text: "Authentication failed" });
+      expect(fetchMock()).not.toHaveBeenCalled();
+      expect(node.accessToken).toBe(false);
     });
 
     it("answers null and keeps the old tokens when a 200 carries no access token", async () => {
@@ -418,6 +408,16 @@ describe("easee-configuration auth, through the real node", () => {
       expect(lastStatusText(node)).toBe("Authenticated successfully");
       // 3600 s lifetime: renewal at 75% = 2700 s, a quarter of that capped at 5 min.
       expect(next).toBe(5 * 60 * 1000);
+    });
+
+    it("attempts login exactly once per cycle when it holds no token and the login fails (EASEE-39)", async () => {
+      const node = await load();
+      api({ login: [json(mockData.loginErrors.invalidCredentials, 401)] });
+
+      await check(node);
+
+      expect(fetchedUrls()).toEqual([LOGIN_URL]);
+      expect(node.loginRetryCount).toBe(1);
     });
 
     it("leaves a fresh token alone", async () => {
