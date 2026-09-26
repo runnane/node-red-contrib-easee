@@ -59,15 +59,19 @@ export default defineConfig({
       // Re-measured 2026-09-26 after merging main into EASEE-27's branch (the sweep's
       // PRs combined): statements 64.77% (570/880), branches 59.68% (299/501), functions 55.35% (62/112), lines 64.63% (561/868).
       //
+      // Re-measured 2026-09-26 with EASEE-38's token-check backoff tests: statements
+      // 66.81% (600/898), branches 61.11% (308/504), functions 56.52% (65/115), lines
+      // 66.7% (591/886).
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 64.7,
-        branches: 59.6,
-        functions: 55.3,
-        lines: 64.6,
+        statements: 66.8,
+        branches: 61.1,
+        functions: 56.5,
+        lines: 66.7,
       },
     },
   },

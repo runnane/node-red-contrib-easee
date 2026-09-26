@@ -31,6 +31,13 @@ deployed node's tokens and logs in to Easee again, without a redeploy, and shows
 the outcome as a notification. The button is disabled until the configuration has
 been deployed; it acts on the deployed credentials, not on unsaved edits.
 
+The configuration node keeps retrying on its own. When Easee cannot be reached
+(a network error or a 5xx from the API) it says so and retries after 1, 2 and 4
+minutes, then every 5 minutes, for as long as it takes. Only when Easee rejects
+the username or password five times in a row does it report
+"Authentication failed - check credentials", and even then it tries again every
+30 minutes; press **Re-login** to try again at once.
+
 ## Streaming node
 
 Configure the node with username/password and a Charger ID ("EH000000").

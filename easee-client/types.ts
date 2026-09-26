@@ -119,6 +119,8 @@ export interface EaseeConfigurationNode extends Node<EaseeCredentials> {
   maxRefreshRetries: number;
   loginRetryCount: number;
   maxLoginRetries: number;
+  /** Fresh logins in a row that failed without a credential rejection (network error, 5xx). */
+  transportRetryCount: number;
   authenticationInProgress: boolean;
 
   RENEWAL_THRESHOLD_PERCENTAGE: number;
