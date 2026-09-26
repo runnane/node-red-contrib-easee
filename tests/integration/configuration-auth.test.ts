@@ -227,6 +227,26 @@ describe("easee-configuration auth, through the real node", () => {
 
       expect(fetchMock()).not.toHaveBeenCalled();
     });
+
+    it("refuses an explicit password with no username, falling back to neither the argument nor the config", async () => {
+      const node = await load({ username: "" });
+
+      await expect(node.doLogin(undefined, "synthetic-explicit-pass")).rejects.toThrow(
+        "No username provided for login",
+      );
+
+      expect(fetchMock()).not.toHaveBeenCalled();
+      expect(node.status).toHaveBeenLastCalledWith({ fill: "red", shape: "ring", text: "No username configured" });
+    });
+
+    it("refuses an explicit username with no password, falling back to neither the argument nor the config", async () => {
+      const node = await load({ password: "" });
+
+      await expect(node.doLogin("other@example.invalid", undefined)).rejects.toThrow("No password provided for login");
+
+      expect(fetchMock()).not.toHaveBeenCalled();
+      expect(node.status).toHaveBeenLastCalledWith({ fill: "red", shape: "ring", text: "No password configured" });
+    });
   });
 
   describe("doRefreshToken()", () => {

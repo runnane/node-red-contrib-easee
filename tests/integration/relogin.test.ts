@@ -87,21 +87,34 @@ describe("easee-configuration re-login admin route", () => {
     await vi.waitFor(() => expect(node.checkToken).toHaveBeenCalled());
   }, 15000);
 
-  it("resets authentication state through the shared resetAuthenticationState() before logging in (EASEE-42)", async () => {
+  it("resets refreshRetryCount, transportRetryCount and refreshToken through the shared resetAuthenticationState() (EASEE-42)", async () => {
     const node = await load();
-    loginSucceeds();
+    node.refreshRetryCount = 3;
+    node.transportRetryCount = 2;
+    // node.refreshToken is already OLD_REFRESH from load(); that non-default
+    // value is what's under test. Make the login itself fail, so doLogin()
+    // cannot reset these fields on its own (it only does that on success) —
+    // any reset seen here can only have come from resetAuthenticationState().
+    fetchMock().mockImplementation(() => jsonResponse({ title: "Invalid credentials" }, 401));
 
-    await relogin("cfg");
+    const res = await relogin("cfg");
 
-    // Only resetAuthenticationState() sets this status/update pair; relogin()
-    // used to reset the same fields with its own duplicated assignments,
-    // which never called it and so never produced these.
-    expect(node.status).toHaveBeenCalledWith({
+    expect(res.status).toBe(401);
+    expect(node.refreshRetryCount).toBe(0);
+    expect(node.transportRetryCount).toBe(0);
+    expect(node.refreshToken).toBe(false);
+
+    // Negative control: resetAuthenticationState() must not itself report a
+    // failure. relogin() calls it before it knows whether the login that
+    // follows will succeed, so a status/update here would be a false
+    // "authentication failed" report on every Re-login click, succeeding or
+    // not — which is exactly the regression this guards against.
+    expect(node.status).not.toHaveBeenCalledWith({
       fill: "red",
       shape: "ring",
       text: "Authentication reset - reconfiguration required",
     });
-    expect(node.emit).toHaveBeenCalledWith("update", {
+    expect(node.emit).not.toHaveBeenCalledWith("update", {
       update: "Authentication failed - node requires reconfiguration",
     });
   }, 15000);
