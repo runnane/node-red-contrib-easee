@@ -59,6 +59,10 @@ export default defineConfig({
       // Re-measured 2026-09-26 after merging main into EASEE-27's branch (the sweep's
       // PRs combined): statements 64.77% (570/880), branches 59.68% (299/501), functions 55.35% (62/112), lines 64.63% (561/868).
       //
+      // Re-measured 2026-09-26 with EASEE-38's token-check backoff tests: statements
+      // 66.81% (600/898), branches 61.11% (308/504), functions 56.52% (65/115), lines
+      // 66.7% (591/886).
+      //
       // Raised 2026-09-26 (EASEE-31), 131 tests, after replacing the four files
       // that re-implemented doLogin / doRefreshToken / checkToken inline with
       // integration/configuration-auth.test.ts, which drives the real
