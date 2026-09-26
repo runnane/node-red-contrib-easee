@@ -223,7 +223,7 @@ describe("charger-streaming-client lifecycle", () => {
     expect(sent).toContainEqual([null, null, null, null, { payload: { id: 998, value: "raw-charger" } }, null]);
   }, 15000);
 
-  // EASEE-33 (GitHub #62's sibling, #26): a flow can't start a session "as" a
+  // EASEE-33 (GitHub #26): a flow can't start a session "as" a
   // specific RFID tag (the API takes no such parameter), but it can read back
   // which tag the charger already used. Uses the real parseObservation(), not
   // an override, so the observation table's dataType for 128 stays load-bearing.
