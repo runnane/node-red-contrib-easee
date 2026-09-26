@@ -247,13 +247,18 @@ function errorText(error: unknown): string {
  * Replace every occurrence of each non-empty secret in `text` with a marker.
  * Error texts embed Easee API response bodies, which could echo anything that
  * was sent — a username, a serial, a token.
+ *
+ * Longest first (EASEE-34): a flow can now set the username and password at
+ * runtime, and when one secret contains another (a password built from the
+ * username, say) redacting the shorter one first would leave the rest of the
+ * longer one in plain text.
  */
 export function redactSecrets(text: string, secrets: unknown[]): string {
+  const strings = secrets.filter((secret): secret is string => typeof secret === "string" && secret.length > 0);
+  strings.sort((a, b) => b.length - a.length);
   let out = text;
-  for (const secret of secrets) {
-    if (typeof secret === "string" && secret.length > 0) {
-      out = out.split(secret).join("[redacted]");
-    }
+  for (const secret of strings) {
+    out = out.split(secret).join("[redacted]");
   }
   return out;
 }

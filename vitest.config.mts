@@ -133,15 +133,21 @@ export default defineConfig({
       // functions 90.57% (125/138), lines 96.43% (946/981). Branches stay at
       // 92.7: that is exactly where they landed.
       //
+      // Raised 2026-09-26 (EASEE-34), 245 tests, after the `update_credentials`
+      // topic and the configuration node's updateCredentials() were added with
+      // real-node tests for success, refusal, rollback, a busy login, a close
+      // mid-login and the secret sinks: statements 96.49% (1047/1085), branches
+      // 92.83% (648/698), functions 91.15% (134/147), lines 96.7% (1028/1063).
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 96.1,
-        branches: 92.7,
-        functions: 90.5,
-        lines: 96.4,
+        statements: 96.4,
+        branches: 92.8,
+        functions: 91.1,
+        lines: 96.6,
       },
     },
   },

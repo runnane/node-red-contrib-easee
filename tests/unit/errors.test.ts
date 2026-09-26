@@ -98,6 +98,14 @@ describe("redactSecrets", () => {
   it("replaces every occurrence of each non-empty string secret", () => {
     expect(redactSecrets("a-s3cret-b-s3cret", ["s3cret", undefined, false])).toBe("a-[redacted]-b-[redacted]");
   });
+
+  it("redacts the longer secret whole when it contains a shorter one, whatever the order given (EASEE-34)", () => {
+    const username = "synthetic-user";
+    const password = "synthetic-user-pw-e4b1";
+    expect(redactSecrets(`sent ${password} for ${username}`, [username, password])).toBe(
+      "sent [redacted] for [redacted]",
+    );
+  });
 });
 
 describe("reportError", () => {

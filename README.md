@@ -38,6 +38,44 @@ the username or password five times in a row does it report
 "Login rejected – check credentials", and even then it tries again every
 30 minutes; press **Re-login** to try again at once.
 
+### Changing the credentials from a flow
+
+A flow can supply the Easee username and password at runtime, for example from a
+Home Assistant helper, by sending the REST node a message with the topic
+`update_credentials`:
+
+```javascript
+msg.topic = "update_credentials";
+msg.payload = {
+  username: "user@example.invalid", // optional: keep the current one if left out
+  password: "not-a-real-password",  // optional: keep the current one if left out
+};
+return msg;
+```
+
+At least one of the two must be given, and the topic is required, so no other
+message can change the credentials.
+
+- The configuration node logs in with the new credentials straight away. If Easee
+  accepts them, every node using that configuration node uses them from then on,
+  including for token renewal and **Re-login**. The REST node sends
+  `{ status: "ok", payload: { success: true, changed: { username, password } } }`.
+- If the login fails (Easee rejects them, or cannot be reached), **nothing
+  changes**: the previous credentials and tokens stay in use. The REST node reports
+  the error (a **Catch** node receives it) and sends `status: "error"`.
+- **They are kept in memory only.** Nothing is written to Node-RED's credentials
+  file. When Node-RED restarts, or the configuration node is redeployed, it goes
+  back to the username and password saved in the editor, so send the message again
+  at startup if you rely on it (an **Inject** node set to fire once on start works).
+- The password and username are never logged, shown in a status or sent on: the
+  output message is a new one, and the copy of the input message a Catch node
+  receives has both fields removed from its payload. Messages you send into the
+  REST node are still yours, so keep the password out of **Debug** nodes wired
+  before it.
+- A REST node whose configuration node has no username or password accepts
+  `update_credentials` and refuses every other topic until credentials arrive. The
+  streaming node still needs them saved in the editor to start.
+
 ### Troubleshooting errors
 
 Every error the nodes report says what failed and what to do about it, and the
@@ -134,6 +172,7 @@ Implemented commands that may be sent as topic, are:
 
 - `login`
 - `refresh_token`
+- `update_credentials` (see [Changing the credentials from a flow](#changing-the-credentials-from-a-flow))
 - `charger`
 - `charger_details`
 - `charger_state` (see the note below — Easee changed the underlying endpoint)

@@ -140,12 +140,26 @@ export = (RED: NodeAPI) => {
     };
 
     /**
+     * Every username and password this node has held or been offered at
+     * runtime (EASEE-34): the ones updateCredentials() replaced, and the ones
+     * it tried, accepted or not. They stay redacted after they stop being the
+     * current credentials — an error text can still echo an old one.
+     */
+    const runtimeSecrets = new Set<string>();
+
+    /**
      * The strings no error, warning or status may carry (EASEE-26): the
      * password, both tokens and the username. Error texts embed Easee API
      * response bodies, and whatever this package prints may be pasted into a
      * public GitHub issue.
      */
-    node.secrets = () => [node.credentials?.password, node.accessToken, node.refreshToken, node.username];
+    node.secrets = () => [
+      node.credentials?.password,
+      node.accessToken,
+      node.refreshToken,
+      node.username,
+      ...runtimeSecrets,
+    ];
 
     // Error level: node.error(), without a msg, so it reaches the log and the
     // debug sidebar but no Catch node (the same call as before EASEE-29, minus
@@ -236,6 +250,8 @@ export = (RED: NodeAPI) => {
     node.tokenLifetime = 0; // Token lifetime in seconds
 
     node.checkTokenHandler = null;
+    /** Set on close, so a login still in flight does not restart the token-check timer (EASEE-34). */
+    let closed = false;
     node.refreshRetryCount = 0;
     node.maxRefreshRetries = 5;
     node.loginRetryCount = 0;
@@ -252,6 +268,7 @@ export = (RED: NodeAPI) => {
      * Stop running token refresh on closed
      */
     node.on("close", () => {
+      closed = true;
       if (node.checkTokenHandler) {
         clearTimeout(node.checkTokenHandler);
         node.checkTokenHandler = null;
@@ -2054,7 +2071,7 @@ export = (RED: NodeAPI) => {
         result = { ok: true, status: 200 };
       } catch (error) {
         const raw = error instanceof Error ? error.message : String(error);
-        const message = redactSecrets(raw, [...secrets, node.accessToken, node.refreshToken, node.username]);
+        const message = redactSecrets(raw, [...secrets, ...node.secrets()]);
         const status = isCredentialRejection(error) ? 401 : 500;
         result = { ok: false, status, error: message };
       } finally {
@@ -2065,6 +2082,132 @@ export = (RED: NodeAPI) => {
       // schedules the next check), after a minute after a failed one.
       node.checkTokenHandler = setTimeout(() => node.emit("start"), result.ok ? 0 : 60 * 1000);
       return result;
+    };
+
+    /**
+     * Use credentials a flow sent at runtime (EASEE-34, the REST client's
+     * `update_credentials` topic). Either field may be omitted to keep the
+     * current one.
+     *
+     * The new credentials are tried first, with one login, and only replace
+     * the current ones when Easee accepts them. A rejected (or unreachable)
+     * login leaves the previous username, password and tokens in place, so a
+     * typo sent from a flow cannot take a working setup down; the error is
+     * thrown for the caller to report.
+     *
+     * In memory only: nothing is written to flows_cred.json. `node.credentials`
+     * is replaced with a copy rather than mutated, because the object Node-RED
+     * hands a node is its credential cache, which the next deploy writes to
+     * disk. A restart or a redeploy of this node goes back to the credentials
+     * saved in the editor.
+     */
+    node.updateCredentials = async (update) => {
+      const given = (value: unknown, field: string): string | undefined => {
+        if (value === undefined || value === null) {
+          return undefined;
+        }
+        if (typeof value !== "string" || value.trim() === "") {
+          throw categorizedError(`msg.payload.${field} must be a non-empty string`, "input", {
+            statusText: "Invalid credentials message",
+            hint: UPDATE_CREDENTIALS_HINT,
+          });
+        }
+        return value;
+      };
+      const newUsername = given(update?.username, "username");
+      const newPassword = given(update?.password, "password");
+
+      if (newUsername === undefined && newPassword === undefined) {
+        throw categorizedError("msg.payload has neither username nor password", "input", {
+          statusText: "Invalid credentials message",
+          hint: UPDATE_CREDENTIALS_HINT,
+        });
+      }
+      // Redacted from here on, including from the error a failed login reports.
+      for (const value of [newUsername, newPassword]) {
+        if (value !== undefined) {
+          runtimeSecrets.add(value);
+        }
+      }
+
+      const username = newUsername ?? node.username;
+      const password = newPassword ?? node.credentials?.password;
+      if (!username || username.trim() === "" || !password || password.trim() === "") {
+        throw categorizedError(
+          `No ${username ? "password" : "username"} to log in with: the message did not include one and the configuration node has none`,
+          "input",
+          { statusText: "Invalid credentials message", hint: UPDATE_CREDENTIALS_HINT },
+        );
+      }
+
+      // Let a login already under way finish first (at most 30 seconds), as
+      // ensureAuthentication() does, rather than racing it for the tokens.
+      const startedWaiting = Date.now();
+      while (node.authenticationInProgress && Date.now() - startedWaiting < 30000) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (node.authenticationInProgress) {
+        throw categorizedError("Another login is still in progress", "unknown", {
+          statusText: "Login busy – send again",
+          hint: "Send the credentials again in a moment; nothing was changed.",
+        });
+      }
+
+      if (node.checkTokenHandler) {
+        clearTimeout(node.checkTokenHandler);
+        node.checkTokenHandler = null;
+      }
+      const previousFailure = node.lastAuthFailure;
+      node.authenticationInProgress = true;
+      let loginError: unknown = null;
+      try {
+        await node.doLogin(username, password);
+      } catch (error) {
+        loginError = error;
+      } finally {
+        node.authenticationInProgress = false;
+      }
+
+      if (!closed) {
+        // Restart the token-check cycle, as relogin() does.
+        node.checkTokenHandler = setTimeout(() => node.emit("start"), loginError === null ? 0 : 60 * 1000);
+      }
+
+      if (loginError !== null) {
+        // Keep the previous credentials. doLogin() only replaces the tokens on
+        // success, so the ones in hand (if any) are untouched too.
+        node.lastAuthFailure = previousFailure;
+        const category = classifyError(loginError);
+        if (node.accessToken) {
+          node.status({ fill: "yellow", shape: "dot", text: "New credentials not used – previous kept" });
+        }
+        node.logWarn("Runtime credential update failed; the previous credentials are still in use");
+        const status = (loginError as { status?: unknown }).status;
+        throw categorizedError(
+          redactSecrets(loginError instanceof Error ? loginError.message : String(loginError), node.secrets()),
+          category,
+          {
+            status: typeof status === "number" ? status : undefined,
+            hint:
+              category === "credentials"
+                ? "Easee did not accept the new credentials; the previous ones are still in use."
+                : "The new credentials could not be tried, so the previous ones are still in use; send them again later.",
+          },
+        );
+      }
+
+      // Accepted: use them from now on. The replaced values stay redacted.
+      for (const value of [node.username, node.credentials?.password]) {
+        if (typeof value === "string" && value.length > 0) {
+          runtimeSecrets.add(value);
+        }
+      }
+      node.username = username;
+      node.credentials = { ...node.credentials, password };
+      node.logInfo(
+        "Credentials updated from a message; they apply until Node-RED restarts or this configuration node is redeployed",
+      );
+      return { username: newUsername !== undefined, password: newPassword !== undefined };
     };
 
     // Start connecting in two seconds
@@ -2116,6 +2259,10 @@ export = (RED: NodeAPI) => {
 
 // redactSecrets, httpStatusError and isCredentialRejection moved to errors.ts
 // (EASEE-26), so the REST and streaming nodes classify errors the same way.
+
+/** What a valid `update_credentials` message looks like (EASEE-34). */
+const UPDATE_CREDENTIALS_HINT =
+  'Send msg.topic "update_credentials" with msg.payload { username, password }; either may be left out, not both.';
 
 /** Status text when the username or password is missing from this node. */
 const MISSING_CREDENTIALS_STATUS = "Missing username or password";
