@@ -19,16 +19,14 @@
  * Every credential and token below is synthetic.
  */
 
-import { createRequire } from "node:module";
 import helper from "node-red-node-test-helper";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import easeeConfiguration from "../../easee-client/easee-configuration.js";
 import mockData from "../fixtures/mockData.js";
+import { initHelperWithResolvedRuntime } from "../helpers/node-red-runtime.js";
 import { fetchMock } from "../mocks/nodeRedMocks.js";
 
-const require = createRequire(import.meta.url);
-
-helper.init(require.resolve("node-red"));
+initHelperWithResolvedRuntime(helper);
 
 const USERNAME = "user@example.invalid";
 const PASSWORD = "synthetic-pass-5d2b";

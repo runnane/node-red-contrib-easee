@@ -45,6 +45,21 @@ jobs:
     - name: Run gates
       run: pnpm gates
 
+    # The helper-based Vitest suite (node-red-node-test-helper's helper.init())
+    # only ever booted this repo's own node-red devDependency (^4.x) until
+    # EASEE-41. The `node-red-5` alias devDependency (`npm:node-red@^5`, needs
+    # Node >=22.9 per its own engines field, hence one leg rather than every
+    # leg) is already installed by "Install dependencies" above, so this is a
+    # second vitest run of the SAME suite, pointed at it via EASEE_NODE_RED_PATH,
+    # with EASEE_NODE_RED_EXPECT_MAJOR asserting the runtime it actually booted
+    # rather than trusting a green run alone. No coverage thresholds apply here
+    # (test:node-red-5 runs plain `vitest run`, not `--coverage`) — those are
+    # already enforced against node-red 4 by "Run gates" above, and dist/ from
+    # that step is reused by published-package.test.ts.
+    - name: Run Vitest against node-red 5
+      if: matrix.node-version == '24.x'
+      run: pnpm test:node-red-5
+
     - name: Upload coverage report
       if: matrix.node-version == '24.x' && !cancelled()
       uses: actions/upload-artifact@v7

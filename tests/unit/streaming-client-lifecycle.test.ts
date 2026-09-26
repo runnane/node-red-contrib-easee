@@ -16,17 +16,15 @@
  * timer was never cleared, and "Disconnected" was never reported.
  */
 
-import { createRequire } from "node:module";
 import { HubConnectionBuilder } from "@microsoft/signalr";
 import helper from "node-red-node-test-helper";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import streamingClientNode from "../../easee-client/charger-streaming-client.js";
 import configNode from "../../easee-client/easee-configuration.js";
 import { EaseeSignalRHttpClient } from "../../easee-client/signalr-http-client.js";
+import { initHelperWithResolvedRuntime } from "../helpers/node-red-runtime.js";
 
-const require = createRequire(import.meta.url);
-
-helper.init(require.resolve("node-red"));
+initHelperWithResolvedRuntime(helper);
 
 const flow = [
   {

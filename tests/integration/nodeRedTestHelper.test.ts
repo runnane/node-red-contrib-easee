@@ -3,14 +3,12 @@
  * This demonstrates how to test Node-RED nodes with the official test helper
  */
 
-import { createRequire } from "node:module";
 import helper from "node-red-node-test-helper";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import easeeConfiguration from "../../easee-client/easee-configuration.js";
+import { initHelperWithResolvedRuntime } from "../helpers/node-red-runtime.js";
 
-const require = createRequire(import.meta.url);
-
-helper.init(require.resolve("node-red"));
+initHelperWithResolvedRuntime(helper);
 
 /**
  * Load a flow with credentials and run the assertions once it has started,

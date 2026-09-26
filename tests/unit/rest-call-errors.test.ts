@@ -16,14 +16,12 @@
  *   is not exported.
  */
 
-import { createRequire } from "node:module";
 import helper from "node-red-node-test-helper";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import configNode from "../../easee-client/easee-configuration.js";
+import { initHelperWithResolvedRuntime } from "../helpers/node-red-runtime.js";
 
-const require = createRequire(import.meta.url);
-
-helper.init(require.resolve("node-red"));
+initHelperWithResolvedRuntime(helper);
 
 const flow = [{ id: "config1", type: "easee-configuration", name: "Test Config", username: "test@example.com" }];
 const credentials = { config1: { password: "testpass" } };

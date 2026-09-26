@@ -2,15 +2,13 @@
  * Tests for the streaming client skipNegotiation option
  */
 
-import { createRequire } from "node:module";
 import helper from "node-red-node-test-helper";
 import { afterEach, describe, expect, it } from "vitest";
 import streamingClientNode from "../../easee-client/charger-streaming-client.js";
 import configNode from "../../easee-client/easee-configuration.js";
+import { initHelperWithResolvedRuntime } from "../helpers/node-red-runtime.js";
 
-const require = createRequire(import.meta.url);
-
-helper.init(require.resolve("node-red"));
+initHelperWithResolvedRuntime(helper);
 
 /**
  * Load a flow and run the assertions once it has started. helper.load's

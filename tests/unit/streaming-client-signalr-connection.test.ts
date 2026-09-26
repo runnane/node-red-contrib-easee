@@ -12,15 +12,13 @@
  * branches. This file drives all of those through the real functions.
  */
 
-import { createRequire } from "node:module";
 import { LogLevel } from "@microsoft/signalr";
 import helper from "node-red-node-test-helper";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import configNode from "../../easee-client/easee-configuration.js";
+import { initHelperWithResolvedRuntime } from "../helpers/node-red-runtime.js";
 
-const require = createRequire(import.meta.url);
-
-helper.init(require.resolve("node-red"));
+initHelperWithResolvedRuntime(helper);
 
 const mockState = vi.hoisted(() => {
   return {

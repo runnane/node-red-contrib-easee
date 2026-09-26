@@ -14,6 +14,8 @@ tests/
 │   └── mockData.ts               # synthetic API error bodies — keep them synthetic, this repo is public
 ├── mocks/
 │   └── nodeRedMocks.ts           # a stub RED runtime and the typed fetchMock()
+├── helpers/
+│   └── node-red-runtime.ts       # which node-red helper.init() boots (EASEE_NODE_RED_PATH)
 ├── unit/
 │   ├── charger-state-observations.test.ts
 │   ├── configValidation.test.ts
@@ -41,19 +43,20 @@ pnpm test:coverage          # with the coverage floor from vitest.config.mts
 pnpm test:unit
 pnpm test:integration
 pnpm test:watch
+pnpm test:node-red-5         # the same suite, helper.init() booting node-red 5 instead (EASEE-41)
 pnpm exec vitest run tests/unit/configValidation.test.ts   # one file
 ```
 
 ## Writing one
 
 ```ts
-import { createRequire } from "node:module";
 import helper from "node-red-node-test-helper";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import easeeConfiguration from "../../easee-client/easee-configuration.js";
+import { initHelperWithResolvedRuntime } from "../helpers/node-red-runtime.js";
 import { fetchMock } from "../mocks/nodeRedMocks.js";
 
-helper.init(createRequire(import.meta.url).resolve("node-red"));
+initHelperWithResolvedRuntime(helper);
 
 describe("feature", () => {
   beforeEach(() => vi.useRealTimers()); // the helper needs real timers
