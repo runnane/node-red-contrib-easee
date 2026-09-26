@@ -228,6 +228,7 @@ export = (RED: NodeAPI) => {
     node.maxRefreshRetries = 5;
     node.loginRetryCount = 0;
     node.maxLoginRetries = 5;
+    node.transportRetryCount = 0;
     node.authenticationInProgress = false; // Prevent concurrent authentication attempts
 
     // Token renewal thresholds (best practices)
@@ -1513,6 +1514,8 @@ export = (RED: NodeAPI) => {
         // Determine if we need to refresh the token based on best practices
         let shouldRefresh = false;
         let reason = "";
+        // Set when a failed login decides when the next check runs.
+        let retryAfterMs: number | null = null;
 
         if (!node.accessToken) {
           shouldRefresh = true;
@@ -1559,41 +1562,54 @@ export = (RED: NodeAPI) => {
               // Reset retry counters on successful login
               node.refreshRetryCount = 0;
               node.loginRetryCount = 0;
+              node.transportRetryCount = 0;
             } catch (loginError) {
               node.logError("Fresh login also failed:", loginError);
-              node.loginRetryCount++;
 
-              if (node.loginRetryCount >= node.maxLoginRetries) {
-                node.status({
-                  fill: "red",
-                  shape: "ring",
-                  text: "Authentication failed - check credentials",
-                });
-                node.error(
-                  "[easee] Authentication failed after maximum retries. Please check credentials and reconfigure the node.",
-                );
-
-                // Clear all tokens to force reconfiguration
-                node.accessToken = false;
-                node.refreshToken = false;
-                node.tokenExpires = new Date();
-                node.tokenIssuedAt = new Date();
-                node.tokenLifetime = 0;
-                node.refreshRetryCount = 0;
-                node.loginRetryCount = 0;
-
-                // Stop the token check cycle
-                if (node.checkTokenHandler) {
-                  clearTimeout(node.checkTokenHandler);
-                  node.checkTokenHandler = null;
-                }
-                return;
-              } else {
+              // The cycle is never stopped here (EASEE-38). A failure the API
+              // did not answer with 400/401/403 says nothing about the
+              // credentials, so it backs off (capped at 5 minutes) and says so.
+              if (!isCredentialRejection(loginError)) {
+                node.transportRetryCount++;
+                retryAfterMs = transportRetryDelayMs(node.transportRetryCount);
                 node.status({
                   fill: "yellow",
                   shape: "ring",
-                  text: `Login retry ${node.loginRetryCount}/${node.maxLoginRetries}`,
+                  text: `Cannot reach Easee - retrying in ${Math.round(retryAfterMs / 1000)}s`,
                 });
+              } else {
+                node.transportRetryCount = 0;
+                if (node.loginRetryCount < node.maxLoginRetries) {
+                  node.loginRetryCount++;
+                }
+
+                if (node.loginRetryCount >= node.maxLoginRetries) {
+                  node.status({
+                    fill: "red",
+                    shape: "ring",
+                    text: "Authentication failed - check credentials",
+                  });
+                  node.error(
+                    "[easee] Authentication failed after maximum retries. Please check credentials and reconfigure the node, or press Re-login.",
+                  );
+
+                  // Drop any tokens, and keep trying - slowly - rather than stop:
+                  // a credential rejection can be the API's mistake, and the
+                  // Re-login button (EASEE-28) covers the user-driven case.
+                  node.accessToken = false;
+                  node.refreshToken = false;
+                  node.tokenExpires = new Date();
+                  node.tokenIssuedAt = new Date();
+                  node.tokenLifetime = 0;
+                  node.refreshRetryCount = 0;
+                  retryAfterMs = CREDENTIAL_RETRY_DELAY_MS;
+                } else {
+                  node.status({
+                    fill: "yellow",
+                    shape: "ring",
+                    text: `Login retry ${node.loginRetryCount}/${node.maxLoginRetries}`,
+                  });
+                }
               }
             }
           }
@@ -1603,7 +1619,9 @@ export = (RED: NodeAPI) => {
         let checkInterval: number;
         const credentialsValid = node.validateCredentials();
 
-        if (!credentialsValid.valid) {
+        if (retryAfterMs !== null) {
+          checkInterval = retryAfterMs;
+        } else if (!credentialsValid.valid) {
           checkInterval = 300 * 1000; // 5 minutes for invalid credentials
         } else if (!node.accessToken) {
           checkInterval = 60 * 1000; // 1 minute if no token
@@ -1830,6 +1848,7 @@ export = (RED: NodeAPI) => {
       node.tokenLifetime = 0;
       node.refreshRetryCount = 0;
       node.loginRetryCount = 0;
+      node.transportRetryCount = 0;
 
       node.status({
         fill: "red",
@@ -1908,15 +1927,16 @@ export = (RED: NodeAPI) => {
             if (!response.ok) {
               const errorMsg = json.title || json.errorCodeName || "Login failed";
               const errorDetail = json.detail || "";
-              throw new Error(
+              throw httpStatusError(
                 `Login failed (${response.status}): ${errorMsg}${errorDetail ? ` - ${errorDetail}` : ""}`,
+                response.status,
               );
             }
 
             return json;
           } else {
             const errortxt = await response.text();
-            throw new Error(`Unable to login, response not JSON: ${errortxt}`);
+            throw httpStatusError(`Unable to login, response not JSON: ${errortxt}`, response.status);
           }
         })
         .then((json) => {
@@ -1936,6 +1956,7 @@ export = (RED: NodeAPI) => {
             // Reset retry counters on successful login
             node.refreshRetryCount = 0;
             node.loginRetryCount = 0;
+            node.transportRetryCount = 0;
 
             node.logInfo(`Login successful. Token lifetime: ${node.tokenLifetime}s, expires at: ${t.toISOString()}`);
 
@@ -1955,14 +1976,9 @@ export = (RED: NodeAPI) => {
           }
         })
         .catch((error) => {
-          // Check if this is a credential error
-          const isCredentialError =
-            error.message.includes("401") ||
-            error.message.includes("Unauthorized") ||
-            error.message.includes("Invalid credentials") ||
-            error.message.includes("Login failed");
-
-          if (isCredentialError) {
+          // Only a 400/401/403 answer is a credential error; a 5xx used to
+          // match "Login failed" here and was reported as one (EASEE-38).
+          if (isCredentialRejection(error)) {
             node.status({
               fill: "red",
               shape: "ring",
@@ -1988,8 +2004,8 @@ export = (RED: NodeAPI) => {
     /**
      * Throw the tokens away and log in again, on request from the editor's
      * "Re-login" button (EASEE-28). Also restarts the token-check cycle, which
-     * checkToken() stops for good once it has used up maxLoginRetries — without
-     * this the only way back from that state is a redeploy.
+     * after maxLoginRetries credential rejections only retries every 30 minutes
+     * (EASEE-38) — this is the way to try again now.
      *
      * The result is sent to the browser, so its error text has the password and
      * both tokens redacted from it: doLogin() errors embed API response text.
@@ -2017,6 +2033,7 @@ export = (RED: NodeAPI) => {
       node.tokenLifetime = 0;
       node.refreshRetryCount = 0;
       node.loginRetryCount = 0;
+      node.transportRetryCount = 0;
 
       node.logInfo("Re-login requested from the editor");
       node.authenticationInProgress = true;
@@ -2027,7 +2044,7 @@ export = (RED: NodeAPI) => {
       } catch (error) {
         const raw = error instanceof Error ? error.message : String(error);
         const message = redactSecrets(raw, [...secrets, node.accessToken, node.refreshToken]);
-        const status = /^Login failed \((400|401|403)\)/.test(message) ? 401 : 500;
+        const status = isCredentialRejection(error) ? 401 : 500;
         result = { ok: false, status, error: message };
       } finally {
         node.authenticationInProgress = false;
@@ -2096,3 +2113,36 @@ function redactSecrets(text: string, secrets: unknown[]): string {
   }
   return out;
 }
+
+/** An Error that carries the HTTP status the Easee API answered with, if it answered at all. */
+type HttpStatusError = Error & { status?: number };
+
+function httpStatusError(message: string, status: number): HttpStatusError {
+  const error: HttpStatusError = new Error(message);
+  error.status = status;
+  return error;
+}
+
+/**
+ * True only for a definite credential rejection: `accounts/login` answered
+ * 400, 401 or 403. A rejected fetch (no response), a 5xx or anything else is
+ * a transport or server failure and says nothing about the credentials
+ * (EASEE-38).
+ */
+function isCredentialRejection(error: unknown): boolean {
+  const status = (error as HttpStatusError | null | undefined)?.status;
+  return status === 400 || status === 401 || status === 403;
+}
+
+/**
+ * Delay before the next token check after the `failures`-th transport failure
+ * in a row: 1, 2, 4 minutes, then 5 minutes for good. Never stops (EASEE-38).
+ */
+function transportRetryDelayMs(failures: number): number {
+  const base = 60 * 1000;
+  const ceiling = 5 * 60 * 1000;
+  return Math.min(base * 2 ** Math.max(failures - 1, 0), ceiling);
+}
+
+/** Delay between login attempts once the credentials have been rejected maxLoginRetries times. */
+const CREDENTIAL_RETRY_DELAY_MS = 30 * 60 * 1000;
