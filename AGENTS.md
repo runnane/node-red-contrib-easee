@@ -114,7 +114,7 @@ pnpm check:fix        # biome check --write; commit what it rewrites
 | 1 | lint + format | `biome check` | `easee-client/`, `scripts/`, `tests/` and the root config files. **Not** the `.html` editor halves |
 | 2 | typecheck | `tsc --noEmit` | TypeScript 7; every `.ts` in the repo |
 | 3 | build | `tsc -p tsconfig.build.json` + copy `.html`/`locales/` | emits `dist/easee-client/` (ships) and `dist/scripts/` (does not) |
-| 4 | tests + coverage | `vitest run --coverage` | 13 files / 125 tests. **Enforces the thresholds** |
+| 4 | tests + coverage | `vitest run --coverage` | **Enforces the thresholds** in `vitest.config.mts` — the floor and its dated history live there, not here |
 | 5 | Node-RED load | `node dist/scripts/check-node-loads.js` | registers all three nodes from `dist/` in a real Node-RED runtime |
 
 **`pnpm test` is not the gate.** Thresholds are only evaluated with `--coverage`, and
