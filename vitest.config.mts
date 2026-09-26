@@ -79,15 +79,24 @@ export default defineConfig({
       // untested): statements 79.44% (711/895), branches 70.47% (358/508),
       // functions 64.34% (74/115), lines 79.5% (702/883).
       //
+      // Raised 2026-09-26 (EASEE-44), 169 tests total (EASEE-44's branch rebased
+      // onto EASEE-39's), after tests/integration/rest-client.test.ts drove the
+      // rest client's predefined topics, the custom-path/method path, and its
+      // error paths (non-2xx JSON error surfacing, network error, missing/invalid
+      // configuration node) through the real node. easee-rest-client.ts alone
+      // rose from 46.89%/35.55%/31.81% statements/branches/functions to
+      // 95.23%/83.69%/81.81%. Global: statements 86.14% (771/895), branches
+      // 78.93% (401/508), functions 71.3% (82/115), lines 86.18% (761/883).
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 79.3,
-        branches: 70.4,
-        functions: 64.3,
-        lines: 79.4,
+        statements: 86.1,
+        branches: 78.9,
+        functions: 71.2,
+        lines: 86.1,
       },
     },
   },
