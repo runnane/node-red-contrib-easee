@@ -73,8 +73,9 @@ message can change the credentials.
   REST node are still yours, so keep the password out of **Debug** nodes wired
   before it.
 - A REST node whose configuration node has no username or password accepts
-  `update_credentials` and refuses every other topic until credentials arrive. The
-  streaming node still needs them saved in the editor to start.
+  `update_credentials` and refuses every other topic until credentials arrive. A
+  streaming node using that same configuration node waits too: it starts its
+  connection the moment the credentials are accepted, with no redeploy needed.
 
 ### Troubleshooting errors
 

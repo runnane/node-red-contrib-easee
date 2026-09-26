@@ -139,6 +139,15 @@ export default defineConfig({
       // mid-login and the secret sinks: statements 96.49% (1047/1085), branches
       // 92.83% (648/698), functions 91.15% (134/147), lines 96.7% (1028/1063).
       //
+      // Raised 2026-09-26 (EASEE-46), 250 tests, after charger-streaming-client
+      // learned to wait for the configuration node's "update" event and start
+      // once credentials arrive at runtime (the update_credentials topic), with
+      // real-node tests for the successful/failed/repeated-event/close-cleanup
+      // paths and one pinning the valid-at-deploy path unchanged: statements
+      // 96.44% (1059/1098), branches 92.89% (654/704), functions 91.27%
+      // (136/149), lines 96.65% (1039/1075). Only functions moves (91.1 ->
+      // 91.2): the other three truncate to the same first decimal as before.
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
@@ -146,7 +155,7 @@ export default defineConfig({
       thresholds: {
         statements: 96.4,
         branches: 92.8,
-        functions: 91.1,
+        functions: 91.2,
         lines: 96.6,
       },
     },
