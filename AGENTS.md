@@ -56,7 +56,7 @@ Two Node versions matter, and they are different on purpose:
   `Node-RED Compatibility` job loads the *packed tarball* on 18/20/22/24 — that job is
   the only evidence behind `>=18`, because nothing else can run there.
 
-## The toolchain, and the three things about it that are not obvious
+## The toolchain, and the four things about it that are not obvious
 
 pnpm, Biome, Vitest and TypeScript 7 (the native compiler, `tsgo`, shipped as the
 `typescript@7` package's `tsc`). There is a build step: **the package is its compiled
@@ -80,6 +80,17 @@ output**, `dist/easee-client/`, not its source.
    properties of undefined (reading 'log')` — the real `Cannot find module` is swallowed
    by the helper. The extension links it beside node-red. Its version must match
    node-red's; when dependabot bumps node-red, bump it too.
+4. **`pnpm.overrides` clears two dev-only advisory chains that no in-range bump
+   reaches** (EASEE-25): `@types/node-red__util>jsonata` (`>=2.2.1`, `@types/node-red`'s
+   type-only dependency on an old, vulnerable `jsonata`) and `express>qs` (`>=6.16.0`,
+   pulled in by node-red's pinned `express`). Neither `jsonata` nor `qs` ships — both
+   sit under `devDependencies` only, `pnpm audit:prod` was and stays 0 — but they show
+   up in a full `pnpm audit` and on GitHub's Dependabot alerts, which is what this
+   exists to silence. `@types/node-red__util>jsonata` needs only jsonata's type
+   declarations, so bumping it is typecheck-safe; confirmed by `tsc --noEmit` staying
+   green with the override in place. Delete the `jsonata` line once `@types/node-red`
+   moves its `@types/node-red__util` dependency to `jsonata>=2.2.1` on its own; delete
+   the `qs` line once node-red's `express` pin moves past `qs@6.16.0`.
 
 ## Build / test / lint (run before finishing any change)
 
