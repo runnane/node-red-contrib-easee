@@ -43,6 +43,32 @@ interface ObservationDefinition {
   valueMapping?: (val: unknown) => string | undefined;
 }
 
+/**
+ * Pull a human-readable message out of a failed REST response's parsed JSON body,
+ * for doAuthRestCall() (EASEE-20). Mirrors what doLogin() / doRefreshToken() already
+ * parse from the Easee API's problem-details shape (`title` / `detail` /
+ * `errorCodeName`, modelled by ApiErrorBody) — the same fields
+ * tests/fixtures/mockData.ts's loginErrors / refreshErrors already encode, and
+ * doAuthRestCall's own callers had never seen because of the bug this fixes. No gate
+ * can corroborate the shape against a live Easee response; this is the shape those
+ * two call sites already believe.
+ *
+ * Falls back to a plain `message` field, then to null so the caller falls back to
+ * the raw response body. A `null` or non-object JSON value must never reach here —
+ * the caller is responsible for treating those as "not JSON".
+ */
+function extractApiErrorDetail(json: ApiErrorBody & { message?: string }): string | null {
+  const { title, detail, errorCodeName } = json;
+  if (title || detail || errorCodeName) {
+    const label = title || errorCodeName || "Unknown error";
+    return `${label}${detail ? ` - ${detail}` : ""}`;
+  }
+  if (typeof json.message === "string" && json.message) {
+    return json.message;
+  }
+  return null;
+}
+
 // `export =` rather than `export default`: Node-RED require()s this file and needs
 // module.exports to BE the factory. TypeScript emits this as `module.exports = ...`.
 export = (RED: NodeAPI) => {
@@ -306,11 +332,17 @@ export = (RED: NodeAPI) => {
       const is_json = typeof http_json === "object";
 
       if (!is_ok) {
-        // This used to try `is_json?.message` first — but is_json is a boolean, so
-        // that branch never ran and every failure has always reported the raw
-        // body. Kept exactly as it behaves; EASEE-20 tracks
-        // surfacing the API's own message.
-        throw new Error(`REST Command failed (${http_status}: ${http_statusText}) ${http_text}`);
+        // This used to try `is_json?.message` first — but is_json was a boolean, so
+        // that branch never ran and every failure reported the raw body regardless
+        // of shape. extractApiErrorDetail() is the fix (EASEE-20): it reads the same
+        // problem-details fields doLogin()/doRefreshToken() already parse, with a
+        // `message` fallback, and returns null (raw body stays the message) for a
+        // `null` or non-JSON body.
+        const errorDetail =
+          is_json && http_json !== null
+            ? extractApiErrorDetail(http_json as ApiErrorBody & { message?: string })
+            : null;
+        throw new Error(`REST Command failed (${http_status}: ${http_statusText}) ${errorDetail ?? http_text}`);
       }
       if (is_json && http_json !== null) {
         node.status({

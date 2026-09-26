@@ -27,19 +27,39 @@ export default defineConfig({
       // subscription tests: statements 56.82% (454/799), branches 51.91% (230/443),
       // functions 49.03% (51/104), lines 56.65% (447/789).
       //
+      // Raised 2026-09-26 (EASEE-10), 126 tests, after
+      // streaming-client-missing-config.test.ts covered the constructor's guard
+      // for a configuration node that does not resolve (previously untested):
+      // statements 57.08% (455/797), branches 52.14% (231/443), functions 49.03%
+      // (51/104, unchanged), lines 56.92% (448/787). (The denominators dropped
+      // from EASEE-35's 799/789 to 797/787 in the same change, from deleting the
+      // two dead `responses` assignments — see the PR; that alone would have
+      // needed a re-baseline, but this test covers more than enough to raise
+      // through it instead.)
+      //
+      // Raised 2026-09-26 (EASEE-20), 130 tests, after the doAuthRestCall JSON
+      // error-message tests: statements 57.24% (462/807), branches 53.34%
+      // (247/463), functions 49.52% (52/105), lines 57.08% (455/797).
+      //
+      // Re-measured 2026-09-26 after merging main into EASEE-20's branch (the sweep's
+      // PRs combined): statements 57.51% (463/805), branches 53.56% (248/463), functions 49.52% (52/105), lines 57.35% (456/795).
+      //
       // Raised 2026-09-26 (EASEE-28), 135 tests, after the re-login admin route
       // tests: statements 62.95% (532/845), branches 57.51% (268/466), functions
       // 53.70% (58/108), lines 62.82% (524/834).
+      //
+      // Re-measured 2026-09-26 after merging main into EASEE-28's branch (the sweep's
+      // PRs combined): statements 63.57% (541/851), branches 58.84% (286/486), functions 54.12% (59/109), lines 63.45% (533/840).
       //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 62.9,
-        branches: 57.5,
-        functions: 53.7,
-        lines: 62.8,
+        statements: 63.5,
+        branches: 58.8,
+        functions: 54.1,
+        lines: 63.4,
       },
     },
   },
