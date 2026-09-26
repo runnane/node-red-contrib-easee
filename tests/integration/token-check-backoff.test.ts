@@ -11,15 +11,13 @@
  * Every credential and token below is synthetic.
  */
 
-import { createRequire } from "node:module";
 import helper from "node-red-node-test-helper";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import easeeConfiguration from "../../easee-client/easee-configuration.js";
+import { initHelperWithResolvedRuntime } from "../helpers/node-red-runtime.js";
 import { fetchMock } from "../mocks/nodeRedMocks.js";
 
-const require = createRequire(import.meta.url);
-
-helper.init(require.resolve("node-red"));
+initHelperWithResolvedRuntime(helper);
 
 const flow = [{ id: "cfg", type: "easee-configuration", name: "backoff test", username: "user@example.invalid" }];
 

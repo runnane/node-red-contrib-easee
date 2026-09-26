@@ -55,7 +55,10 @@ Two Node versions matter, and they are different on purpose:
 - **To use the package:** Node ≥ 18 (`engines`). The build targets ES2022, and CI's
   `Node-RED Compatibility` job loads the *packed tarball* on 18/20/22/24 — that job is
   the only evidence behind `>=18`, because nothing else can run there. It also loads
-  it into Node-RED 5 on 22/24 (EASEE-24); the devDependency stays on node-red 4.
+  it into Node-RED 5 on 22/24 (EASEE-24); the devDependency stays on node-red 4. The
+  helper-based Vitest suite itself gets a node-red 5 leg too, on Node 24 (EASEE-41,
+  `pnpm test:node-red-5`) — see toolchain item 3 below for the aliased devDependency
+  this needs.
 
 ## The toolchain, and the four things about it that are not obvious
 
@@ -80,7 +83,11 @@ output**, `dist/easee-client/`, not its source.
    node-red's dependency), so every real-runtime test and gate 5 fail with `Cannot read
    properties of undefined (reading 'log')` — the real `Cannot find module` is swallowed
    by the helper. The extension links it beside node-red. Its version must match
-   node-red's; when dependabot bumps node-red, bump it too.
+   node-red's; when dependabot bumps node-red, bump it too. The same trap applies to the
+   `node-red-5` alias devDependency (`"node-red-5": "npm:node-red@^5"`, EASEE-41): it
+   needs its own `"node-red@5": { "dependencies": { "@node-red/registry": "…" } }`
+   extension, keyed by the real package name/version pnpm resolves the alias to — not
+   by the alias name — and bumped in step with it.
 4. **`pnpm.overrides` clears two dev-only advisory chains that no in-range bump
    reaches** (EASEE-25): `@types/node-red__util>jsonata` (`>=2.2.1`, `@types/node-red`'s
    type-only dependency on an old, vulnerable `jsonata`) and `express>qs` (`>=6.16.0`,
