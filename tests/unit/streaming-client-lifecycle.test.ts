@@ -223,6 +223,45 @@ describe("charger-streaming-client lifecycle", () => {
     expect(sent).toContainEqual([null, null, null, null, { payload: { id: 998, value: "raw-charger" } }, null]);
   }, 15000);
 
+  // EASEE-33 (GitHub #26): a flow can't start a session "as" a
+  // specific RFID tag (the API takes no such parameter), but it can read back
+  // which tag the charger already used. Uses the real parseObservation(), not
+  // an override, so the observation table's dataType for 128 stays load-bearing.
+  it("passes observation 128 (UserIDToken) through the ProductUpdate output with its value intact (EASEE-33)", async () => {
+    const { streaming } = await load();
+    const connection = fakeConnection();
+    streaming.connection = connection;
+    const sent: unknown[] = [];
+    streaming.send = (msg: unknown) => sent.push(msg);
+
+    streaming.emit("opened", { count: "", id: "conn-1" });
+
+    // A synthetic RFID ID token — never a real one (this repo is public).
+    connection.handlers.ProductUpdate({ id: 128, value: "04AABBCCDD1122" });
+
+    // Output 4 is ProductUpdate (see the raw-forwarding test above); dataType 6
+    // is "String", so parseObservation's Double/Integer coercion never touches it.
+    expect(sent).toContainEqual([
+      null,
+      null,
+      null,
+      {
+        payload: {
+          id: 128,
+          value: "04AABBCCDD1122",
+          valueText: "",
+          valueUnit: "",
+          dataName: "UserIDToken",
+          observationId: 128,
+          dataType: 6,
+          dataTypeName: "String",
+        },
+      },
+      null,
+      null,
+    ]);
+  }, 15000);
+
   // EASEE-35: SignalR's default Node client requires whichever tough-cookie npm
   // hoisted, and 2.x/3.x fail negotiation with "reading 'secure'". Both paths need
   // the package's own client: negotiation POSTs through it, and the WebSocket reads
