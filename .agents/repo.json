@@ -7,7 +7,7 @@
     "all": "pnpm gates",
     "fix": "pnpm check:fix"
   },
-  "release": "release-it",
+  "release": "np",
   "ci": "github-hosted",
   "liveBoundary": "none",
   "worktreeSafe": true,
