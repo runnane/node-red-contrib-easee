@@ -55,21 +55,35 @@ jobs:
 
   compatibility-check:
     runs-on: ubuntu-latest
-    name: Node-RED Compatibility (Node ${{ matrix.node-version }})
+    name: Node-RED Compatibility (Node ${{ matrix.node-version }}, node-red ${{ matrix.node-red-version }})
 
     strategy:
       matrix:
-        # Every Node version `engines` claims. The build targets ES2022, which
-        # Node 18 runs, but nothing else in CI runs on 18 or 20 — Vitest and the
-        # TypeScript toolchain do not support them — so this is the only evidence
-        # behind ">=18.0.0". If a leg here goes red, the claim is false.
+        # Every Node version `engines` claims, all loaded against this repo's own
+        # node-red devDependency (^4.1.x — most users still run 4). The build
+        # targets ES2022, which Node 18 runs, but nothing else in CI runs on 18
+        # or 20 — Vitest and the TypeScript toolchain do not support them — so
+        # this is the only evidence behind ">=18.0.0". If a leg here goes red,
+        # the claim is false.
         node-version: [18.x, 20.x, 22.x, 24.x]
+        node-red-version: [4]
+        include:
+          # Node-RED 5 needs Node >=22.9 (its own engines field), so it only
+          # gets legs on 22/24 — added, not swapped, per EASEE-24: the
+          # devDependency stays on 4.x and these two legs install node-red@5
+          # separately, alongside the packed tarball, for the load check alone.
+          - node-version: 22.x
+            node-red-version: 5
+          - node-version: 24.x
+            node-red-version: 5
 
     # Build and pack on Node 22 (the toolchain needs it), then switch Node to the
     # matrix version for the consumer install and the load. One job per leg with a
     # second setup-node step is simpler than passing a tarball and dist/scripts
-    # between jobs as artifacts, and the load step still resolves node-red and
-    # node-red-node-test-helper from this checkout's node_modules.
+    # between jobs as artifacts, and the load step still resolves node-red-node-
+    # test-helper from this checkout's node_modules; on a node-red-version: 5 leg
+    # it points the load check at a separately installed node-red@5 instead of
+    # this checkout's own node-red@4 devDependency (see check-node-loads.ts).
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
@@ -104,8 +118,19 @@ jobs:
     - name: Install the packed tarball
       run: npm install --prefix "$RUNNER_TEMP/compat" --no-package-lock "$RUNNER_TEMP"/runnane-node-red-contrib-easee-*.tgz
 
+    # Only on the node-red-version: 5 legs. Installed separately from the
+    # tarball, and separately from this checkout's own node-red@4
+    # devDependency, so check-node-loads.js can be pointed at it with
+    # --node-red-dir without this repo ever depending on node-red 5.
+    - name: Install node-red 5 for the load check
+      if: matrix.node-red-version == 5
+      run: npm install --prefix "$RUNNER_TEMP/nr5" --no-package-lock node-red@5
+
     - name: Test Node-RED compatibility of the packed package
-      run: node dist/scripts/check-node-loads.js --package-dir "$RUNNER_TEMP/compat/node_modules/@runnane/node-red-contrib-easee"
+      run: |
+        node dist/scripts/check-node-loads.js \
+          --package-dir "$RUNNER_TEMP/compat/node_modules/@runnane/node-red-contrib-easee" \
+          ${{ matrix.node-red-version == 5 && '--node-red-dir $RUNNER_TEMP/nr5' || '' }}
 
   security-audit:
     runs-on: ubuntu-latest

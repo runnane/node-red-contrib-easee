@@ -53,6 +53,34 @@ Negotiation no longer depends on which `tough-cookie` package other installed no
 brought along. An older one used to make negotiation fail with
 `Cannot read properties of undefined (reading 'secure')`.
 
+### Identifying which RFID tag started a session
+
+Easee's REST API has no parameter for starting a session "as" a specific RFID
+tag — `POST /chargers/{id}/commands/start_charging` takes no request body at
+all, and none of the other charger commands accept an ID token, RFID tag or
+authorization credential either. (Easee's AMQP/RabbitMQ interface has a
+separate `AuthorizeCharging` command that does take an `IDToken`, but that is a
+different protocol with its own credentials, not something this package's REST
+or streaming client speaks.) So a flow cannot choose which tag a session is
+attributed to; it can only read back which tag the charger itself already used.
+
+When RFID/authorization is enabled on the charger, presenting a tag is reported
+over the streaming client's `ProductUpdate` output as observation **128**
+(`UserIDToken`) — the tag's ID token string, unmodified — and observation
+**108** (`UserIDTokenReversed`) carries the same value byte-reversed. (There is
+also observation **69**, `PairedUserIDToken`, emitted only while the charger is
+in RFID *pairing* mode, i.e. while registering a new tag — not during normal
+charging.) Both flow through untouched: nothing in this package inspects,
+filters or reformats a `UserIDToken`/`UserIDTokenReversed` value.
+
+To tell which of several known tags was used, wire a Switch node off the
+streaming client's fourth output. First narrow to `UserIDToken` updates —
+`msg.payload.dataName === "UserIDToken"` — since `ProductUpdate` carries every
+other observation too, then switch again on `msg.payload.value` against each
+tag's own ID token (an obviously synthetic example: `"04AABBCCDD1122"`) to
+route the flow per car. This only reports which tag a charger already read —
+it cannot make the charger start a session under a different one.
+
 ## REST node
 
 Use the `easee REST Client` node

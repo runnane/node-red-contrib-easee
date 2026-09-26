@@ -54,7 +54,8 @@ Two Node versions matter, and they are different on purpose:
 - **To develop:** Node ≥ 22.12. Vitest 5 requires it, and CI's test legs run 22/24/26.
 - **To use the package:** Node ≥ 18 (`engines`). The build targets ES2022, and CI's
   `Node-RED Compatibility` job loads the *packed tarball* on 18/20/22/24 — that job is
-  the only evidence behind `>=18`, because nothing else can run there.
+  the only evidence behind `>=18`, because nothing else can run there. It also loads
+  it into Node-RED 5 on 22/24 (EASEE-24); the devDependency stays on node-red 4.
 
 ## The toolchain, and the four things about it that are not obvious
 

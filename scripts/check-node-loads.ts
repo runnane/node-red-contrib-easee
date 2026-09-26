@@ -29,6 +29,24 @@
  * The consumer install uses npm, not pnpm, on purpose: the Node-RED palette
  * manager installs contributed nodes with npm, so that is the layout a user gets.
  *
+ * By default the Node-RED *runtime* booted for the load itself (via
+ * node-red-node-test-helper) is this repo's own `node-red` devDependency,
+ * resolved the normal Node.js way relative to this script. Pass --node-red-dir
+ * to boot a different installed node-red instead — this is how the Node-RED 5
+ * compatibility leg reuses this same check without touching the repo's own
+ * devDependency (kept on node-red ^4.x, which is what most users still run):
+ *
+ *   npm install --prefix /tmp/nr5 --no-package-lock node-red@5
+ *   node dist/scripts/check-node-loads.js --package-dir \
+ *     /tmp/compat/node_modules/@runnane/node-red-contrib-easee \
+ *     --node-red-dir /tmp/nr5
+ *
+ * --node-red-dir takes the npm --prefix directory (the one holding
+ * node_modules/node-red), not the node-red package directory itself — Node's
+ * own require.resolve() paths option walks up from there looking for
+ * node_modules, the same way it would from a real caller sitting in that
+ * directory.
+ *
  * Note that requiring the node factory with a bare `require("node-red/lib/red")`
  * does not work: on an uninitialised runtime `RED.runtime.log` is undefined and
  * `registerType` throws. The runtime has to be booted, which is what
@@ -47,18 +65,32 @@ import helper from "node-red-node-test-helper";
  */
 const EXPECTED_NODE_TYPES = ["charger-streaming-client", "easee-configuration", "easee-rest-client"];
 
-function parsePackageDir(argv: string[]): string {
-  const flag = "--package-dir";
+function parseDirFlag(argv: string[], flag: string): string | undefined {
   const index = argv.indexOf(flag);
   if (index === -1) {
-    // dist/scripts/check-node-loads.js → the package root is two levels up.
-    return path.resolve(__dirname, "..", "..");
+    return undefined;
   }
   const value = argv[index + 1];
   if (!value) {
     throw new Error(`${flag} requires a directory argument`);
   }
   return path.resolve(value);
+}
+
+function parsePackageDir(argv: string[]): string {
+  // dist/scripts/check-node-loads.js → the package root is two levels up.
+  return parseDirFlag(argv, "--package-dir") ?? path.resolve(__dirname, "..", "..");
+}
+
+/**
+ * Resolve the node-red runtime to boot. Defaults to this repo's own
+ * devDependency; --node-red-dir points at a separately installed node-red
+ * (see the module doc comment above) so the same check can be run against a
+ * Node-RED major this repo does not depend on.
+ */
+function resolveNodeRedRuntimePath(argv: string[]): string {
+  const nodeRedDir = parseDirFlag(argv, "--node-red-dir");
+  return nodeRedDir ? require.resolve("node-red", { paths: [nodeRedDir] }) : require.resolve("node-red");
 }
 
 /** Read `node-red.nodes` from the package, failing loudly if it is not usable. */
@@ -112,12 +144,21 @@ function messageOf(error: unknown): string {
 }
 
 async function main(): Promise<void> {
-  const packageDir = parsePackageDir(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const packageDir = parsePackageDir(argv);
   console.log(`Checking Node-RED compatibility of ${packageDir}`);
 
   const nodeFiles = readNodeFiles(packageDir);
 
-  helper.init(require.resolve("node-red"));
+  const runtimePath = resolveNodeRedRuntimePath(argv);
+  const runtimePackage = JSON.parse(
+    fs.readFileSync(path.join(path.dirname(runtimePath), "..", "package.json"), "utf8"),
+  ) as {
+    version?: string;
+  };
+  console.log(`Against node-red ${runtimePackage.version ?? "(unknown version)"} (${runtimePath})`);
+
+  helper.init(runtimePath);
 
   const failures: { nodeFile: string; error: unknown }[] = [];
   for (const nodeFile of Object.values(nodeFiles)) {
