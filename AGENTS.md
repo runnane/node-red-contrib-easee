@@ -56,7 +56,7 @@ Two Node versions matter, and they are different on purpose:
   `Node-RED Compatibility` job loads the *packed tarball* on 18/20/22/24 — that job is
   the only evidence behind `>=18`, because nothing else can run there.
 
-## The toolchain, and the three things about it that are not obvious
+## The toolchain, and the four things about it that are not obvious
 
 pnpm, Biome, Vitest and TypeScript 7 (the native compiler, `tsgo`, shipped as the
 `typescript@7` package's `tsc`). There is a build step: **the package is its compiled
