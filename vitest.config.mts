@@ -112,15 +112,22 @@ export default defineConfig({
       // 98.7%/91.07%/93.33%. Global: statements 92.17% (825/895), branches
       // 84.75% (428/505), functions 85.21% (98/115), lines 92.29% (815/883).
       //
+      // Raised 2026-09-26 (EASEE-42), 196 tests, after resetAuthenticationState()
+      // was wired into relogin() (deduplicating relogin()'s inline reset) and its
+      // misleading status/emit calls were dropped, plus two previously-untested
+      // doLogin() branches (an explicit username with no configured password, and
+      // vice versa) were covered: statements 93% (824/886), branches 85.14%
+      // (430/505), functions 85.21% (98/115, unchanged), lines 93.13% (814/874).
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
-        statements: 92.1,
-        branches: 84.7,
+        statements: 92.9,
+        branches: 85.1,
         functions: 85.2,
-        lines: 92.2,
+        lines: 93.1,
       },
     },
   },

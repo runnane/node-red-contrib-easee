@@ -1837,8 +1837,17 @@ export = (RED: NodeAPI) => {
     };
 
     /**
-     * Reset authentication state and clear all tokens
-     * Used when authentication completely fails
+     * Reset authentication state: drops both tokens and their timing, and
+     * zeroes every retry counter checkToken() and doLogin() maintain. Called
+     * from relogin() (EASEE-28's "Re-login" button) before it attempts a
+     * fresh login — the caller stops the token-check timer itself first,
+     * since only it knows whether that's appropriate.
+     *
+     * Deliberately does not set a status or emit an "update": a caller that
+     * is about to try a fresh login (relogin() always is) is not yet in an
+     * error state, and a "reconfiguration required" message here would be a
+     * false failure report for the moment between the reset and that
+     * attempt's own outcome. Set status/emit at the call site instead.
      */
     node.resetAuthenticationState = () => {
       node.logInfo("Resetting authentication state");
@@ -1850,16 +1859,6 @@ export = (RED: NodeAPI) => {
       node.refreshRetryCount = 0;
       node.loginRetryCount = 0;
       node.transportRetryCount = 0;
-
-      node.status({
-        fill: "red",
-        shape: "ring",
-        text: "Authentication reset - reconfiguration required",
-      });
-
-      node.emit("update", {
-        update: "Authentication failed - node requires reconfiguration",
-      });
     };
 
     /**
@@ -2027,14 +2026,7 @@ export = (RED: NodeAPI) => {
         clearTimeout(node.checkTokenHandler);
         node.checkTokenHandler = null;
       }
-      node.accessToken = false;
-      node.refreshToken = false;
-      node.tokenExpires = new Date();
-      node.tokenIssuedAt = new Date();
-      node.tokenLifetime = 0;
-      node.refreshRetryCount = 0;
-      node.loginRetryCount = 0;
-      node.transportRetryCount = 0;
+      node.resetAuthenticationState();
 
       node.logInfo("Re-login requested from the editor");
       node.authenticationInProgress = true;

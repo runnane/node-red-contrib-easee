@@ -227,6 +227,26 @@ describe("easee-configuration auth, through the real node", () => {
 
       expect(fetchMock()).not.toHaveBeenCalled();
     });
+
+    it("refuses an explicit password with no username, falling back to neither the argument nor the config", async () => {
+      const node = await load({ username: "" });
+
+      await expect(node.doLogin(undefined, "synthetic-explicit-pass")).rejects.toThrow(
+        "No username provided for login",
+      );
+
+      expect(fetchMock()).not.toHaveBeenCalled();
+      expect(node.status).toHaveBeenLastCalledWith({ fill: "red", shape: "ring", text: "No username configured" });
+    });
+
+    it("refuses an explicit username with no password, falling back to neither the argument nor the config", async () => {
+      const node = await load({ password: "" });
+
+      await expect(node.doLogin("other@example.invalid", undefined)).rejects.toThrow("No password provided for login");
+
+      expect(fetchMock()).not.toHaveBeenCalled();
+      expect(node.status).toHaveBeenLastCalledWith({ fill: "red", shape: "ring", text: "No password configured" });
+    });
   });
 
   describe("doRefreshToken()", () => {
@@ -348,31 +368,6 @@ describe("easee-configuration auth, through the real node", () => {
       expect(node.refreshRetryCount).toBe(0);
       expect(node.emit).toHaveBeenCalledWith("update", {
         update: "Token refresh failed after retries, attempting fresh login",
-      });
-    });
-  });
-
-  describe("resetAuthenticationState()", () => {
-    it("clears tokens and counters, and says the node needs reconfiguring", async () => {
-      const node = await load();
-      holdTokens(node, { expiresInS: 3600, lifetimeS: 3600 });
-      node.refreshRetryCount = 2;
-      node.loginRetryCount = 1;
-
-      node.resetAuthenticationState();
-
-      expect(node.accessToken).toBe(false);
-      expect(node.refreshToken).toBe(false);
-      expect(node.tokenLifetime).toBe(0);
-      expect(node.refreshRetryCount).toBe(0);
-      expect(node.loginRetryCount).toBe(0);
-      expect(node.status).toHaveBeenLastCalledWith({
-        fill: "red",
-        shape: "ring",
-        text: "Authentication reset - reconfiguration required",
-      });
-      expect(node.emit).toHaveBeenCalledWith("update", {
-        update: "Authentication failed - node requires reconfiguration",
       });
     });
   });
