@@ -79,6 +79,17 @@ export type InputListener = (
   done: (err?: Error) => void,
 ) => void;
 
+/**
+ * The outcome of a re-login started from the editor (EASEE-28). It is sent to the
+ * browser as it stands, so it must never carry the password or a token.
+ */
+export interface ReloginResult {
+  ok: boolean;
+  /** The HTTP status the admin route answers with. */
+  status: number;
+  error?: string;
+}
+
 export interface EaseeConfigurationNode extends Node<EaseeCredentials> {
   username: string;
   debugLogging: boolean;
@@ -127,6 +138,7 @@ export interface EaseeConfigurationNode extends Node<EaseeCredentials> {
   doRefreshToken(): Promise<TokenResponse | null | undefined>;
   resetAuthenticationState(): void;
   doLogin(username?: string, password?: string): Promise<TokenResponse>;
+  relogin(): Promise<ReloginResult>;
 
   on(event: "input", listener: InputListener): this;
   on(event: "close", listener: () => void): this;

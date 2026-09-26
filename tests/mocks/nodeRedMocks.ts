@@ -37,6 +37,13 @@ export function createMockRED(): any {
       on: vi.fn(),
       emit: vi.fn(),
     },
+    // The configuration node registers its re-login admin route at load (EASEE-28).
+    httpAdmin: {
+      post: vi.fn(),
+    },
+    auth: {
+      needsPermission: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+    },
   };
 }
 
