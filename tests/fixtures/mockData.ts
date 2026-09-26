@@ -29,6 +29,13 @@ const mockData = {
       detail: "Invalid refresh token",
       errorCodeName: "INVALID_REFRESH_TOKEN",
     },
+    // Deliberately no title/detail: a 5xx from the Easee API is often this
+    // bare, and doRefreshToken()'s error-message fallbacks (errorCodeName,
+    // then "Unknown error"/"" ) were otherwise never exercised.
+    serverError: {
+      status: 503,
+      errorCodeName: "SERVICE_UNAVAILABLE",
+    },
   },
 };
 

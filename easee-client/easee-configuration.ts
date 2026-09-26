@@ -1713,15 +1713,16 @@ export = (RED: NodeAPI) => {
             if (!response.ok) {
               const errorMsg = json.title || json.errorCodeName || "Unknown error";
               const errorDetail = json.detail || "";
-              throw new Error(
+              throw httpStatusError(
                 `Token refresh failed (${response.status}): ${errorMsg}${errorDetail ? ` - ${errorDetail}` : ""}`,
+                response.status,
               );
             }
 
             return json;
           } else {
             const errortxt = await response.text();
-            throw new Error(`Unable to refresh token, response not JSON: ${errortxt}`);
+            throw httpStatusError(`Unable to refresh token, response not JSON: ${errortxt}`, response.status);
           }
         })
         .then((json) => {
@@ -1759,11 +1760,11 @@ export = (RED: NodeAPI) => {
           return json as TokenResponse;
         })
         .catch((error): Promise<TokenResponse | null | undefined> | null => {
-          // Determine if this is a token validity issue or network/other issue
-          const isTokenInvalid =
-            error.message.includes("Invalid refresh token") ||
-            error.message.includes("Token refresh failed") ||
-            error.message.includes("401");
+          // Determine if this is a token validity issue or network/other issue.
+          // Only a 400/401/403 answer is a credential/token error; a 5xx or no
+          // response at all is transient and must not drop still-valid tokens
+          // (EASEE-40) — the same classification EASEE-38 gave doLogin().
+          const isTokenInvalid = isCredentialRejection(error);
 
           const isNetworkError =
             error.message.includes("fetch") || error.message.includes("network") || error.message.includes("timeout");
