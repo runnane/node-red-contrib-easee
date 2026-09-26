@@ -267,6 +267,20 @@ describe("easee-configuration auth, through the real node", () => {
       expect(node.emit).toHaveBeenCalledWith("update", { update: "Token refresh failed, will attempt fresh login" });
     });
 
+    it("keeps the tokens when refresh_token answers a 5xx (EASEE-40)", async () => {
+      const node = await load();
+      holdTokens(node, { expiresInS: 100, lifetimeS: 3600 });
+      api({ refresh: [json(mockData.refreshErrors.serverError, 503)] });
+
+      const result = await node.doRefreshToken();
+
+      expect(result).toBeNull();
+      expect(node.accessToken).toBe(OLD_ACCESS);
+      expect(node.refreshToken).toBe(OLD_REFRESH);
+      expect(node.refreshRetryCount).toBe(1);
+      expect(node.error).toHaveBeenCalled();
+    });
+
     it("signals a needed login instead of attempting one when it holds no tokens (EASEE-39)", async () => {
       const node = await load();
       api({ login: [json(loginBody)] });

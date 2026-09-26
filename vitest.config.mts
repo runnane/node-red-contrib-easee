@@ -88,13 +88,24 @@ export default defineConfig({
       // 95.23%/83.69%/81.81%. Global: statements 86.14% (771/895), branches
       // 78.93% (401/508), functions 71.3% (82/115), lines 86.18% (761/883).
       //
+      // Re-measured 2026-09-26 (EASEE-40), 170 tests, after doRefreshToken()'s
+      // catch classified by HTTP status (httpStatusError/isCredentialRejection)
+      // instead of message substrings. Collapsing the old 3-term message OR
+      // removed 3 already-covered branches (508 -> 505 total), which alone would
+      // have DROPPED the ratio to 78.81% (398/505) despite nothing regressing;
+      // the new 5xx test's fixture deliberately omits title/detail so the
+      // errorCodeName/"" fallbacks at the refresh error site (previously
+      // exercised by no test) are covered too, netting branches back up.
+      // Global: statements 86.14% (771/895), branches 79.4% (401/505), functions
+      // 71.3% (82/115), lines 86.18% (761/883).
+      //
       // Vitest applies these to the files matched by `include` as one global
       // group. Do NOT add a per-path group (e.g. "easee-client/**") without
       // re-checking that the global numbers are still enforced: under Jest a path
       // group silently emptied the global group, and a 99% floor passed (EASEE-1).
       thresholds: {
         statements: 86.1,
-        branches: 78.9,
+        branches: 79.3,
         functions: 71.2,
         lines: 86.1,
       },
