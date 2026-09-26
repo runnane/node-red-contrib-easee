@@ -41,6 +41,38 @@
         $("#node-config-input-username").val(this.username || '');
         $("#node-config-input-debug-logging").prop('checked', this.debugLogging);
         $("#node-config-input-debug-to-node-warn").prop('checked', this.debugToNodeWarn);
+
+        // Re-login (EASEE-28): asks the DEPLOYED node to throw its tokens away and
+        // log in again. A node that is new, or has changes not yet deployed, has
+        // nothing on the runtime to re-login (or would use the old credentials).
+        var node = this;
+        var button = $("#node-config-easee-relogin");
+        var hint = $("#node-config-easee-relogin-hint");
+        var deployed = !!RED.nodes.node(node.id) && !node.changed;
+        if (!deployed) {
+          button.prop("disabled", true).addClass("disabled");
+          hint.text("Deploy this configuration first; re-login acts on the deployed node.");
+        }
+        button.on("click", function (event) {
+          event.preventDefault();
+          if (button.prop("disabled")) {
+            return;
+          }
+          button.prop("disabled", true);
+          $.ajax({
+            url: "easee-configuration/" + encodeURIComponent(node.id) + "/relogin",
+            type: "POST",
+            dataType: "json"
+          }).done(function () {
+            RED.notify("Easee: logged in again successfully.", { type: "success" });
+          }).fail(function (jqXHR) {
+            var error = (jqXHR.responseJSON && jqXHR.responseJSON.error) || jqXHR.statusText || "request failed";
+            // The error can carry API response text: show it as text, never as HTML.
+            RED.notify("Easee re-login failed: " + $("<span>").text(error).html(), { type: "error" });
+          }).always(function () {
+            button.prop("disabled", false);
+          });
+        });
       },
       oneditsave: function() {
         // Save the username as a regular property so it can be used in the label
@@ -105,6 +137,17 @@
     </div>
   </div>
   
+  <div class="form-row">
+    <label>&nbsp;</label>
+    <button type="button" id="node-config-easee-relogin" class="red-ui-button">
+      <i class="fa fa-refresh"></i> Re-login
+    </button>
+    <div class="form-tips" id="node-config-easee-relogin-hint">
+      Discards the deployed node's tokens and logs in to Easee again. Use it when the node reports that
+      authentication failed or timed out, instead of redeploying.
+    </div>
+  </div>
+
   <div class="form-tips">
     <p><strong>Note:</strong> Both username and password are required for the Easee API authentication. The configuration will not be valid without both credentials.</p>
     <p><strong>Debug Logging:</strong> When enabled, detailed messages about authentication, token management, and API calls will be logged to help with troubleshooting.</p>

@@ -19,6 +19,14 @@ Node-Red module for streaming Easee charger data.
 Add the `easee Charger Streaming Client` node
 Configure the node with username/password and the Charger ID.
 
+### Re-login
+
+If the configuration node's status says authentication failed or timed out, open
+the configuration node in the editor and press **Re-login**. It discards the
+deployed node's tokens and logs in to Easee again, without a redeploy, and shows
+the outcome as a notification. The button is disabled until the configuration has
+been deployed; it acts on the deployed credentials, not on unsaved edits.
+
 ## Streaming node
 
 Configure the node with username/password and a Charger ID ("EH000000").

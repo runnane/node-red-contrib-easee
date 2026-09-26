@@ -30,6 +30,7 @@ import type {
   EaseeConfigurationDef,
   EaseeConfigurationNode,
   EaseeCredentials,
+  ReloginResult,
   TokenResponse,
 } from "./types";
 
@@ -1976,6 +1977,60 @@ export = (RED: NodeAPI) => {
       return response;
     };
 
+    /**
+     * Throw the tokens away and log in again, on request from the editor's
+     * "Re-login" button (EASEE-28). Also restarts the token-check cycle, which
+     * checkToken() stops for good once it has used up maxLoginRetries — without
+     * this the only way back from that state is a redeploy.
+     *
+     * The result is sent to the browser, so its error text has the password and
+     * both tokens redacted from it: doLogin() errors embed API response text.
+     */
+    node.relogin = async () => {
+      if (node.authenticationInProgress) {
+        return { ok: false, status: 409, error: "Authentication is already in progress; try again in a moment" };
+      }
+
+      const credentialsCheck = node.validateCredentials();
+      if (!credentialsCheck.valid) {
+        return { ok: false, status: 401, error: `Cannot login: ${credentialsCheck.message}` };
+      }
+
+      const secrets = [node.credentials?.password, node.accessToken, node.refreshToken];
+
+      if (node.checkTokenHandler) {
+        clearTimeout(node.checkTokenHandler);
+        node.checkTokenHandler = null;
+      }
+      node.accessToken = false;
+      node.refreshToken = false;
+      node.tokenExpires = new Date();
+      node.tokenIssuedAt = new Date();
+      node.tokenLifetime = 0;
+      node.refreshRetryCount = 0;
+      node.loginRetryCount = 0;
+
+      node.logInfo("Re-login requested from the editor");
+      node.authenticationInProgress = true;
+      let result: ReloginResult;
+      try {
+        await node.doLogin();
+        result = { ok: true, status: 200 };
+      } catch (error) {
+        const raw = error instanceof Error ? error.message : String(error);
+        const message = redactSecrets(raw, [...secrets, node.accessToken, node.refreshToken]);
+        const status = /^Login failed \((400|401|403)\)/.test(message) ? 401 : 500;
+        result = { ok: false, status, error: message };
+      } finally {
+        node.authenticationInProgress = false;
+      }
+
+      // Restart the token-check cycle: straight away after a good login (it only
+      // schedules the next check), after a minute after a failed one.
+      node.checkTokenHandler = setTimeout(() => node.emit("start"), result.ok ? 0 : 60 * 1000);
+      return result;
+    };
+
     // Start connecting in two seconds
     node.checkTokenHandler = setTimeout(() => node.emit("start"), 2000);
   }
@@ -1992,4 +2047,44 @@ export = (RED: NodeAPI) => {
       },
     },
   );
+
+  // The editor's "Re-login" button (EASEE-28). Registered once per runtime, here
+  // rather than in the constructor, and dispatches on the deployed node's id.
+  // The response carries ok/error only — never the password or a token.
+  RED.httpAdmin.post(
+    "/easee-configuration/:id/relogin",
+    RED.auth.needsPermission("easee-configuration.write"),
+    async (req, res) => {
+      const target = RED.nodes.getNode(String(req.params.id)) as EaseeConfigurationNode | null;
+      if (!target || target.type !== "easee-configuration" || typeof target.relogin !== "function") {
+        res.status(404).json({
+          ok: false,
+          error: "No deployed easee-configuration node has that id. Deploy the flow first.",
+        });
+        return;
+      }
+
+      try {
+        const result = await target.relogin();
+        if (result.ok) {
+          res.status(200).json({ ok: true });
+        } else {
+          res.status(result.status).json({ ok: false, error: result.error });
+        }
+      } catch {
+        res.status(500).json({ ok: false, error: "Re-login failed unexpectedly; see the Node-RED log" });
+      }
+    },
+  );
 };
+
+/** Replace every occurrence of each non-empty secret in `text` with a marker. */
+function redactSecrets(text: string, secrets: unknown[]): string {
+  let out = text;
+  for (const secret of secrets) {
+    if (typeof secret === "string" && secret.length > 0) {
+      out = out.split(secret).join("[redacted]");
+    }
+  }
+  return out;
+}
