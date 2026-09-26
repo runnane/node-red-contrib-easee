@@ -2,11 +2,10 @@
  * Asserts the User-Agent header (EASEE-27) is actually sent by the REAL
  * doAuthRestCall() and doLogin() implementations, driven through a real
  * Node-RED runtime via node-red-node-test-helper — the same pattern as
- * rest-call-errors.test.ts and charger-state-observations.test.ts. Several
- * other tests in this suite (authentication.test.ts, tokenRefresh.test.ts,
- * tests/integration/authFlow.test.ts) re-implement these methods inline for
- * their own scenarios, which would not notice a header dropped from the real
- * easee-client/easee-configuration.ts — hence a real-module test here.
+ * rest-call-errors.test.ts and charger-state-observations.test.ts. (It was
+ * written when other tests re-implemented these methods inline and so could not
+ * notice a header dropped from the real easee-client/easee-configuration.ts;
+ * EASEE-31 removed those.)
  */
 
 import { readFileSync } from "node:fs";
