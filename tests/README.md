@@ -43,7 +43,7 @@ pnpm test:coverage          # with the coverage floor from vitest.config.mts
 pnpm test:unit
 pnpm test:integration
 pnpm test:watch
-pnpm test:node-red-5         # the same suite, helper.init() booting node-red 5 instead (EASEE-41)
+pnpm test:node-red-5         # the same suite, helper.init() booting node-red 5 (from tests/node-red-5) instead (EASEE-41)
 pnpm exec vitest run tests/unit/configValidation.test.ts   # one file
 ```
 

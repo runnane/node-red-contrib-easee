@@ -4,9 +4,15 @@
  *
  * Defaults to this repo's own `node-red` devDependency (^4.x — what most
  * users still run). Setting `EASEE_NODE_RED_PATH` to a different installed
- * module specifier — e.g. the `node-red-5` alias devDependency (EASEE-41,
- * `"node-red-5": "npm:node-red@^5"`) — swaps every helper-based test file's
- * runtime without touching any of their sources; see `pnpm test:node-red-5`.
+ * node-red — a bare module specifier, or a `./` path resolved against the
+ * repo root (the working directory Vitest runs in) — swaps every helper-based
+ * test file's runtime without touching any of their sources. `pnpm
+ * test:node-red-5` (EASEE-41) points it at
+ * `./tests/node-red-5/node_modules/node-red`, which the `tests/node-red-5`
+ * workspace package installs. That was an `npm:node-red@^5` alias
+ * devDependency until EASEE-48: pnpm audit keys its request tree by package
+ * name, so the alias overwrote the root's node-red 4 entry and node-red 4's
+ * whole subtree never reached the audit.
  *
  * Provenance, not just a green run: importing this module (via
  * `initHelperWithResolvedRuntime`) prints the version of the runtime it
@@ -28,7 +34,7 @@ function nodeRedSpecifier(): string {
 
 /** The node-red entry file `helper.init()` should be pointed at. */
 export function resolveNodeRedRuntimePath(): string {
-  return require.resolve(nodeRedSpecifier());
+  return require.resolve(nodeRedSpecifier(), { paths: [process.cwd()] });
 }
 
 /**

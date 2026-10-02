@@ -1,0 +1,9 @@
+{
+  "name": "easee-test-node-red-5",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Installs node-red 5 for `pnpm test:node-red-5` (EASEE-41). A pnpm workspace package rather than an npm-alias devDependency on the root, because pnpm audit keys its request tree by package name and an alias of node-red beside node-red drops one line's whole subtree from the audit (EASEE-48).",
+  "devDependencies": {
+    "node-red": "^5.0.7"
+  }
+}

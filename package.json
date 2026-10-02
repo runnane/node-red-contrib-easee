@@ -49,10 +49,10 @@
     "test:coverage": "vitest run --coverage",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
-    "test:node-red-5": "EASEE_NODE_RED_PATH=node-red-5 EASEE_NODE_RED_EXPECT_MAJOR=5 vitest run",
+    "test:node-red-5": "EASEE_NODE_RED_PATH=./tests/node-red-5/node_modules/node-red EASEE_NODE_RED_EXPECT_MAJOR=5 vitest run",
     "test:compat": "node dist/scripts/check-node-loads.js",
     "audit:prod": "node dist/scripts/audit-production.js",
-    "dep-update": "pnpm dlx npm-check-updates -u && pnpm install"
+    "dep-update": "pnpm dlx npm-check-updates -u --root --workspaces && pnpm install"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
@@ -61,7 +61,6 @@
     "@types/node-red-node-test-helper": "^0.3.5",
     "@vitest/coverage-v8": "^5.0.1",
     "node-red": "^4.1.15",
-    "node-red-5": "npm:node-red@^5.0.7",
     "node-red-node-test-helper": "^0.3.6",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
