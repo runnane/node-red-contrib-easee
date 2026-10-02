@@ -99,6 +99,12 @@ output**, `dist/easee-client/`, not its source.
    green with the override in place. Delete the `jsonata` line once `@types/node-red`
    moves its `@types/node-red__util` dependency to `jsonata>=2.2.1` on its own; delete
    the `qs` line once node-red's `express` pin moves past `qs@6.16.0`.
+   A third, `multer` (`>=2.4.0`, EASEE-47), clears GHSA-3pph-fpjx-jg34:
+   `@node-red/editor-api` **and** `@node-red/nodes` both exact-pin `multer` 2.3.0 in
+   the node-red 4 and 5 lines, so Dependabot's own security update fails with "No
+   update possible". It is unscoped because a `parent>multer` key would need one entry
+   per pinning package. Only node-red pulls multer, so it is dev-only too. Delete it once
+   every node-red line this repo installs pins `multer>=2.4.0`.
 
 ## Build / test / lint (run before finishing any change)
 

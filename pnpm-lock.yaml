@@ -7,6 +7,7 @@ settings:
 overrides:
   '@types/node-red__util>jsonata': '>=2.2.1'
   express>qs: '>=6.16.0'
+  multer: '>=2.4.0'
 
 packageExtensionsChecksum: sha256-hWvHNFi/QhEJHGTsWQsYlQIyxcyJ3Vd8RJVIE7ar8Ag=
 
@@ -1470,8 +1471,8 @@ packages:
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
-  multer@2.3.0:
-    resolution: {integrity: sha512-cjNbm3sttszgZeGfJR124D+jFEfkXCVAsoPBmFn9X7UxmDSFHWqE2CoEj0vrmSpuAFnqWR1Szcm9QTsiHr60Xw==}
+  multer@2.4.0:
+    resolution: {integrity: sha512-7dqa0ZcFfzbefdTuIkzOSMvZWC0J7FLqBOjJUZvDCXShIURWKxAyTT1wHhnE5q19c7jOJf43IYYKjBmZVZmvhg==}
     engines: {node: '>= 10.16.0'}
 
   mustache@4.2.0:
@@ -2379,7 +2380,7 @@ snapshots:
       express-session: 1.19.0
       memorystore: 1.6.8
       mime: 3.0.0
-      multer: 2.3.0
+      multer: 2.4.0
       mustache: 4.2.0
       oauth2orize: 1.12.0
       passport: 0.7.0
@@ -2406,7 +2407,7 @@ snapshots:
       express-session: 1.19.0
       memorystore: 1.6.8
       mime: 3.0.0
-      multer: 2.3.0
+      multer: 2.4.0
       mustache: 4.2.0
       oauth2orize: 1.12.0
       passport: 0.7.0
@@ -2449,7 +2450,7 @@ snapshots:
       js-yaml: 4.3.2
       media-typer: 1.1.0
       mqtt: 5.15.2
-      multer: 2.3.0
+      multer: 2.4.0
       mustache: 4.2.0
       node-watch: 0.7.4
       on-headers: 1.1.0
@@ -2486,7 +2487,7 @@ snapshots:
       js-yaml: 4.3.2
       media-typer: 1.1.0
       mqtt: 5.15.2
-      multer: 2.3.0
+      multer: 2.4.0
       mustache: 4.2.0
       node-watch: 0.7.4
       on-headers: 1.1.0
@@ -3805,11 +3806,10 @@ snapshots:
 
   ms@2.1.3: {}
 
-  multer@2.3.0:
+  multer@2.4.0:
     dependencies:
       append-field: 1.0.0
       busboy: 1.6.0
-      concat-stream: 2.0.0
       type-is: 1.6.18
 
   mustache@4.2.0: {}
