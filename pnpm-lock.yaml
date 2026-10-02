@@ -16,8 +16,8 @@ importers:
   .:
     dependencies:
       '@microsoft/signalr':
-        specifier: 9.0.19
-        version: 9.0.19
+        specifier: 10.0.11
+        version: 10.0.11
     devDependencies:
       '@biomejs/biome':
         specifier: 2.5.14
@@ -160,8 +160,8 @@ packages:
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
 
-  '@microsoft/signalr@9.0.19':
-    resolution: {integrity: sha512-hKDxt4nRXvkhhy+Etlhbg0UDQdhk8PsZKlQTnHyCn+bb+Q6gM8RCZLI43WsLH1IQCa7l/G8tX09em1F1LH/C1w==}
+  '@microsoft/signalr@10.0.11':
+    resolution: {integrity: sha512-FulOJ2EEtKvLQcswe/U7v8pzyXyk7Jua5xgWJPPwyQU/2Z9ORvKcVjyO75VvLsem+CJ1ORRexJ+7Bz1FCei2aw==}
 
   '@napi-rs/wasm-runtime@0.2.12':
     resolution: {integrity: sha512-ZVWUcfwY4E/yPitQJl481FjFo3K22D6qF0DuFH6Y/nbnE11GY5uguDxZMGXPQ8WQ0128MXQD7TnfHyK4oWoIJQ==}
@@ -2347,7 +2347,7 @@ snapshots:
 
   '@keyv/serialize@1.1.1': {}
 
-  '@microsoft/signalr@9.0.19':
+  '@microsoft/signalr@10.0.11':
     dependencies:
       abort-controller: 3.0.0
       eventsource: 2.0.2
