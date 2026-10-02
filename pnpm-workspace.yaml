@@ -1,0 +1,7 @@
+# The root package plus one test-only package that installs node-red 5 for
+# `pnpm test:node-red-5` (EASEE-41). It is a workspace package, not an
+# `npm:node-red@^5` alias devDependency, because pnpm audit keys its request
+# tree by package name: an alias of node-red beside node-red overwrites one of
+# the two, and that line's whole subtree never reaches the audit (EASEE-48).
+packages:
+  - tests/node-red-5

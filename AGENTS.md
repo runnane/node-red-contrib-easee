@@ -57,8 +57,8 @@ Two Node versions matter, and they are different on purpose:
   the only evidence behind `>=18`, because nothing else can run there. It also loads
   it into Node-RED 5 on 22/24 (EASEE-24); the devDependency stays on node-red 4. The
   helper-based Vitest suite itself gets a node-red 5 leg too, on Node 24 (EASEE-41,
-  `pnpm test:node-red-5`) — see toolchain item 3 below for the aliased devDependency
-  this needs.
+  `pnpm test:node-red-5`) — see toolchain item 3 below for the `tests/node-red-5`
+  workspace package that installs it.
 
 ## The toolchain, and the four things about it that are not obvious
 
@@ -83,18 +83,26 @@ output**, `dist/easee-client/`, not its source.
    node-red's dependency), so every real-runtime test and gate 5 fail with `Cannot read
    properties of undefined (reading 'log')` — the real `Cannot find module` is swallowed
    by the helper. The extension links it beside node-red. Its version must match
-   node-red's; when dependabot bumps node-red, bump it too. The same trap applies to the
-   `node-red-5` alias devDependency (`"node-red-5": "npm:node-red@^5"`, EASEE-41): it
-   needs its own `"node-red@5": { "dependencies": { "@node-red/registry": "…" } }`
-   extension, keyed by the real package name/version pnpm resolves the alias to — not
-   by the alias name — and bumped in step with it.
+   node-red's; when dependabot bumps node-red, bump it too. The same trap applies to
+   node-red 5, which `pnpm test:node-red-5` (EASEE-41) boots from the
+   `tests/node-red-5` **workspace package** (`pnpm-workspace.yaml`): it needs its own
+   `"node-red@5": { "dependencies": { "@node-red/registry": "…" } }` extension, in the
+   root `package.json`, bumped in step with that package's `node-red`. Do not turn it
+   back into an `npm:node-red@^5` alias devDependency, which is what it was until
+   EASEE-48: pnpm keys its audit request by package name, so the alias overwrote the
+   root's node-red 4 entry and node-red 4's whole subtree (257 of 484 packages, multer
+   and qs among them) silently never reached `pnpm audit`.
+   `tests/unit/audit-tree-coverage.test.ts` refuses any `npm:` alias.
 4. **`pnpm.overrides` clears dev-only advisory chains that no in-range bump
    reaches** (EASEE-25, EASEE-47, EASEE-49): `@types/node-red__util>jsonata` (`>=2.2.1`, `@types/node-red`'s
    type-only dependency on an old, vulnerable `jsonata`) and `express>qs` (`>=6.16.0`,
    pulled in by node-red's pinned `express`). Neither `jsonata` nor `qs` ships — both
    sit under `devDependencies` only, `pnpm audit:prod` was and stays 0 — but they show
    up in a full `pnpm audit` and on GitHub's Dependabot alerts, which is what this
-   exists to silence. `@types/node-red__util>jsonata` needs only jsonata's type
+   exists to silence. (A full `pnpm audit` only sees them since EASEE-48 — see item 3;
+   before that, node-red's subtree reached Dependabot and npm's bulk advisory API but
+   not the local audit. If a full audit's `totalDependencies` ever falls well below
+   the lockfile's package count again, suspect the request, not the tree.) `@types/node-red__util>jsonata` needs only jsonata's type
    declarations, so bumping it is typecheck-safe; confirmed by `tsc --noEmit` staying
    green with the override in place. Delete the `jsonata` line once `@types/node-red`
    moves its `@types/node-red__util` dependency to `jsonata>=2.2.1` on its own; delete
@@ -299,6 +307,8 @@ tests/                   ESM (tests/package.json), Vitest
   integration/           real Node-RED runtime via node-red-node-test-helper (auth, re-login)
   fixtures/mockData.ts   synthetic API error bodies — keep them synthetic
   mocks/                 a stub RED and the typed fetch mock
+  node-red-5/            workspace package: installs node-red 5 for test:node-red-5 (EASEE-41, -48)
+pnpm-workspace.yaml      root + tests/node-red-5; not an npm alias, see toolchain item 3
 dist/                    build output, gitignored; dist/easee-client/ is what ships
 .github/workflows/ci.yml the test matrix, the packed-tarball compat matrix, the audit job
 .github/workflows/release.yml  dispatched release: gate, bump, tag, publish the gated dist/ (EASEE-16)

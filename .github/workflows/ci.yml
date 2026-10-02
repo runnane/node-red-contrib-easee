@@ -47,9 +47,10 @@ jobs:
 
     # The helper-based Vitest suite (node-red-node-test-helper's helper.init())
     # only ever booted this repo's own node-red devDependency (^4.x) until
-    # EASEE-41. The `node-red-5` alias devDependency (`npm:node-red@^5`, needs
-    # Node >=22.9 per its own engines field, hence one leg rather than every
-    # leg) is already installed by "Install dependencies" above, so this is a
+    # EASEE-41. node-red 5 (needs Node >=22.9 per its own engines field, hence
+    # one leg rather than every leg) comes from the `tests/node-red-5` workspace
+    # package — an npm alias until EASEE-48, which hid node-red 4's subtree from
+    # `pnpm audit` — and is already installed by "Install dependencies" above, so this is a
     # second vitest run of the SAME suite, pointed at it via EASEE_NODE_RED_PATH,
     # with EASEE_NODE_RED_EXPECT_MAJOR asserting the runtime it actually booted
     # rather than trusting a green run alone. No coverage thresholds apply here

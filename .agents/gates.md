@@ -145,6 +145,15 @@ EASEE-9 replaced it with an audit of only the tree a consumer installs, now
 `scripts/audit-production.ts` running `pnpm audit --json --prod`. pnpm reports in the
 npm-v6 shape (`advisories` keyed by id), not npm 7+'s `vulnerabilities`/`via`, and the
 script throws if `advisories` is missing so a changed shape cannot read as a clean tree.
+
+**An audit can also be clean because the request was short.** pnpm builds the audit
+request from the lockfile with each node keyed by package *name*, so two packages with
+one name side by side — an `npm:` alias beside the real thing — collapse into one, and
+the loser's subtree is never sent. Until EASEE-48 the `node-red-5` alias did exactly
+that: the full audit sent 227 of the lockfile's 484 packages and passed a `multer`
+pinned to a vulnerable version. `--prod` was never affected (it sent all 18 of 18). The
+quick check is `totalDependencies` in `pnpm audit --json` against the lockfile's package
+count; `tests/unit/audit-tree-coverage.test.ts` refuses aliases outright.
 **If you have old notes saying a red tick in this repo is not your regression, delete
 them — the opposite is true.**
 
