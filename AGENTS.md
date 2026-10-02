@@ -88,8 +88,8 @@ output**, `dist/easee-client/`, not its source.
    needs its own `"node-red@5": { "dependencies": { "@node-red/registry": "…" } }`
    extension, keyed by the real package name/version pnpm resolves the alias to — not
    by the alias name — and bumped in step with it.
-4. **`pnpm.overrides` clears two dev-only advisory chains that no in-range bump
-   reaches** (EASEE-25): `@types/node-red__util>jsonata` (`>=2.2.1`, `@types/node-red`'s
+4. **`pnpm.overrides` clears dev-only advisory chains that no in-range bump
+   reaches** (EASEE-25, EASEE-47, EASEE-49): `@types/node-red__util>jsonata` (`>=2.2.1`, `@types/node-red`'s
    type-only dependency on an old, vulnerable `jsonata`) and `express>qs` (`>=6.16.0`,
    pulled in by node-red's pinned `express`). Neither `jsonata` nor `qs` ships — both
    sit under `devDependencies` only, `pnpm audit:prod` was and stays 0 — but they show
@@ -104,7 +104,11 @@ output**, `dist/easee-client/`, not its source.
    the node-red 4 and 5 lines, so Dependabot's own security update fails with "No
    update possible". It is unscoped because a `parent>multer` key would need one entry
    per pinning package. Only node-red pulls multer, so it is dev-only too. Delete it once
-   every node-red line this repo installs pins `multer>=2.4.0`.
+   every node-red line this repo installs pins `multer>=2.4.0`. The same goes for
+   `axios` (`>=1.20.0`, nine GHSAs, four high) and `moment` (`>=2.31.0`,
+   GHSA-4p3w-j4w9-5jqw), both EASEE-49: `node-red-admin` exact-pins `axios` 1.19.0 and
+   `@node-red/util` exact-pins `moment` 2.30.1 in both lines. Delete each once node-red's
+   pin reaches the patched version.
 
 ## Build / test / lint (run before finishing any change)
 

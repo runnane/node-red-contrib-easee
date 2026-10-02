@@ -8,6 +8,8 @@ overrides:
   '@types/node-red__util>jsonata': '>=2.2.1'
   express>qs: '>=6.16.0'
   multer: '>=2.4.0'
+  axios: '>=1.20.0'
+  moment: '>=2.31.0'
 
 packageExtensionsChecksum: sha256-hWvHNFi/QhEJHGTsWQsYlQIyxcyJ3Vd8RJVIE7ar8Ag=
 
@@ -755,8 +757,8 @@ packages:
   asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
 
-  axios@1.19.0:
-    resolution: {integrity: sha512-ht/iuYZXEjFxLH/Hkezgd7m6JKlHHXEUSneaDz8uZe1Gj5QZtCnpyDsckvAiEnT89OEbCLmnte4R4sn7P0EKFw==}
+  axios@1.20.0:
+    resolution: {integrity: sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg==}
 
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
@@ -1454,8 +1456,8 @@ packages:
   moment-timezone@0.5.48:
     resolution: {integrity: sha512-f22b8LV1gbTO2ms2j2z13MuPogNoh5UzxL3nzNAYKGraILnbGc9NEE6dyiiiLv46DGRb8A4kg8UKWLjPthxBHw==}
 
-  moment@2.30.1:
-    resolution: {integrity: sha512-uEmtNhbDOrWPFS+hdjFCBfy9f2YoyzRpwcl+DqpC6taX21FzsTLQVbMV/W7PzNSX6x/bhC1zA3c2UQ5NzH6how==}
+  moment@2.31.0:
+    resolution: {integrity: sha512-0acOTfMiWOheYS4eoWb80yYMb/JLvVv9SHbs2PehaDzfUG0Bw855SKyk0IKTnPGa5+U2bmi3W68l1+sGLX/pvw==}
 
   mqtt-packet@9.0.2:
     resolution: {integrity: sha512-MvIY0B8/qjq7bKxdN1eD+nrljoeaai+qjLJgfRn3TiMuz0pamsIWY2bFODPZMSNmabsLANXsLl4EMoWvlaTZWA==}
@@ -2567,7 +2569,7 @@ snapshots:
       i18next: 25.8.14(typescript@7.0.2)
       json-stringify-safe: 5.0.1
       lodash.clonedeep: 4.5.0
-      moment: 2.30.1
+      moment: 2.31.0
       moment-timezone: 0.5.48
     transitivePeerDependencies:
       - typescript
@@ -2579,7 +2581,7 @@ snapshots:
       i18next: 25.8.14(typescript@7.0.2)
       json-stringify-safe: 5.0.1
       lodash.clonedeep: 4.5.0
-      moment: 2.30.1
+      moment: 2.31.0
       moment-timezone: 0.5.48
     transitivePeerDependencies:
       - typescript
@@ -3030,7 +3032,7 @@ snapshots:
 
   asynckit@0.4.0: {}
 
-  axios@1.19.0:
+  axios@1.20.0:
     dependencies:
       follow-redirects: 1.16.0
       form-data: 4.0.6
@@ -3767,9 +3769,9 @@ snapshots:
 
   moment-timezone@0.5.48:
     dependencies:
-      moment: 2.30.1
+      moment: 2.31.0
 
-  moment@2.30.1: {}
+  moment@2.31.0: {}
 
   mqtt-packet@9.0.2:
     dependencies:
@@ -3835,7 +3837,7 @@ snapshots:
   node-red-admin@4.1.7:
     dependencies:
       ansi-colors: 4.1.3
-      axios: 1.19.0
+      axios: 1.20.0
       bcryptjs: 3.0.3
       cli-table: 0.3.11
       enquirer: 2.4.1
