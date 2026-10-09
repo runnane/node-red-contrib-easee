@@ -25,7 +25,7 @@ importers:
         specifier: 2.5.15
         version: 2.5.15
       '@types/node':
-        specifier: ^26.6.1
+        specifier: ^26.6.4
         version: 26.6.4
       '@types/node-red':
         specifier: ^1.3.5
@@ -497,8 +497,8 @@ packages:
   '@types/node-red__editor-api@1.3.5':
     resolution: {integrity: sha512-VE0o/gJzHVBTD2OBhpWth3sjU06TYLlLvlPh62Whs9FXUY0FdFKqWXbaG+ymYQqZreL1ZvTKfFmj0H7LnVEUeg==}
 
-  '@types/node-red__editor-client@1.3.11':
-    resolution: {integrity: sha512-Y8FGsMfec4TAVfULabH/Jui+4Cj4F3xx9v4GDpoTN5X9uHwOxdRi9UDtdvG+se/S76CFg6VjsctpJW0WjJUXgw==}
+  '@types/node-red__editor-client@1.3.12':
+    resolution: {integrity: sha512-B7AfGrd9OS2Rp0UARArwaWYQVPHKkf0pWKZWw65URVBYdTOYo3yPD7/dAAmR4w0INRk4yL7RZt1bvfj68d0nHg==}
 
   '@types/node-red__registry@1.3.12':
     resolution: {integrity: sha512-OOLn7TjS5RQ1uC5xcCs1cGJFyY1949SmCxMb1RyZXB4s2UWnURDB0MNwA99kxJOctwVQiRCIDyupNubU9O0vHw==}
@@ -506,8 +506,8 @@ packages:
   '@types/node-red__runtime@1.3.8':
     resolution: {integrity: sha512-v5wsFjL6/kQ/YSz7WjC1J9yvE+NP8r5uivQTMBxnNnBabmDJo+dBmdp0rqJczbPNQS0ze7JGDQWz3Iuve+pYlw==}
 
-  '@types/node-red__util@1.3.8':
-    resolution: {integrity: sha512-FQRxaZyUJlyh2phJevzMSF4H8jrsOUmFg05eyhRX5lvDcc/VqdZWcYdAq9dZPRgIwHJwLBttEh9mG3DAcMJiUg==}
+  '@types/node-red__util@5.0.1':
+    resolution: {integrity: sha512-GbtQYYGklLIRBg0xDAgxyUWPgCfyf40nuGkLfxgFm4tmPN3Fsd8gU+vITIiDEidIZAw4beLsnmwpOm5eFPSfpQ==}
 
   '@types/node@26.6.4':
     resolution: {integrity: sha512-ldVPDCzj7fsaGZrLB0NuHuTvJcsNasysBAqMolr/cgxrLd1xbqxIr3XJiPnHHJUCxj5sNF1vnRj9aWnrVh5Jcg==}
@@ -1277,10 +1277,6 @@ packages:
 
   json-stringify-safe@5.0.1:
     resolution: {integrity: sha512-ZClg6AaYvamvYEE82d3Iyd3vSSIjQ+odgjaTzRuO3s7toCdFKczob2i0zCh7JE8kWn17yvAWhUVxvqGwUalsRA==}
-
-  jsonata@2.2.2:
-    resolution: {integrity: sha512-XDFH2PuaAXv0AXJEWwElXbqADmKFGKMLMkFb+qOz0EhjQW2EIJ6pgtordLU+4u3IVERyBfqy6bi6kZKEncvRqA==}
-    engines: {node: '>= 8'}
 
   jsonfile@6.2.1:
     resolution: {integrity: sha512-zwOTdL3rFQ/lRdBnntKVOX6k5cKJwEc1HdilT71BWEu7J41gXIB2MRp+vxduPSwZJPWBxEzv4yH1wYLJGUHX4Q==}
@@ -2801,43 +2797,42 @@ snapshots:
     dependencies:
       '@types/express': 5.0.6
       '@types/node-red__editor-api': 1.3.5
-      '@types/node-red__editor-client': 1.3.11
+      '@types/node-red__editor-client': 1.3.12
       '@types/node-red__registry': 1.3.12
       '@types/node-red__runtime': 1.3.8
-      '@types/node-red__util': 1.3.8
+      '@types/node-red__util': 5.0.1
 
   '@types/node-red__editor-api@1.3.5':
     dependencies:
       '@types/express': 5.0.6
       '@types/node-red__runtime': 1.3.8
 
-  '@types/node-red__editor-client@1.3.11':
+  '@types/node-red__editor-client@1.3.12':
     dependencies:
       '@types/ace': 0.0.52
       '@types/jquery': 4.0.1
       '@types/node-red__registry': 1.3.12
       '@types/node-red__runtime': 1.3.8
-      '@types/node-red__util': 1.3.8
+      '@types/node-red__util': 5.0.1
 
   '@types/node-red__registry@1.3.12':
     dependencies:
       '@types/express': 5.0.6
       '@types/node-red__runtime': 1.3.8
-      '@types/node-red__util': 1.3.8
+      '@types/node-red__util': 5.0.1
 
   '@types/node-red__runtime@1.3.8':
     dependencies:
       '@types/cors': 2.8.19
       '@types/express': 5.0.6
       '@types/node-red__editor-api': 1.3.5
-      '@types/node-red__util': 1.3.8
+      '@types/node-red__util': 5.0.1
       '@types/passport': 1.0.17
 
-  '@types/node-red__util@1.3.8':
+  '@types/node-red__util@5.0.1':
     dependencies:
       '@types/node-red__registry': 1.3.12
       '@types/node-red__runtime': 1.3.8
-      jsonata: 2.2.2
 
   '@types/node@26.6.4':
     dependencies:
@@ -3638,8 +3633,6 @@ snapshots:
   json-schema-traverse@1.0.0: {}
 
   json-stringify-safe@5.0.1: {}
-
-  jsonata@2.2.2: {}
 
   jsonfile@6.2.1:
     dependencies:
