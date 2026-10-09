@@ -118,6 +118,18 @@ output**, `dist/easee-client/`, not its source.
    `@node-red/util` exact-pins `moment` 2.30.1 in both lines. Delete each once node-red's
    pin reaches the patched version.
 
+   **One dev-only high is accepted, not overridden** (EASEE-52): GHSA-ch52-4w7c-c8xp in
+   `http-cache-semantics` (via node-red's `got` → `cacheable-request`), so a full
+   `pnpm audit` is red by one high on purpose. There is no fix to take. Upstream closed
+   the report as `not_planned`. 4.3.0 is outside the advisory's `<=4.2.0` range, but its
+   `max-stale` branch (`allowsStaleWithoutRevalidation`) is unchanged from 4.2.0, so an
+   override to it would clear the audit without fixing anything. Do not add one. The
+   Dependabot alert is dismissed as `tolerable_risk`. There is deliberately no
+   `pnpm.auditConfig.ignoreGhsas` entry either: it is global, so it would also hide the
+   advisory from `pnpm audit:prod` if the package ever shipped. Revisit only if the GHSA
+   gains a `first_patched_version`. Before taking that version, diff its `index.js`
+   around `allowsStaleWithoutRevalidation`.
+
 ## Build / test / lint (run before finishing any change)
 
 ```bash
