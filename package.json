@@ -23,7 +23,7 @@
     "dist/easee-client"
   ],
   "dependencies": {
-    "@microsoft/signalr": "9.0.19"
+    "@microsoft/signalr": "10.0.11"
   },
   "node-red": {
     "nodes": {
